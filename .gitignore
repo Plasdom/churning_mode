@@ -3,3 +3,4 @@ build
 .DS_Store
 data/*
 !data/BOUT.inp
+blob2d.cxx

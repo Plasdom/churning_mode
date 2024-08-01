@@ -1,51 +1,19 @@
-/*!******************************************************************
- * \file blob2d.cxx
- *
- *       2D simulations
- *
- *        NR Walkden, B Dudson  20 January 2012
- *******************************************************************/
-
 #include <bout/derivs.hxx>         // To use DDZ()
 #include <bout/invert_laplace.hxx> // Laplacian inversion
 #include <bout/physicsmodel.hxx>   // Commonly used BOUT++ components
 
-/// 2D drift-reduced model, mainly used for blob studies
+/// Churning mode model
 ///
 ///
-class Blob2D : public PhysicsModel
+class Churn : public PhysicsModel
 {
 private:
   // Evolving variables
-  Field3D n, omega; ///< Density and vorticity
-
-  // Auxilliary variables
-  Field3D phi; ///< Electrostatic potential
+  Field3D P, psi; ///< Pressure and poloidal magnetic flux
 
   // Parameters
-  BoutReal rho_s;   ///< Bohm gyro radius
-  BoutReal Omega_i; ///< Ion cyclotron frequency
-  BoutReal c_s;     ///< Bohm sound speed
-  BoutReal n0;      ///< Reference density
-
-  // Constants to calculate the parameters
-  BoutReal Te0; ///< Isothermal temperature [eV]
-  BoutReal B0;  ///< Constant magnetic field [T]
-  BoutReal m_i; ///< Ion mass [kg]
-  BoutReal m_e; ///< Electron mass [kg]
-  BoutReal e;   ///< Electron charge [C]
-
-  BoutReal D_n, D_vort; ///< Diffusion coefficients
-  BoutReal R_c;         ///< Radius of curvature
-  BoutReal L_par;       ///< Parallel connection length
-
-  // Model options
-  bool boussinesq;   ///< Use the Boussinesq approximation in vorticity
-  bool compressible; ///< If allow inclusion of n grad phi term in density evolution
-  bool sheath;       ///< Sheath connected?
-
-  std::unique_ptr<Laplacian> phiSolver{
-      nullptr}; ///< Performs Laplacian inversions to calculate phi
+  BoutReal chi; ///< Thermal diffusivity
+  BoutReal D_m; ///< Magnetic diffusivity
 
 protected:
   int init(bool UNUSED(restarting))
@@ -57,76 +25,12 @@ protected:
     auto &options = globalOptions["model"];
 
     // Load system parameters
-    Te0 = options["Te0"].doc("Temperature in eV").withDefault(30.0);
-
-    e = options["e"].withDefault(1.602e-19);
-    m_i = options["m_i"].withDefault(2 * 1.667e-27);
-    m_e = options["m_e"].withDefault(9.11e-31);
-
-    n0 = options["n0"].doc("Background density in cubic m").withDefault(1e19);
-    D_vort = options["D_vort"].doc("Viscous diffusion coefficient").withDefault(0.0);
-    D_n = options["D_n"].doc("Density diffusion coefficient").withDefault(0.0);
-
-    R_c = options["R_c"].doc("Radius of curvature").withDefault(1.5);
-    L_par = options["L_par"].doc("Parallel connection length").withDefault(10.0);
-
-    B0 = options["B0"].doc("Value of magnetic field strength").withDefault(0.35);
-
-    // System option switches
-
-    compressible = options["compressible"]
-                       .doc("Compressible ExB term in density equation")
-                       .withDefault(false);
-    boussinesq = options["boussinesq"]
-                     .doc("Use Boussinesq approximation in vorticity")
-                     .withDefault(true);
-    sheath = options["sheath"].doc("Sheath closure").withDefault(true);
-
-    /***************Calculate the Parameters **********/
-
-    Omega_i = e * B0 / m_i;    // Cyclotron Frequency
-    c_s = sqrt(e * Te0 / m_i); // Bohm sound speed
-    rho_s = c_s / Omega_i;     // Bohm gyro-radius
-
-    output.write(
-        "\n\n\t----------Parameters: ------------ \n\tOmega_i = {:e} /s,\n\tc_s = "
-        "{:e} m/s,\n\trho_s = {:e} m\n",
-        Omega_i, c_s, rho_s);
-
-    // Calculate delta_*, blob size scaling
-    output.write("\tdelta_* = rho_s * (dn/n) * {:e} ",
-                 pow(L_par * L_par / (R_c * rho_s), 1. / 5));
-
-    /************ Create a solver for potential ********/
-
-    Options &boussinesq_options = Options::root()["phiBoussinesq"];
-    Options &non_boussinesq_options = Options::root()["phiSolver"];
-
-    if (boussinesq)
-    {
-      // BOUT.inp section "phiBoussinesq"
-      phiSolver = Laplacian::create(&boussinesq_options);
-      // Mark other section as conditionally used so we don't get errors from unused
-      // options
-      non_boussinesq_options.setConditionallyUsed();
-    }
-    else
-    {
-      // BOUT.inp section "phiSolver"
-      phiSolver = Laplacian::create(&non_boussinesq_options);
-      // Mark other section as conditionally used so we don't get errors from unused
-      // options
-      boussinesq_options.setConditionallyUsed();
-    }
-    phi = 0.0; // Starting guess for first solve (if iterative)
+    chi = options["chi"].doc("Thermal diffusivity").withDefault(0.0);
+    D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(1.0e-06);
 
     /************ Tell BOUT++ what to solve ************/
 
-    SOLVE_FOR(n, omega);
-
-    // Output phi
-    SAVE_REPEAT(phi);
-    SAVE_ONCE(rho_s, c_s, Omega_i);
+    SOLVE_FOR(P, psi);
 
     return 0;
   }
@@ -136,58 +40,21 @@ protected:
 
     // Run communications
     ////////////////////////////////////////////////////////////////////////////
-    mesh->communicate(n, omega);
+    mesh->communicate(P, psi);
 
-    // Invert div(n grad(phi)) = grad(n) grad(phi) + n Delp_perp^2(phi) = omega
-    ////////////////////////////////////////////////////////////////////////////
-
-    if (!boussinesq)
-    {
-      // Including full density in vorticit inversion
-      phiSolver->setCoefC(n);                 // Update the 'C' coefficient. See invert_laplace.hxx
-      phi = phiSolver->solve(omega / n, phi); // Use previous solution as guess
-    }
-    else
-    {
-      // Background density only (1 in normalised units)
-      phi = phiSolver->solve(omega);
-    }
-
-    mesh->communicate(phi);
-
-    // Density Evolution
+    // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(n) = -bracket(phi, n, BRACKET_ARAKAWA) // ExB term
-             + 2 * DDZ(n) * (rho_s / R_c)      // Curvature term
-             + D_n * Delp2(n);                 // Diffusion term
-    if (compressible)
-    {
-      ddt(n) -= 2 * n * DDZ(phi) * (rho_s / R_c); // ExB Compression term
-    }
+    ddt(P) = chi * (D2DX2(P) + D2DZ2(P));
 
-    if (sheath)
-    {
-      // Sheath closure
-      ddt(n) += n * phi * (rho_s / L_par);
-    }
-
-    // Vorticity evolution
+    // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(omega) = -bracket(phi, omega, BRACKET_ARAKAWA) // ExB term
-                 + 2 * DDZ(n) * (rho_s / R_c) / n      // Curvature term
-                 + D_vort * Delp2(omega) / n           // Viscous diffusion term
-        ;
-
-    if (sheath)
-    {
-      ddt(omega) += phi * (rho_s / L_par);
-    }
+    ddt(psi) = D_m * (D2DX2(psi) + D2DZ2(psi));
 
     return 0;
   }
 };
 
 // Define a standard main() function
-BOUTMAIN(Blob2D);
+BOUTMAIN(Churn);
