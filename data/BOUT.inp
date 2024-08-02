@@ -10,16 +10,19 @@ nout = 100      # number of time-steps
 timestep = 1.0  # time between outputs [1/wci]
 
 MXG = 2
-MYG = 0
+MYG = 2
 
 [mesh]
 
 nx = 100
-ny = 1
-nz = 100
+ny = 100
+nz = 1
 
-dx = 0.02  
+dx = 0.02/2*pi  
+dy = 0.02
 dz = 0.02
+
+ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
 
 ##################################################
 # derivative methods
@@ -51,36 +54,50 @@ atol = 1e-10  # absolute tolerance
 rtol = 1e-05   # relative tolerance
 mxstep = 10000  # Maximum internal steps per output
 
+###################################################
+# Electrostatic potential solver (Boussinesq)
+
+[phiBoussinesq]
+# By default type is tri (serial) or spt (parallel)
+
 ##################################################
 # general settings for the model
 
 [model]
 
-chi = 1.0e-02   # Thermal diffusivity
+chi = 1.0e6   # Thermal diffusivity
 D_m = 0.0   # Magnetic diffusivity
+mu = 0.0    # Vorticity diffusivity
+epsilon = 0.4    # Aspect ratio
+beta_p = 1.0e-1    # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
 # These can be overridden for individual variables in
 # a section of that name.
 
-[all]
-#scale = 0.0 # default size of initial perturbations
+#[all]
 
-bndry_all = none
+#bndry_all = none
 
 [P]  # Pressure
 
-intercept = 0.5
-gradient = 0.25
-function = intercept + gradient * z
-bndry_yup = dirichlet(100.0)
-#bndry_ydown = dirichlet(0.0)
-#bndry_xdown = dirichlet(100.0)
-#bndry_xout = dirichlet(0.0)
-#bndry_all = none
+intercept = 0.0
+gradient = 0.5
+function = intercept + gradient * (y/ (2 * pi))
+bndry_all = none
 
 [psi]
 
-function = 0.0
-#bndry_all = dirichlet(0.0)
+#function = (x - 0.5)^2 - ((y/(2*pi)) - 0.5)^2
+function = -((y/(2*pi)) - 0.5)^3 + 3 * ((y/(2*pi)) - 0.5) * (x - 0.5)^2 
+bndry_all = none
+
+[omega]
+
+function = 0
+#bndry_xin = zerolaplace
+#bndry_xout = zerolaplace
+#bndry_yup = none
+#bndry_ydown = none
+bndry_all = none
