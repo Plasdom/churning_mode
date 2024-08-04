@@ -6,23 +6,22 @@
 
 # settings used by the core code
 
-nout = 100      # number of time-steps
-timestep = 1e-15  # time between outputs [1/wci]
+nout = 100     # number of time-steps
+timestep = 1e-12  # time between outputs [1/wci]
 
 MXG = 2
-MYG = 2
+MYG = 0
 
 [mesh]
 
 nx = 100
-ny = 100
-nz = 1
+ny = 1
+nz = 100
 
-dx = 0.002
-dy = 0.002
-dz = 0.002
+dx = 0.1 / nx
+dz = 0.1 / nz
 
-ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
+#ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
 
 ##################################################
 # derivative methods
@@ -65,11 +64,11 @@ mxstep = 10000  # Maximum internal steps per output
 
 [model]
 
-chi = 1.0e-2   # Thermal diffusivity
+chi = 1   # Thermal diffusivity
 D_m = 0  # Magnetic diffusivity
 mu = 0    # Vorticity diffusivity
 epsilon = 0.4    # Aspect ratio
-beta_p = 1.0e-1    # Poloidal beta
+beta_p = 0.06    # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
@@ -83,15 +82,15 @@ beta_p = 1.0e-1    # Poloidal beta
 [P]  # Pressure
 
 intercept = 0.0
-gradient = 1000.0
-function = intercept + gradient * (y/ (2 * pi))
+gradient = 20
+function = intercept + gradient * (z/ (2 * pi))
 bndry_all = none
 
 [psi]
 
-x_coord = 0.2 * {xarg} - 0.1
-y_coord = (0.2 * {yarg} / (2*pi)) - 0.1
-function = [xarg = x, yarg = y]((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord))
+x_coord =  {xarg} - 0.5
+y_coord = ({yarg} / (2*pi)) - 0.5
+function = [xarg = x, yarg = z]((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord))
 bndry_all = none
 
 [omega]
