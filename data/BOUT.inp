@@ -7,7 +7,7 @@
 # settings used by the core code
 
 nout = 100     # number of time-steps
-timestep = 1e-6  # time between outputs [1/wci]
+timestep = 1e-2  # time between outputs [1/wci]
 
 MXG = 2
 MYG = 0
@@ -64,25 +64,25 @@ mxstep = 10000  # Maximum internal steps per output
 
 [model]
 
-chi = 1000   # Thermal diffusivity
-D_m = 0  # Magnetic diffusivity
+chi = 0   # Thermal diffusivity
+D_m = 0 # Magnetic diffusivity
 mu = 0    # Vorticity diffusivity
-epsilon = 0.4    # Aspect ratio
-beta_p = 1000.0   # Poloidal beta
+epsilon = 1.0    # Aspect ratio
+beta_p = 100000.0   # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
 # These can be overridden for individual variables in
 # a section of that name.
 
-#[all]
+[all]
 
-#bndry_all = none
+bndry_all = none
 
 [P]  # Pressure
 
 intercept = 0.0
-gradient = 20
+gradient = 10
 function = intercept + gradient * (z/ (2 * pi))
 bndry_all = none
 
@@ -90,7 +90,7 @@ bndry_all = none
 
 x_coord =  {xarg} - 0.5
 y_coord = ({yarg} / (2*pi)) - 0.5
-function = [xarg = x, yarg = z](10 * ((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord)))
+function = [xarg = x, yarg = z](((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord)))
 bndry_all = none
 
 [omega]
@@ -101,3 +101,7 @@ function = 0
 #bndry_yup = none
 #bndry_ydown = none
 bndry_all = none
+
+[phi]
+
+bndry_all = dirichlet

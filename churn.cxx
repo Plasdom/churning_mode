@@ -55,7 +55,7 @@ protected:
     // phiSolver->setCoefs(1.0, 0.0);
 
     phi = 0.0; // Starting guess for first solve (if iterative)
-    // phi.setBoundary(0);
+    phi.setBoundary("phi");
 
     /************ Tell BOUT++ what to solve ************/
 
@@ -82,6 +82,7 @@ protected:
     // phi = phiSolver->solve(omega, phi);
     u_x = DDZ(phi);
     u_z = DDX(phi);
+    phi.applyBoundary();
 
     mesh->communicate(phi, u_x, u_z);
 
