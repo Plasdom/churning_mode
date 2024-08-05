@@ -13,8 +13,11 @@ private:
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi;      ///< Electrostatic potential
-  Field3D u_x, u_z; ///< Flow velocity
+  // Field3D phi;      ///< Electrostatic potential
+  Field3D u_x, u_y; ///< Flow velocity
+
+  // 2D variables
+  Field3D phi;
 
   // Parameters
   BoutReal chi;     ///< Thermal diffusivity
@@ -59,10 +62,11 @@ protected:
 
     /************ Tell BOUT++ what to solve ************/
 
-    SOLVE_FOR(P, psi, omega);
+    SOLVE_FOR(P, psi, omega, phi);
 
     // Output phi
-    SAVE_REPEAT(phi, u_x, u_z);
+    SAVE_REPEAT(phi, u_x, u_y);
+    // SAVE_REPEAT(phi);
 
     return 0;
   }
@@ -78,33 +82,59 @@ protected:
     ////////////////////////////////////////////////////////////////////////////
 
     // Background density only (1 in normalised units)
-    phi = phiSolver->solve(omega);
+    // phi = phiSolver->solve(omega);
+    // Field2D omega2D = DC(omega);
     // phi = phiSolver->solve(omega, phi);
-    u_x = DDZ(phi);
-    u_z = DDX(phi);
-    phi.applyBoundary();
 
-    mesh->communicate(phi, u_x, u_z);
+    ddt(phi) = Delp2(phi) - omega;
+    phi.applyBoundary();
+    u_x = DDY(phi);
+    u_y = DDX(phi);
+
+    mesh->communicate(phi, u_x, u_y);
+    // mesh->communicate(phi);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
     // P.applyBoundary();
-    ddt(P) = -bracket(P, phi, BRACKET_ARAKAWA);
-    ddt(P) += chi * Delp2(P);
+    // ddt(P) = -bracket(P, phi, BRACKET_ARAKAWA);
+    // ddt(P) += chi * Delp2(P);
+
+    // ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
+    // ddt(P) += chi * Laplace(P);
+
+    // ddt(P) = -bracket(P, phi);
+    // ddt(P) += chi * Laplace(P);
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
     ddt(psi) = -bracket(psi, phi, BRACKET_ARAKAWA);
-    ddt(psi) += D_m * Delp2(psi);
+    // ddt(psi) += D_m * Delp2(psi);
+
+    // ddt(psi) = -(DDX(psi) * DDY(phi) - DDX(phi) * DDY(psi));
+    // ddt(psi) += D_m * Laplace(psi);
+
+    // ddt(psi) = -bracket(psi, phi);
+    // ddt(psi) += D_m * Laplace(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
     ddt(omega) = -bracket(omega, phi, BRACKET_ARAKAWA);
-    ddt(omega) += mu * Delp2(omega);
-    ddt(omega) += 2 * epsilon * DDZ(P);
+    // ddt(omega) += mu * Delp2(omega);
+    // ddt(omega) += 2 * epsilon * DDZ(P);
     ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
+
+    // ddt(omega) = -(DDX(omega) * DDY(phi) - DDX(phi) * DDY(omega));
+    // ddt(omega) += mu * Laplace(omega);
+    // ddt(omega) += 2 * epsilon * DDY(P);
+    // ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
+
+    // ddt(omega) = -bracket(omega, phi);
+    // ddt(omega) += mu * Laplace(omega);
+    // ddt(omega) += 2 * epsilon * DDY(P);
+    // ddt(omega) += (2 / beta_p) * bracket(psi, Laplace(psi));
 
     return 0;
   }

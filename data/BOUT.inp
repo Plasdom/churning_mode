@@ -6,10 +6,10 @@
 
 # settings used by the core code
 
-nout = 100     # number of time-steps
-timestep = 1e-2  # time between outputs [1/wci]
+nout = 10     # number of time-steps
+timestep = 1.0e0  # time between outputs [1/wci]
 
-MXG = 2
+MXG = 4
 MYG = 0
 
 [mesh]
@@ -17,11 +17,13 @@ MYG = 0
 nx = 100
 ny = 1
 nz = 100
+#g23 = 0.5
 
 dx = 2 / nx
-dz = 2 / nz
+dy = 2 / nz
+#dz = 2 / nz
 
-#ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
+ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
 
 ##################################################
 # derivative methods
@@ -62,27 +64,31 @@ mxstep = 10000  # Maximum internal steps per output
 ##################################################
 # general settings for the model
 
+#[laplacexy]
+#pctype = sor  # Preconditioner
+#include_y_derivs = true
+
 [model]
 
 chi = 0   # Thermal diffusivity
 D_m = 0 # Magnetic diffusivity
 mu = 0    # Vorticity diffusivity
-epsilon = 1.0    # Aspect ratio
-beta_p = 100000.0   # Poloidal beta
+epsilon = 0.0    # Aspect ratio
+beta_p = 1000.0   # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
 # These can be overridden for individual variables in
 # a section of that name.
 
-[all]
+#[all]
 
-bndry_all = none
+#bndry_all = none
 
 [P]  # Pressure
 
-intercept = 0.0
-gradient = 10
+intercept = 0.5
+gradient = 1
 function = intercept + gradient * (z/ (2 * pi))
 bndry_all = none
 
@@ -90,17 +96,17 @@ bndry_all = none
 
 x_coord =  {xarg} - 0.5
 y_coord = ({yarg} / (2*pi)) - 0.5
-function = [xarg = x, yarg = z](((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord)))
-bndry_all = none
+function = [xarg = x, yarg = z]((-(y_coord ^ 3) + (3 * (x_coord ^ 2) * y_coord)))
+bndry_all = free_o3
 
 [omega]
 
 function = 0
-#bndry_xin = zerolaplace
-#bndry_xout = zerolaplace
-#bndry_yup = none
-#bndry_ydown = none
-bndry_all = none
+#bndry_xin = dirichlet
+#bndry_xout = dirichlet
+#bndry_yup = dirichlet
+#bndry_ydown = dirichlet
+bndry_all = dirichlet
 
 [phi]
 
