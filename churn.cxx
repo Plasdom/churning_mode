@@ -10,10 +10,10 @@ class Churn : public PhysicsModel
 {
 private:
   // Evolving variables
-  Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
+  Field2D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi, u_x, u_y;
+  Field2D phi, u_x, u_y;
 
   // Parameters
   // TODO: Normalisation on diffusion coeffs
@@ -96,14 +96,14 @@ protected:
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
-    ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
-    ddt(P) += chi * Laplace(P);
+    // ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
+    // ddt(P) += chi * Laplace(P);
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
     ddt(psi) = -(DDX(psi) * DDY(phi) - DDX(phi) * DDY(psi));
-    ddt(psi) += D_m * Delp2(psi);
+    ddt(psi) += D_m * Laplace(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -111,7 +111,8 @@ protected:
     ddt(omega) = -(DDX(omega) * DDY(phi) - DDX(phi) * DDY(omega));
     ddt(omega) += mu * Laplace(omega);
     ddt(omega) += 2 * epsilon * DDY(P);
-    ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
+    // ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
+    ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDX(D2DX2(psi) + D2DY2(psi)) * DDY(psi));
 
     return 0;
   }

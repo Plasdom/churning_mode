@@ -81,10 +81,10 @@ mxstep = 10000  # Maximum internal steps per output
 [model]
 
 chi = 0.0e0   # Thermal diffusivity
-D_m = 0.0 # Magnetic diffusivity
-mu = 0.0    # Vorticity diffusivity
-epsilon = 10.0    # Aspect ratio
-beta_p = 100000.0   # Poloidal beta
+D_m = 1.0e-2 # Magnetic diffusivity
+mu = 1.0e-2    # Vorticity diffusivity
+epsilon = 1000.0    # Aspect ratio
+beta_p = 0.001   # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
@@ -107,12 +107,13 @@ bndry_ydown = dirichlet(0.5)
 
 [psi]
 
-scale=1.0e-0
-x_coord =  {xarg} - 0.5
-y_coord = ({yarg} / (2*pi)) - 0.5
-d = 0.02
-function = [xarg = x, yarg = y](2.71828 ^ (-((x_coord^2 + y_coord^2)/d)) * ((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord)))
-#function = [xarg = x, yarg = y]( (y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord) )
+scale = 1.0e-0
+a = 0.25        # Overall decay length of psi from centre
+chi_0 = 0       # Max rotation of psi at the centre
+d = 0.1         # Decay length of differential rotation from centre
+r_coord = (({xarg}-0.5)^2 + (({yarg} / (2*pi)) - 0.5)^2)^0.5
+theta_coord = atan((({yarg} / (2*pi)) - 0.5), {xarg}-0.5)
+function = [xarg = x, yarg = y](2.71828 ^ (-(r_coord^2/a^2)) * ( r_coord^3 * sin(3 * (theta_coord + chi_0 * 2.71828 ^ (-r_coord^2 / d^2))) ) )
 bndry_all = none
 
 [omega]
