@@ -5,3 +5,5 @@ data/*
 !data/BOUT.inp
 blob2d
 blob2d*
+XY
+XZ
