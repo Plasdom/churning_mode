@@ -1,7 +1,7 @@
 #include <bout/derivs.hxx> // To use DDZ()
 // #include "bout/invert/laplacexy.hxx" // Laplacian inversion
-#include "bout/invert_laplace.hxx" // Laplacian inversion
-#include <bout/physicsmodel.hxx>   // Commonly used BOUT++ components
+// #include "bout/invert_laplace.hxx" // Laplacian inversion
+#include <bout/physicsmodel.hxx> // Commonly used BOUT++ components
 
 /// Churning mode model
 ///
@@ -22,7 +22,7 @@ private:
   BoutReal epsilon; ///< Aspect ratio
   BoutReal beta_p;  ///< Poloidal beta
 
-  std::unique_ptr<Laplacian> phiSolver{nullptr}; ///< Performs Laplacian inversions to calculate phi
+  // std::unique_ptr<Laplacian> phiSolver{nullptr}; ///< Performs Laplacian inversions to calculate phi
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
 
 protected:
@@ -46,16 +46,16 @@ protected:
     Options &boussinesq_options = Options::root()["phiBoussinesq"];
 
     // BOUT.inp section "phiBoussinesq"
-    phiSolver = Laplacian::create(&boussinesq_options);
-    phi = 0.0; // Starting guess for first solve (if iterative)
-    phi.setBoundary("phi");
+    // phiSolver = Laplacian::create(&boussinesq_options);
+    // phi = 0.0; // Starting guess for first solve (if iterative)
+    // phi.setBoundary("phi");
 
     /************ Tell BOUT++ what to solve ************/
 
-    SOLVE_FOR(P, psi, omega);
+    SOLVE_FOR(P, psi, omega, phi);
 
     // Output phi
-    SAVE_REPEAT(phi, u_x, u_y);
+    SAVE_REPEAT(u_x, u_y);
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -77,38 +77,40 @@ protected:
 
     // Run communications
     ////////////////////////////////////////////////////////////////////////////
-    mesh->communicate(P, psi, omega);
+    mesh->communicate(P, psi, omega, phi);
 
     // Invert div(n grad(phi)) = n Delp_perp^2(phi) = omega
     ////////////////////////////////////////////////////////////////////////////
 
     // Background density only (1 in normalised units)
-    phi = phiSolver->solve(omega);
-    phi.applyBoundary();
-    u_x = DDX(phi);
-    u_y = DDZ(phi);
+    ddt(phi) = Laplace(phi) - omega;
+    // phi = phiSolver->solve(omega);
+    // phi.applyBoundary();
 
-    mesh->communicate(phi);
+    // Calculate u_x and u_y components
+    u_x = DDX(phi);
+    u_y = DDY(phi);
+
+    // mesh->communicate(phi);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
-    ddt(P) = -bracket(phi, P, BRACKET_ARAKAWA);
-    // ddt(P) = (DDX(P) * DDZ(phi) - DDX(phi) * DDZ(P));
-    ddt(P) += chi * Delp2(P);
+    ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
+    ddt(P) += chi * Laplace(P);
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(psi) = -bracket(phi, psi, BRACKET_ARAKAWA);
+    ddt(psi) = -(DDX(psi) * DDY(phi) - DDX(phi) * DDY(psi));
     ddt(psi) += D_m * Delp2(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(omega) = -bracket(phi, omega, BRACKET_ARAKAWA);
-    ddt(omega) += mu * Delp2(omega);
-    ddt(omega) += 2 * epsilon * DDX(P);
-    ddt(omega) += (2 / beta_p) * bracket(Delp2(psi), psi, BRACKET_ARAKAWA);
+    ddt(omega) = -(DDX(omega) * DDY(phi) - DDX(phi) * DDY(omega));
+    ddt(omega) += mu * Laplace(omega);
+    ddt(omega) += 2 * epsilon * DDY(P);
+    ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
 
     return 0;
   }

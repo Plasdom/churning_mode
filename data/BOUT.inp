@@ -7,42 +7,47 @@
 # settings used by the core code
 
 nout = 100     # number of time-steps
-timestep = 1.0e-2  # time between outputs [1/wci]
+timestep = 3.0e-2  # time between outputs [1/wci]
 
-MZ = 128                # Number of Z points
-ZMIN = 0
-ZMAX = 2/(2*pi)      # z is in fractions of 2pi
-MYG = 0                  # No need for Y communications
+#MZ = 128                # Number of Z points
+#ZMIN = 0
+#ZMAX = 2/(2*pi)      # z is in fractions of 2pi
+MXG = 4                  
+MYG = 4                  
 
 [mesh]
 
 nx = 132
-ny = 1
+ny = 132
+nz = 1
 
 dx = 2 / nx
-dy = 1.0
+dy = 2 / ny
 
-#ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
+ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
 
 ##################################################
 # derivative methods
 
 [mesh:ddx]
 
-first = C2
-second = C3
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddy]
 
-first = C2
-second = C3
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddz]
 
-first = C2
-second = C3
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 ###################################################
@@ -63,23 +68,23 @@ mxstep = 10000  # Maximum internal steps per output
 ##################################################
 # general settings for the model
 
-[laplace]
-type = multigrid
-multigridlevel = 3
-solvertype = 0
-rtol = 1e-07
+#[laplace]
+#type = multigrid
+#multigridlevel = 3
+#solvertype = 0
+#rtol = 1e-07
 
-global_flags = 0
-inner_boundary_flags = 0 # Dirichlet
-outer_boundary_flags = 0 # Dirichlet
+#global_flags = 0
+#inner_boundary_flags = 0 # Dirichlet
+#outer_boundary_flags = 0 # Dirichlet
 
 [model]
 
-chi = 0   # Thermal diffusivity
+chi = 0.0e0   # Thermal diffusivity
 D_m = 0.0 # Magnetic diffusivity
 mu = 0.0    # Vorticity diffusivity
 epsilon = 10.0    # Aspect ratio
-beta_p = 0.01   # Poloidal beta
+beta_p = 100000.0   # Poloidal beta
 
 # settings for individual variables
 # The section "All" defines default settings for all variables
@@ -94,25 +99,28 @@ beta_p = 0.01   # Poloidal beta
 
 intercept = 0.5
 gradient = 1
-function = intercept + gradient * (x)
-bndry_xin = dirichlet(0)
-bndry_xout = dirichlet(2)
+function = intercept + gradient * (y / (2*pi))
+bndry_xin = none
+bndry_xout = none
+bndry_yup = dirichlet(1.5)
+bndry_ydown = dirichlet(0.5)
 
 [psi]
 
-scale=1.0e-2
-d = 0.05
+scale=1.0e-0
 x_coord =  {xarg} - 0.5
 y_coord = ({yarg} / (2*pi)) - 0.5
-function = [xarg = x, yarg = z](2.71828 ^ (-((x_coord^2 + y_coord^2)^(1/2)/d)) * (-(y_coord ^ 3) + (3 * (x_coord ^ 2) * y_coord)))
-#bndry_all = free_o3
+d = 0.02
+function = [xarg = x, yarg = y](2.71828 ^ (-((x_coord^2 + y_coord^2)/d)) * ((y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord)))
+#function = [xarg = x, yarg = y]( (y_coord ^ 3) - (3 * (x_coord ^ 2) * y_coord) )
+bndry_all = none
 
 [omega]
 
 function = 0
-bndry_xin = dirichlet_o2
-bndry_xout = dirichlet_o2
+bndry_all = dirichlet_o3
 
 [phi]
 
+function = 0
 bndry_all = dirichlet
