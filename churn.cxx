@@ -16,6 +16,7 @@ private:
   Field3D phi, u_x, u_y;
 
   // Parameters
+  // TODO: Normalisation on diffusion coeffs
   BoutReal chi;     ///< Thermal diffusivity
   BoutReal D_m;     ///< Magnetic diffusivity
   BoutReal mu;      ///< Vorticity diffusivity
