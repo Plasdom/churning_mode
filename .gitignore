@@ -3,7 +3,4 @@ build
 .DS_Store
 data/*
 !data/BOUT.inp
-blob2d
-blob2d*
-XY
-XZ
+reference

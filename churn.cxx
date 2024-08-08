@@ -1,6 +1,4 @@
-#include <bout/derivs.hxx> // To use DDZ()
-// #include "bout/invert/laplacexy.hxx" // Laplacian inversion
-// #include "bout/invert_laplace.hxx" // Laplacian inversion
+#include <bout/derivs.hxx>       // To use DDZ()
 #include <bout/physicsmodel.hxx> // Commonly used BOUT++ components
 
 /// Churning mode model
@@ -13,18 +11,40 @@ private:
   Field2D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field2D phi, u_x, u_y;
+  Field2D phi, u_x, u_y; // TODO: Use Vector2D object for u
 
-  // Parameters
-  // TODO: Normalisation on diffusion coeffs
-  BoutReal chi;     ///< Thermal diffusivity
-  BoutReal D_m;     ///< Magnetic diffusivity
-  BoutReal mu;      ///< Vorticity diffusivity
-  BoutReal epsilon; ///< Aspect ratio
-  BoutReal beta_p;  ///< Poloidal beta
+  // Input Parameters
+  BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
+  BoutReal D_m;    ///< Magnetic diffusivity [m^2 s^-1]
+  BoutReal mu;     ///< Vorticity diffusivity [m^2 s^-1]
+  BoutReal R_0;    ///< Major radius [m]
+  BoutReal a_mid;  ///< Minor radius at midplane [m]
+  BoutReal n_sepx; ///< Electron density at separatrix [m^-3]
+  BoutReal T_sepx; ///< Plasma temperature at separatrix [eV]
+  BoutReal B_t0;   ///< Toroidal field strength [T]
+  BoutReal B_pmid; ///< Poloidal field strength [T]
 
-  // std::unique_ptr<Laplacian> phiSolver{nullptr}; ///< Performs Laplacian inversions to calculate phi
-  // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
+  // Other parameters
+  BoutReal mu_0;    ///< Vacuum permeability [N A^-2]
+  BoutReal e;       ///< Electric charge [C]
+  BoutReal m_e;     ///< Electron mass [kg]
+  BoutReal m_i;     ///< Ion mass [kg]
+  BoutReal pi;      ///< Pi
+  BoutReal rho;     ///< Plasma mass density [kg m^-3]
+  BoutReal P_0;     ///< Pressure normalisation [Pa]
+  BoutReal C_s0;    ///< Plasma sound speed at P_0, rho [m s^-1]
+  BoutReal t_0;     ///< Time normalisation [s]
+  BoutReal D_0;     ///< Diffusivity normalisation [m^2 s^-1]
+  BoutReal psi_0;   ///< Poloidal flux normalisation [T m^2]
+  BoutReal phi_0;   ///< Phi normalisation
+  BoutReal c;       ///< Reference fluid velocity [m s^-1]
+  BoutReal epsilon; ///< Inverse aspect ratio [-]
+  BoutReal beta_p;  ///< Poloidal beta [-]
+
+  // Switches
+  bool evolve_pressure;            ///< Evolve plasma pressure
+  bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
+  bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
 
 protected:
   int init(bool UNUSED(restarting))
@@ -37,32 +57,64 @@ protected:
 
     // Load system parameters
     chi = options["chi"].doc("Thermal diffusivity").withDefault(0.0);
-    D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(1.0e-06);
-    mu = options["mu"].doc("Voriticity diffusivity").withDefault(1.0e-06);
-    epsilon = options["epsilon"].doc("Aspect ratio").withDefault(1.0e-06);
-    beta_p = options["beta_p"].doc("Poloidal beta").withDefault(1.0e-06);
+    D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(0.0);
+    mu = options["mu"].doc("Kinematic viscosity").withDefault(0.0);
+    R_0 = options["R_0"].doc("Major radius [m]").withDefault(1.5);
+    a_mid = options["a_mid"].doc("Minor radius at outer midplane [m]").withDefault(0.6);
+    n_sepx = options["n_sepx"].doc("Electron density at separatrix [m^-3]").withDefault(1.0e19);
+    T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100);
+    B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2);
+    B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
 
-    /************ Create a solver for potential ********/
+    // Model option switches
+    evolve_pressure = options["evolve_pressure"]
+                          .doc("Evolve plasma pressure")
+                          .withDefault(true);
+    include_mag_restoring_term = options["include_mag_restoring_term"]
+                                     .doc("Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})")
+                                     .withDefault(true);
+    include_churn_drive_term = options["include_churn_drive_term"]
+                                   .doc("Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)")
+                                   .withDefault(true);
 
-    Options &boussinesq_options = Options::root()["phiBoussinesq"];
+    // Constants
+    e = options["e"].withDefault(1.602e-19);
+    m_i = options["m_i"].withDefault(2 * 1.667e-27);
+    m_e = options["m_e"].withDefault(9.11e-31);
+    mu_0 = options["mu_0"].withDefault(1.256637e-6);
+    pi = 3.14159;
 
-    // BOUT.inp section "phiBoussinesq"
-    // phiSolver = Laplacian::create(&boussinesq_options);
-    // phi = 0.0; // Starting guess for first solve (if iterative)
-    // phi.setBoundary("phi");
+    // Get normalisation and derived parameters
+    c = 1.0;
+    rho = (m_i + m_e) * n_sepx;
+    P_0 = e * n_sepx * T_sepx;
+    C_s0 = sqrt(P_0 / rho);
+    t_0 = a_mid / C_s0;
+    D_0 = a_mid * C_s0;
+    psi_0 = B_pmid * R_0 * a_mid;
+    phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
+    epsilon = a_mid / R_0;
+    beta_p = mu_0 * 2 * P_0 / pow(B_pmid, 2); // Maxim I think used this formula, although paper says beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2)
+
+    phi = 0.0;              // Starting guess for first solve (if iterative)
+    phi.setBoundary("phi"); // TODO: Remove this and line above?
 
     /************ Tell BOUT++ what to solve ************/
 
     SOLVE_FOR(P, psi, omega, phi);
 
-    // Output phi
+    // Output flow velocity
     SAVE_REPEAT(u_x, u_y);
+
+    // Output constants, input options and derived parameters
+    SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
+    SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
+    SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term);
 
     Coordinates *coord = mesh->getCoordinates();
 
     // generate coordinate system
-    coord->Bxy = 1;
-
+    coord->Bxy = 1; // TODO: Use B_t here?
     coord->g11 = 1.0;
     coord->g22 = 1.0;
     coord->g33 = 1.0;
@@ -83,10 +135,7 @@ protected:
     // Invert div(n grad(phi)) = n Delp_perp^2(phi) = omega
     ////////////////////////////////////////////////////////////////////////////
 
-    // Background density only (1 in normalised units)
     ddt(phi) = Laplace(phi) - omega;
-    // phi = phiSolver->solve(omega);
-    // phi.applyBoundary();
 
     // Calculate u_x and u_y components
     u_x = DDX(phi);
@@ -96,23 +145,31 @@ protected:
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
-    // ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
-    // ddt(P) += chi * Laplace(P);
+    if (evolve_pressure)
+    {
+      ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
+      ddt(P) += (chi / D_0) * Laplace(P);
+    }
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
     ddt(psi) = -(DDX(psi) * DDY(phi) - DDX(phi) * DDY(psi));
-    ddt(psi) += D_m * Laplace(psi);
+    ddt(psi) += (D_m / D_0) * Laplace(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
     ddt(omega) = -(DDX(omega) * DDY(phi) - DDX(phi) * DDY(omega));
-    ddt(omega) += mu * Laplace(omega);
-    ddt(omega) += 2 * epsilon * DDY(P);
-    // ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
-    ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDX(D2DX2(psi) + D2DY2(psi)) * DDY(psi));
+    ddt(omega) += (mu / D_0) * Laplace(omega);
+    if (include_churn_drive_term)
+    {
+      ddt(omega) += 2 * epsilon * DDY(P);
+    }
+    if (include_mag_restoring_term)
+    {
+      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDX(D2DX2(psi) + D2DY2(psi)) * DDY(psi));
+    }
 
     return 0;
   }

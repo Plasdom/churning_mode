@@ -6,12 +6,9 @@
 
 # settings used by the core code
 
-nout = 100     # number of time-steps
-timestep = 3.0e-2  # time between outputs [1/wci]
+nout = 25     # number of time-steps
+timestep = 1.0e-1  # time between outputs [1/wci]
 
-#MZ = 128                # Number of Z points
-#ZMIN = 0
-#ZMAX = 2/(2*pi)      # z is in fractions of 2pi
 MXG = 4                  
 MYG = 4                  
 
@@ -21,33 +18,35 @@ nx = 132
 ny = 132
 nz = 1
 
-dx = 2 / nx
-dy = 2 / ny
+Lx = 2
+Ly = 2
+dx = Lx / nx
+dy = Ly / ny
 
-ixseps1 = -1    # Required to get BCs in y-axis to work, not sure why
+ixseps1 = -1    # Required to get BCs in y-axis to work
 
 ##################################################
 # derivative methods
 
 [mesh:ddx]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddy]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddz]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 ###################################################
@@ -59,69 +58,71 @@ atol = 1e-10  # absolute tolerance
 rtol = 1e-05   # relative tolerance
 mxstep = 10000  # Maximum internal steps per output
 
-###################################################
-# Electrostatic potential solver (Boussinesq)
-
-[phiBoussinesq]
-# By default type is tri (serial) or spt (parallel)
-
 ##################################################
 # general settings for the model
 
-#[laplace]
-#type = multigrid
-#multigridlevel = 3
-#solvertype = 0
-#rtol = 1e-07
-
-#global_flags = 0
-#inner_boundary_flags = 0 # Dirichlet
-#outer_boundary_flags = 0 # Dirichlet
-
 [model]
 
-chi = 0.0e0   # Thermal diffusivity
-D_m = 1.0e-2 # Magnetic diffusivity
-mu = 1.0e-2    # Vorticity diffusivity
-epsilon = 1000.0    # Aspect ratio
-beta_p = 0.001   # Poloidal beta
+# Parameters
+chi = 1.0e2         # Thermal diffusivity [m^2 s^-1]
+D_m = 0.0           # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0            # Kinematic viscosity [m^2 s^-1]
+R_0 = 1.5           # Major radius [m]
+a_mid = 0.6         # Minor radius at midplane [m]
+n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
+T_sepx = 100        # Plasma temperature at separatrix [eV]
+B_t0 = 2            # Toroidal field strength [T]
+B_pmid = 2          # Poloidal field strength [T]
 
-# settings for individual variables
-# The section "All" defines default settings for all variables
-# These can be overridden for individual variables in
-# a section of that name.
+# Switches
+evolve_pressure = false              # Evolve plasma pressure
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 
-#[all]
+[P]
 
-#bndry_all = none
-
-[P]  # Pressure
-
-intercept = 0.5
-gradient = 1
-function = intercept + gradient * (y / (2*pi))
+# Initialise in normalised form
+gradient = 5
+Ly = 2
+intercept = 1 - gradient * Ly / 2
+initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
+function = [yarg = y](initial_P)
+bndry_ydown = dirichlet(1-5)
+bndry_yup = dirichlet(1+5)
 bndry_xin = none
 bndry_xout = none
-bndry_yup = dirichlet(1.5)
-bndry_ydown = dirichlet(0.5)
 
 [psi]
 
-scale = 1.0e-0
+bndry_all = none
+
+# Define parameters and functions for psi initialisation
 a = 0.25        # Overall decay length of psi from centre
 chi_0 = 0       # Max rotation of psi at the centre
 d = 0.1         # Decay length of differential rotation from centre
-r_coord = (({xarg}-0.5)^2 + (({yarg} / (2*pi)) - 0.5)^2)^0.5
-theta_coord = atan((({yarg} / (2*pi)) - 0.5), {xarg}-0.5)
-function = [xarg = x, yarg = y](2.71828 ^ (-(r_coord^2/a^2)) * ( r_coord^3 * sin(3 * (theta_coord + chi_0 * 2.71828 ^ (-r_coord^2 / d^2))) ) )
-bndry_all = none
+get_r = (({xarg}-0.5)^2 + (({yarg} / (2*pi)) - 0.5)^2)^0.5
+get_theta = atan((({yarg} / (2*pi)) - 0.5), {xarg}-0.5)
+r_coords = [xarg = x, yarg = y](get_r)
+theta_coords = [xarg = x, yarg = y](get_theta)
+initial_psi = (2.71828 ^ (-({r}^2/a^2)) * ( {r}^3 * sin(3 * ({theta} + chi_0 * 2.71828 ^ (-{theta}^2 / d^2))) ) )
+
+# Get scale such that psi=1 at sqrt(x^2 + y^2) = 1 (with x, y in units of a_mid, x in (0, Lx) and y in (0, Ly) )
+Ly = 2
+scale = [r = 1/Ly, theta = 3*pi/2] (2.71828 ^ (-({r}^2/a^2)) / initial_psi)
+
+# Initalise psi
+function = [r = r_coords, theta = theta_coords](initial_psi)
 
 [omega]
 
-function = 0
 bndry_all = dirichlet_o3
+
+# Initialise in normalised form
+function = 0
 
 [phi]
 
-function = 0
 bndry_all = dirichlet
+
+# Initialise in normalised form
+function = 0
