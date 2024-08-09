@@ -26,27 +26,29 @@ private:
   BoutReal B_pmid; ///< Poloidal field strength [T]
 
   // Other parameters
-  BoutReal mu_0;    ///< Vacuum permeability [N A^-2]
-  BoutReal e;       ///< Electric charge [C]
-  BoutReal m_e;     ///< Electron mass [kg]
-  BoutReal m_i;     ///< Ion mass [kg]
-  BoutReal pi;      ///< Pi
-  BoutReal rho;     ///< Plasma mass density [kg m^-3]
-  BoutReal P_0;     ///< Pressure normalisation [Pa]
-  BoutReal C_s0;    ///< Plasma sound speed at P_0, rho [m s^-1]
-  BoutReal t_0;     ///< Time normalisation [s]
-  BoutReal D_0;     ///< Diffusivity normalisation [m^2 s^-1]
-  BoutReal psi_0;   ///< Poloidal flux normalisation [T m^2]
-  BoutReal phi_0;   ///< Phi normalisation
-  BoutReal c;       ///< Reference fluid velocity [m s^-1]
-  BoutReal epsilon; ///< Inverse aspect ratio [-]
-  BoutReal beta_p;  ///< Poloidal beta [-]
+  BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
+  BoutReal e;        ///< Electric charge [C]
+  BoutReal m_e;      ///< Electron mass [kg]
+  BoutReal m_i;      ///< Ion mass [kg]
+  BoutReal pi;       ///< Pi
+  BoutReal rho;      ///< Plasma mass density [kg m^-3]
+  BoutReal P_0;      ///< Pressure normalisation [Pa]
+  BoutReal C_s0;     ///< Plasma sound speed at P_0, rho [m s^-1]
+  BoutReal t_0;      ///< Time normalisation [s]
+  BoutReal D_0;      ///< Diffusivity normalisation [m^2 s^-1]
+  BoutReal psi_0;    ///< Poloidal flux normalisation [T m^2]
+  BoutReal phi_0;    ///< Phi normalisation
+  BoutReal c;        ///< Reference fluid velocity [m s^-1]
+  BoutReal epsilon;  ///< Inverse aspect ratio [-]
+  BoutReal beta_p;   ///< Poloidal beta [-]
+  BoutReal P_grad_0; ///< Vertical pressure gradient normalisation
 
   // Switches
   bool evolve_pressure;            ///< Evolve plasma pressure
   bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
   bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
   bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
+  bool include_advection;          ///< Use advection terms
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   std::unique_ptr<Laplacian> phiSolver{
@@ -85,6 +87,9 @@ protected:
     invert_laplace = options["invert_laplace"]
                          .doc("Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)")
                          .withDefault(true);
+    include_advection = options["include_advection"]
+                            .doc("Include advection terms or not")
+                            .withDefault(true);
 
     // Constants
     e = options["e"].withDefault(1.602e-19);
@@ -104,6 +109,7 @@ protected:
     phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
     epsilon = a_mid / R_0;
     beta_p = mu_0 * 2 * P_0 / pow(B_pmid, 2); // Maxim I think used this formula, although paper says beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2)
+    P_grad_0 = P_0 / a_mid;
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
@@ -129,7 +135,7 @@ protected:
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
-    SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term);
+    SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -171,20 +177,41 @@ protected:
     /////////////////////////////////////////////////////////////////////////////
     if (evolve_pressure)
     {
-      ddt(P) = -bracket(P, phi);
+      if (include_advection)
+      {
+        ddt(P) = -bracket(phi, P);
+      }
+      else
+      {
+        ddt(P) = 0;
+      }
       ddt(P) += (chi / D_0) * Delp2(P);
     }
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(psi) = -bracket(psi, phi);
+    if (include_advection)
+    {
+      ddt(psi) = -bracket(phi, psi);
+    }
+    else
+    {
+      ddt(psi) = 0;
+    }
     ddt(psi) += (D_m / D_0) * Delp2(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(omega) = -bracket(omega, phi);
+    if (include_advection)
+    {
+      ddt(omega) = -bracket(phi, omega);
+    }
+    else
+    {
+      ddt(omega) = 0;
+    }
     ddt(omega) += (mu / D_0) * Delp2(omega);
     if (include_churn_drive_term)
     {
