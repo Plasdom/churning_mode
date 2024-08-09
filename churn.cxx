@@ -106,16 +106,25 @@ protected:
     beta_p = mu_0 * 2 * P_0 / pow(B_pmid, 2); // Maxim I think used this formula, although paper says beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2)
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
+    Options &phi_init_options = Options::root()["phi"];
     Options &non_boussinesq_options = Options::root()["phiSolver"];
-    phiSolver = Laplacian::create(&non_boussinesq_options);
-    phi = 0.0; // Starting guess for first solve (if iterative)
+    if (invert_laplace)
+    {
+      phiSolver = Laplacian::create(&non_boussinesq_options);
+      phi = 0.0; // Starting guess for first solve (if iterative)
+      phi_init_options.setConditionallyUsed();
 
-    /************ Tell BOUT++ what to solve ************/
+      SOLVE_FOR(P, psi, omega);
+      SAVE_REPEAT(u_x, u_z, phi);
+    }
+    else
+    {
+      phi.setBoundary("phi");
+      non_boussinesq_options.setConditionallyUsed();
 
-    SOLVE_FOR(P, psi, omega);
-
-    // Output flow velocity
-    SAVE_REPEAT(u_x, u_z, phi);
+      SOLVE_FOR(P, psi, omega, phi);
+      SAVE_REPEAT(u_x, u_z);
+    }
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -141,16 +150,22 @@ protected:
 
     // Run communications
     ////////////////////////////////////////////////////////////////////////////
-    mesh->communicate(P, psi, omega);
+    if (invert_laplace)
+    {
+      mesh->communicate(P, psi, omega);
+      phi = phiSolver->solve(omega);
 
-    // Invert div(n grad(phi)) = n Delp_perp^2(phi) = omega
-    ////////////////////////////////////////////////////////////////////////////
+      mesh->communicate(phi);
+    }
+    else
+    {
+      mesh->communicate(P, psi, omega, phi);
+      ddt(phi) = Delp2(phi) - omega;
+    }
 
-    phi = phiSolver->solve(omega);
     u_x = DDZ(phi);
     u_z = DDX(phi);
-
-    mesh->communicate(u_x, u_z, phi);
+    mesh->communicate(u_x, u_z);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////

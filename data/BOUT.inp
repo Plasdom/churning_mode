@@ -88,16 +88,6 @@ outer_boundary_flags = 0
 #flags = 49152  # set_rhs i.e. identity matrix in boundaries
 
 
-#[laplacexy]
-
-#direct=true
-#include_y_derivs = true
-#pf_bndry_dirichlet = true
-#core_bndry_dirichlet = true
-#y_bndry = dirichlet
-#ksptype = gmres   # Iterative solver type
-#pctype = bjacobi  # Preconditioner. "jacobi", "bjacobi" and "sor" usually good
-
 [model]
 
 # Parameters
@@ -159,9 +149,8 @@ bndry_all = none
 # Initialise in normalised form
 function = 0
 
-#[phi]
-
+[phi]
 #bndry_all = dirichlet
 
 # Initialise in normalised form
-#function = 0
+function = 0
