@@ -6,17 +6,22 @@
 
 # settings used by the core code
 
-nout = 25     # number of time-steps
+nout = 1    # number of time-steps
 timestep = 1.0e-1  # time between outputs [1/wci]
 
 MXG = 4                  
 MYG = 4                  
 
+periodicX = false 
+#periodicY = false
+
 [mesh]
 
-nx = 132
-ny = 132
+nx = 136
+ny = 128
 nz = 1
+
+staggergrids = true
 
 Lx = 2
 Ly = 2
@@ -30,43 +35,54 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddy]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddz]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 ###################################################
 # Time-integration solver
 
 [solver]
-
-atol = 1e-10  # absolute tolerance
-rtol = 1e-05   # relative tolerance
+type = cvode
+atol = 1e-16  # absolute tolerance
+rtol = 1e-8   # relative tolerance
 mxstep = 10000  # Maximum internal steps per output
+use_precon = false
 
 ##################################################
 # general settings for the model
 
+#[laplacexy]
+
+#direct=true
+#include_y_derivs = true
+#pf_bndry_dirichlet = true
+#core_bndry_dirichlet = true
+#y_bndry = dirichlet
+#ksptype = gmres   # Iterative solver type
+#pctype = bjacobi  # Preconditioner. "jacobi", "bjacobi" and "sor" usually good
+
 [model]
 
 # Parameters
-chi = 1.0e2         # Thermal diffusivity [m^2 s^-1]
-D_m = 0.0           # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0            # Kinematic viscosity [m^2 s^-1]
+chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
+D_m = 0.0e0           # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0e0            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
@@ -76,8 +92,8 @@ B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
 evolve_pressure = false              # Evolve plasma pressure
-include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 
 [P]
 
@@ -97,14 +113,14 @@ bndry_xout = none
 bndry_all = none
 
 # Define parameters and functions for psi initialisation
-a = 0.25        # Overall decay length of psi from centre
-chi_0 = 0       # Max rotation of psi at the centre
+a = 100.0        # Overall decay length of psi from centre
+chi_0 = 0      # Max rotation of psi at the centre
 d = 0.1         # Decay length of differential rotation from centre
 get_r = (({xarg}-0.5)^2 + (({yarg} / (2*pi)) - 0.5)^2)^0.5
 get_theta = atan((({yarg} / (2*pi)) - 0.5), {xarg}-0.5)
 r_coords = [xarg = x, yarg = y](get_r)
 theta_coords = [xarg = x, yarg = y](get_theta)
-initial_psi = (2.71828 ^ (-({r}^2/a^2)) * ( {r}^3 * sin(3 * ({theta} + chi_0 * 2.71828 ^ (-{theta}^2 / d^2))) ) )
+initial_psi = (2.71828 ^ (-({r}^2/a^2)) * ( {r}^3 * sin(3 * ({theta} + chi_0 * 2.71828 ^ (-{r}^2 / d^2))) ) )
 
 # Get scale such that psi=1 at sqrt(x^2 + y^2) = 1 (with x, y in units of a_mid, x in (0, Lx) and y in (0, Ly) )
 Ly = 2
@@ -115,7 +131,7 @@ function = [r = r_coords, theta = theta_coords](initial_psi)
 
 [omega]
 
-bndry_all = dirichlet_o3
+bndry_all = none
 
 # Initialise in normalised form
 function = 0
@@ -125,4 +141,4 @@ function = 0
 bndry_all = dirichlet
 
 # Initialise in normalised form
-function = 0
+#function = 0

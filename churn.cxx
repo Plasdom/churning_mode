@@ -1,5 +1,6 @@
-#include <bout/derivs.hxx>       // To use DDZ()
-#include <bout/physicsmodel.hxx> // Commonly used BOUT++ components
+#include <bout/derivs.hxx>           // To use DDZ()
+#include <bout/physicsmodel.hxx>     // Commonly used BOUT++ components
+#include "bout/invert/laplacexy.hxx" // Laplacian inversion
 
 /// Churning mode model
 ///
@@ -8,10 +9,13 @@ class Churn : public PhysicsModel
 {
 private:
   // Evolving variables
-  Field2D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
+  Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field2D phi, u_x, u_y; // TODO: Use Vector2D object for u
+  Field3D phi, u_x, u_y; // TODO: Use Vector2D object for u
+  // Field2D phi2, phi2d, omega2d;
+  // Field3D u_x_stgd, u_y_stgd;
+  // Field3D u_x_cntr, u_y_cntr;
 
   // Input Parameters
   BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
@@ -46,8 +50,10 @@ private:
   bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
   bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
 
+  // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
+
 protected:
-  int init(bool UNUSED(restarting))
+  int init(bool UNUSED(restarting)) // TODO: Use the restart flag
   {
 
     /******************Reading options *****************/
@@ -96,15 +102,29 @@ protected:
     epsilon = a_mid / R_0;
     beta_p = mu_0 * 2 * P_0 / pow(B_pmid, 2); // Maxim I think used this formula, although paper says beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2)
 
-    phi = 0.0;              // Starting guess for first solve (if iterative)
+    // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
+    // phiSolver->setCoefs(1.0, 0.0);
+    phi = 0.0; // Starting guess for first solve (if iterative)
+    // phi2 = 0.0;
+    // u_x = 0.0;
+    // u_y = 0.0;
     phi.setBoundary("phi"); // TODO: Remove this and line above?
+    // phi2.setBoundary("phi2");
+    // u_x.setLocation(CELL_XLOW);
+    // u_y.setLocation(CELL_YLOW);
+    // u_x_stgd.setLocation(CELL_XLOW);
+    // u_y_stgd.setLocation(CELL_YLOW);
+    // u_x_cntr.setLocation(CELL_CENTRE);
+    // u_y_cntr.setLocation(CELL_CENTRE);
 
     /************ Tell BOUT++ what to solve ************/
 
+    // omega.setLocation(CELL_YLOW);
     SOLVE_FOR(P, psi, omega, phi);
 
     // Output flow velocity
     SAVE_REPEAT(u_x, u_y);
+    // SAVE_REPEAT(u_x, u_y, phi2);
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -114,7 +134,7 @@ protected:
     Coordinates *coord = mesh->getCoordinates();
 
     // generate coordinate system
-    coord->Bxy = 1; // TODO: Use B_t here?
+    // coord->Bxy = 1.0; // TODO: Use B_t here?
     coord->g11 = 1.0;
     coord->g22 = 1.0;
     coord->g33 = 1.0;
@@ -130,37 +150,53 @@ protected:
 
     // Run communications
     ////////////////////////////////////////////////////////////////////////////
+    // mesh->communicate(P, psi, omega, phi, phi2);
     mesh->communicate(P, psi, omega, phi);
 
     // Invert div(n grad(phi)) = n Delp_perp^2(phi) = omega
     ////////////////////////////////////////////////////////////////////////////
 
     ddt(phi) = Laplace(phi) - omega;
-
+    // omega2d = DC(omega);
+    // phi2.applyBoundary();
+    // phi2 = phiSolver->solve(omega2d, phi2);
     // Calculate u_x and u_y components
-    u_x = DDX(phi);
-    u_y = DDY(phi);
+    // u = Grad(phi);
+    u_x = DDY(phi);
+    u_y = DDX(phi);
+    // u_x = DDY(phi2);
+    // u_y = DDX(phi2);
+    // u_x_stgd = DDY(phi);
+    // u_y_stgd = DDX(phi);
+    // u_x_cntr = interp_to(u_x_stgd, CELL_CENTRE);
+    // u_y_cntr = interp_to(u_y_stgd, CELL_CENTRE);
 
-    // mesh->communicate(phi);
+    mesh->communicate(u_x, u_y);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
     if (evolve_pressure)
     {
-      ddt(P) = -(DDX(P) * DDY(phi) - DDX(phi) * DDY(P));
+      ddt(P) = -(DDX(P) * u_x - u_y * DDY(P));
+      // ddt(P) = 0;
+      // ddt(P) = -bracket(P, phi);
       ddt(P) += (chi / D_0) * Laplace(P);
     }
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(psi) = -(DDX(psi) * DDY(phi) - DDX(phi) * DDY(psi));
+    ddt(psi) = -(DDX(psi) * u_x - u_y * DDY(psi));
+    // ddt(psi) = 0;
+    // ddt(psi) = -bracket(psi, phi);
     ddt(psi) += (D_m / D_0) * Laplace(psi);
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    ddt(omega) = -(DDX(omega) * DDY(phi) - DDX(phi) * DDY(omega));
+    ddt(omega) = -(DDX(omega) * u_x - u_y * DDY(omega));
+    // ddt(omega) = 0;
+    // ddt(omega) = -bracket(omega, phi);
     ddt(omega) += (mu / D_0) * Laplace(omega);
     if (include_churn_drive_term)
     {
@@ -168,7 +204,9 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDX(D2DX2(psi) + D2DY2(psi)) * DDY(psi));
+      // ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDX(D2DX2(psi) + D2DY2(psi)) * DDY(psi));
+      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDX(Laplace(psi)) * DDY(psi));
+      // ddt(omega) += (2 / beta_p) * bracket(psi, Laplace(psi));
     }
 
     return 0;
