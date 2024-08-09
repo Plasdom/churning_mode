@@ -6,11 +6,11 @@
 
 # settings used by the core code
 
-nout = 8    # number of time-steps
+nout = 23    # number of time-steps
 timestep = 1.0e-3  # time between outputs [1/wci]
 
 MXG = 4                  
-MYG = 4                  
+MYG = 0                  
 
 periodicX = false 
 #periodicY = false
@@ -18,15 +18,17 @@ periodicX = false
 [mesh]
 
 nx = 136
-ny = 128
-nz = 1
+ny = 1
+nz = 256
 
 staggergrids = true
 
 Lx = 2
-Ly = 2
+Ly = 1
+Lz = 4
 dx = Lx / nx
 dy = Ly / ny
+dz = Lz / nz
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -99,12 +101,13 @@ include_mag_restoring_term = true  # Include the poloidal magnetic field restori
 
 # Initialise in normalised form
 gradient = 5
-Ly = 2
-intercept = 1 - gradient * Ly / 2
-initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
-function = [yarg = y](initial_P)
-bndry_ydown = dirichlet(1-5)
-bndry_yup = dirichlet(1+5)
+Lz = 4
+intercept = 1 - gradient * Lz / 2
+initial_P = intercept + gradient * (Lz * {yarg} / (2*pi))
+function = [yarg = z](initial_P)
+
+bndry_ydown = dirichlet(5*4/2 + 1)
+bndry_yup = dirichlet(1 - 5*4/2)
 bndry_xin = none
 bndry_xout = none
 
@@ -113,21 +116,21 @@ bndry_xout = none
 bndry_all = none
 
 # Define parameters and functions for psi initialisation
+Lz = 4
+Lx = 2
+
 a = 0.25        # Overall decay length of psi from centre
+d = 0.5         # Decay length of differential rotation from centre
 chi_0 = 0      # Max rotation of psi at the centre
-d = 0.1         # Decay length of differential rotation from centre
-get_r = (({xarg}-0.5)^2 + (({yarg} / (2*pi)) - 0.5)^2)^0.5
-get_theta = atan((({yarg} / (2*pi)) - 0.5), {xarg}-0.5)
-r_coords = [xarg = x, yarg = y](get_r)
-theta_coords = [xarg = x, yarg = y](get_theta)
-initial_psi = (2.71828 ^ (-({r}^2/a^2)) * ( {r}^3 * sin(3 * ({theta} + chi_0 * 2.71828 ^ (-{r}^2 / d^2))) ) )
 
-# Get scale such that psi=1 at sqrt(x^2 + y^2) = 1 (with x, y in units of a_mid, x in (0, Lx) and y in (0, Ly) )
-Ly = 2
-scale = [r = 1/Ly, theta = 3*pi/2] (2.71828 ^ (-({r}^2/a^2)) / initial_psi)
+x_c = (x - 0.5) * Lx
+y_c = (z/(2*pi) - 0.5) * Lz
+r = sqrt(x_c^2 + y_c^2)
+theta = atan(y_c, x_c)
+initial_psi = (2.71828 ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * 2.71828 ^ (-{r_coord}^2 / d^2))) ) )
 
-# Initalise psi
-function = [r = r_coords, theta = theta_coords](initial_psi)
+function = [r_coord=r, theta_coord=theta](initial_psi)
+scale = [r_coord = 1.0, theta_coord = 3*pi/2] (2.71828 ^ (-(1/a^2)) / initial_psi)
 
 [omega]
 
