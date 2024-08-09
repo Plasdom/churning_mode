@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 23    # number of time-steps
+nout = 20    # number of time-steps
 timestep = 1.0e-3  # time between outputs [1/wci]
 
 MXG = 4                  
@@ -17,9 +17,9 @@ periodicX = false
 
 [mesh]
 
-nx = 136
+nx = 74
 ny = 1
-nz = 256
+nz = 128
 
 staggergrids = true
 
@@ -69,6 +69,25 @@ use_precon = false
 ##################################################
 # general settings for the model
 
+[phiSolver]
+type = petsc  # Needed if Boussinesq = false
+#pctype = bjacobi  # Preconditioning type
+
+fourth_order = true  # 4th order or 2nd order
+
+inner_boundary_flags = 0
+outer_boundary_flags = 0
+
+# 0  = Zero value
+# 10 = Zero gradient AC inner & outer
+# 15 = Zero gradient AC and DC
+# 768 = Zero laplace inner & outer
+
+#[phiSolver:precon]  # Preconditioner (if pctype=user)
+#filter = 0.0     # Must not filter solution
+#flags = 49152  # set_rhs i.e. identity matrix in boundaries
+
+
 #[laplacexy]
 
 #direct=true
@@ -93,6 +112,7 @@ B_t0 = 2            # Toroidal field strength [T]
 B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
+invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = false              # Evolve plasma pressure
 include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
@@ -139,9 +159,9 @@ bndry_all = none
 # Initialise in normalised form
 function = 0
 
-[phi]
+#[phi]
 
-bndry_all = dirichlet
+#bndry_all = dirichlet
 
 # Initialise in normalised form
 #function = 0
