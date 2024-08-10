@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 20    # number of time-steps
+nout = 30    # number of time-steps
 timestep = 1.0e-1  # time between outputs [1/wci]
 
 MXG = 4                  
@@ -17,20 +17,21 @@ periodicX = false
 
 [mesh]
 
-nx = 74
+nx = 72
 ny = 1
 nz = 128
 
 staggergrids = false
 
-Lx = 2
-Ly = 1
-Lz = 4
-dx = Lx / nx
-dy = Ly / ny
-dz = Lz / nz
+#Ly = 1
+#Lz = 4
+#dx = Lx / nx
+#dy = Ly / ny
+#dz = Lz / nz
+dx = 0.03125
+dz = 0.03125
 
-ixseps1 = -1    # Required to get BCs in y-axis to work
+#ixseps1 = -1    # Required to get BCs in y-axis to work
 
 ##################################################
 # derivative methods
@@ -102,11 +103,11 @@ B_t0 = 2            # Toroidal field strength [T]
 B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
-invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = false              # Evolve plasma pressure
-include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
-include_advection = false            # Include advection terms
+include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_advection = true            # Include advection terms
 
 [P]
 
@@ -127,21 +128,31 @@ bndry_xout = none
 bndry_all = none
 
 # Define parameters and functions for psi initialisation
-Lz = 4
-Lx = 2
+#Lz = 4
+#Lx = 2
 
-a = 10.0        # Overall decay length of psi from centre
-d = 0.5         # Decay length of differential rotation from centre
-chi_0 = 0      # Max rotation of psi at the centre
+a = 0.15        # Overall decay length of psi from centre
+#d = 0.15         # Decay length of differential rotation from centre
+#chi_0 = 0      # Max rotation of psi at the centre
+e = 2.71828
+
+nx = 64+8
+nz = 128
+dx = 0.03125
+dz = 0.03125
+Lx = dx * (nx-8) 
+Lz = dz * nz
 
 x_c = (x - 0.5) * Lx
 y_c = (z/(2*pi) - 0.5) * Lz
 r = sqrt(x_c^2 + y_c^2)
-theta = atan(y_c, x_c)
-initial_psi = (2.71828 ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * 2.71828 ^ (-{r_coord}^2 / d^2))) ) )
+#theta = atan(y_c, x_c)
+#initial_psi = (e ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * e ^ (-{r_coord}^2 / d^2))) ) )
 
-function = [r_coord=r, theta_coord=theta](initial_psi)
-scale = [r_coord = 1.0, theta_coord = 3*pi/2] (2.71828 ^ (-(1/a^2)) / initial_psi)
+#function = [r_coord=r, theta_coord=theta](initial_psi)
+#scale = [r_coord = 1.0, theta_coord = 3*pi/2] (2.71828 ^ (-(1/a^2)) / initial_psi)
+
+function = e^(-r^2/a^2) * (x_c^2 - y_c^2)
 
 [omega]
 

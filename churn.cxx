@@ -154,7 +154,7 @@ protected:
   int rhs(BoutReal UNUSED(t))
   {
 
-    // Run communications
+    // Solve phi
     ////////////////////////////////////////////////////////////////////////////
     if (invert_laplace)
     {
@@ -180,6 +180,7 @@ protected:
       if (include_advection)
       {
         ddt(P) = -bracket(phi, P);
+        // ddt(P) = -(DDX(P) * u_x - u_z * DDZ(P));
       }
       else
       {
@@ -194,6 +195,7 @@ protected:
     if (include_advection)
     {
       ddt(psi) = -bracket(phi, psi);
+      // ddt(psi) = -(DDX(psi) * u_x - u_z * DDZ(psi));
     }
     else
     {
@@ -207,6 +209,7 @@ protected:
     if (include_advection)
     {
       ddt(omega) = -bracket(phi, omega);
+      // ddt(omega) = -(DDX(omega) * u_x - u_z * DDZ(omega));
     }
     else
     {
@@ -219,7 +222,9 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi));
+      // ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
+      // ddt(omega) += (2 / beta_p) * (D2DX2(psi) + D2DZ2(psi));
+      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDZ(D2DX2(psi) + D2DZ2(psi)) - DDZ(psi) * DDX(D2DX2(psi) + D2DZ2(psi)));
     }
 
     return 0;
