@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 50    # number of time-steps
-timestep = 1.0e1  # time between outputs [1/wci]
+nout = 20    # number of time-steps
+timestep = 1.0e-1  # time between outputs [1/wci]
 
 MXG = 3                  
 MYG = 3                
@@ -105,8 +105,8 @@ B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
-evolve_pressure = true              # Evolve plasma pressure
-include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+evolve_pressure = false              # Evolve plasma pressure
+include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 
