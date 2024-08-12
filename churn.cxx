@@ -12,7 +12,7 @@ private:
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi, u_x, u_z; // TODO: Use Vector2D object for u
+  Field3D phi, u_x, u_y; // TODO: Use Vector2D object for u
 
   // Input Parameters
   BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
@@ -121,7 +121,7 @@ protected:
       phi_init_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_z, phi);
+      SAVE_REPEAT(u_x, u_y, phi);
     }
     else
     {
@@ -129,7 +129,7 @@ protected:
       non_boussinesq_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega, phi);
-      SAVE_REPEAT(u_x, u_z);
+      SAVE_REPEAT(u_x, u_y);
     }
 
     // Output constants, input options and derived parameters
@@ -167,12 +167,12 @@ protected:
     {
       mesh->communicate(P, psi, omega, phi);
       // ddt(phi) = Delp2(phi) - omega;
-      ddt(phi) = (D2DX2(phi) + D2DZ2(phi)) - omega;
+      ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
     }
 
-    u_x = DDZ(phi);
-    u_z = DDX(phi);
-    mesh->communicate(u_x, u_z);
+    u_x = DDY(phi);
+    u_y = DDX(phi);
+    mesh->communicate(u_x, u_y);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ protected:
       if (include_advection)
       {
         // ddt(P) = -bracket(phi, P);
-        ddt(P) = -(DDX(P) * u_x - u_z * DDZ(P));
+        ddt(P) = -(DDX(P) * u_x - u_y * DDY(P));
       }
       else
       {
@@ -196,7 +196,7 @@ protected:
     if (include_advection)
     {
       // ddt(psi) = -bracket(phi, psi);
-      ddt(psi) = -(DDX(psi) * u_x - u_z * DDZ(psi));
+      ddt(psi) = -(DDX(psi) * u_x - u_y * DDY(psi));
     }
     else
     {
@@ -210,7 +210,7 @@ protected:
     if (include_advection)
     {
       // ddt(omega) = -bracket(phi, omega);
-      ddt(omega) = -(DDX(omega) * u_x - u_z * DDZ(omega));
+      ddt(omega) = -(DDX(omega) * u_x - u_y * DDY(omega));
     }
     else
     {
@@ -219,13 +219,13 @@ protected:
     ddt(omega) += (mu / D_0) * Delp2(omega);
     if (include_churn_drive_term)
     {
-      ddt(omega) += 2 * epsilon * DDZ(P);
+      ddt(omega) += 2 * epsilon * DDY(P);
     }
     if (include_mag_restoring_term)
     {
       // ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
       // ddt(omega) += (2 / beta_p) * (D2DX2(psi) + D2DZ2(psi));
-      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDZ(D2DX2(psi) + D2DZ2(psi)) - DDZ(psi) * DDX(D2DX2(psi) + D2DZ2(psi)));
+      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
     }
 
     return 0;
