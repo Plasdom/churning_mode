@@ -166,7 +166,8 @@ protected:
     else
     {
       mesh->communicate(P, psi, omega, phi);
-      ddt(phi) = Delp2(phi) - omega;
+      // ddt(phi) = Delp2(phi) - omega;
+      ddt(phi) = (D2DX2(phi) + D2DZ2(phi)) - omega;
     }
 
     u_x = DDZ(phi);
@@ -179,8 +180,8 @@ protected:
     {
       if (include_advection)
       {
-        ddt(P) = -bracket(phi, P);
-        // ddt(P) = -(DDX(P) * u_x - u_z * DDZ(P));
+        // ddt(P) = -bracket(phi, P);
+        ddt(P) = -(DDX(P) * u_x - u_z * DDZ(P));
       }
       else
       {
@@ -194,8 +195,8 @@ protected:
 
     if (include_advection)
     {
-      ddt(psi) = -bracket(phi, psi);
-      // ddt(psi) = -(DDX(psi) * u_x - u_z * DDZ(psi));
+      // ddt(psi) = -bracket(phi, psi);
+      ddt(psi) = -(DDX(psi) * u_x - u_z * DDZ(psi));
     }
     else
     {
@@ -208,8 +209,8 @@ protected:
 
     if (include_advection)
     {
-      ddt(omega) = -bracket(phi, omega);
-      // ddt(omega) = -(DDX(omega) * u_x - u_z * DDZ(omega));
+      // ddt(omega) = -bracket(phi, omega);
+      ddt(omega) = -(DDX(omega) * u_x - u_z * DDZ(omega));
     }
     else
     {

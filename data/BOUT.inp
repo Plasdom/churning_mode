@@ -113,11 +113,15 @@ include_advection = true            # Include advection terms
 
 # Initialise in normalised form
 gradient = 5
-Lz = 4
+nz = 128+8
+dx = 0.03125
+Lz = dx * (nz-8) 
 intercept = 1 - gradient * Lz / 2
 initial_P = intercept + gradient * (Lz * {yarg} / (2*pi))
 function = [yarg = z](initial_P)
+#function = 3*sin(z-pi)
 
+# TODO: Check these BCs on P
 bndry_ydown = dirichlet(5*4/2 + 1)
 bndry_yup = dirichlet(1 - 5*4/2)
 bndry_xin = none
