@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 30    # number of time-steps
-timestep = 1.0e-1  # time between outputs [1/wci]
+nout = 50    # number of time-steps
+timestep = 1.0e1  # time between outputs [1/wci]
 
 MXG = 4                  
 MYG = 4                
@@ -93,9 +93,9 @@ outer_boundary_flags = 0
 [model]
 
 # Parameters
-chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
-D_m = 0.0e0           # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0e0            # Kinematic viscosity [m^2 s^-1]
+chi = 1.0e0         # Thermal diffusivity [m^2 s^-1]
+D_m = 1.0e0           # Magnetic diffusivity [m^2 s^-1]
+mu = 1.0e0            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
@@ -105,8 +105,8 @@ B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
-evolve_pressure = false              # Evolve plasma pressure
-include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+evolve_pressure = true              # Evolve plasma pressure
+include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 
@@ -114,7 +114,7 @@ include_advection = true            # Include advection terms
 
 # Initialise in normalised form
 gradient = 5
-ny = 128+8
+ny = 64+8
 dy = 0.03125
 Ly = dy * (ny-8) 
 intercept = 1 - gradient * Ly / 2
@@ -135,13 +135,13 @@ bndry_all = none
 
 # Define parameters and functions for psi initialisation
 
-a = 0.15        # Overall decay length of psi from centre
+#a = 0.15        # Overall decay length of psi from centre
 #d = 0.15         # Decay length of differential rotation from centre
 #chi_0 = 0      # Max rotation of psi at the centre
-e = 2.71828
+#e = 2.71828
 
 nx = 64+8
-ny = 128
+ny = 64
 dx = 0.03125
 dy = 0.03125
 Lx = dx * (nx-8) 
@@ -149,14 +149,15 @@ Ly = dy * ny
 
 x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
-r = sqrt(x_c^2 + y_c^2)
+#r = sqrt(x_c^2 + y_c^2)
 #theta = atan(y_c, x_c)
 #initial_psi = (e ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * e ^ (-{r_coord}^2 / d^2))) ) )
 
 #function = [r_coord=r, theta_coord=theta](initial_psi)
 #scale = [r_coord = 1.0, theta_coord = 3*pi/2] (2.71828 ^ (-(1/a^2)) / initial_psi)
 
-function = e^(-r^2/a^2) * (x_c^2 - y_c^2)
+#function = (y_c^3 - 3*x_c^2*y_c)
+function = (x_c^2 - y_c^2)
 
 [omega]
 

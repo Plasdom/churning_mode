@@ -158,6 +158,7 @@ protected:
     ////////////////////////////////////////////////////////////////////////////
     if (invert_laplace)
     {
+      // TODO: Use LaplaceXY when this option is switched on
       mesh->communicate(P, psi, omega);
       phi = phiSolver->solve(omega);
 
@@ -166,7 +167,7 @@ protected:
     else
     {
       mesh->communicate(P, psi, omega, phi);
-      // ddt(phi) = Delp2(phi) - omega;
+      // ddt(phi) = Laplace(phi) - omega;
       ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
     }
 
@@ -187,7 +188,8 @@ protected:
       {
         ddt(P) = 0;
       }
-      ddt(P) += (chi / D_0) * Delp2(P);
+      // ddt(P) += (chi / D_0) * Laplace(P);
+      ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
     }
 
     // Psi evolution
@@ -202,7 +204,8 @@ protected:
     {
       ddt(psi) = 0;
     }
-    ddt(psi) += (D_m / D_0) * Delp2(psi);
+    // ddt(psi) += (D_m / D_0) * Laplace(psi);
+    ddt(psi) += (D_m / D_0) * (D2DX2(psi) + D2DY2(psi));
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -216,7 +219,8 @@ protected:
     {
       ddt(omega) = 0;
     }
-    ddt(omega) += (mu / D_0) * Delp2(omega);
+    // ddt(omega) += (mu / D_0) * Laplace(omega);
+    ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
       ddt(omega) += 2 * epsilon * DDY(P);
@@ -226,6 +230,7 @@ protected:
       // ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
       // ddt(omega) += (2 / beta_p) * (D2DX2(psi) + D2DZ2(psi));
       ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
+      // ddt(omega) += (D2DX2(psi) + D2DY2(psi));
     }
 
     return 0;
