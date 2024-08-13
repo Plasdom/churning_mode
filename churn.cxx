@@ -227,13 +227,9 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      // ddt(omega) += (2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
-      // ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
-      ddt(omega) += (2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
-      // ddt(omega) += 1 * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
-      // ddt(omega) += D2DX2(psi) + D2DY2(psi, CELL_CENTER);
-      // ddt(omega) += DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi));
-      // ddt(omega) += DDY(D2DY2(psi));
+      // ddt(omega) += -(2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
+      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
+      ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
 
       // ddt(omega) += DDY(D2DX2(psi));
       // ddt(omega) += DDY(D2DY2(psi));
@@ -241,74 +237,74 @@ protected:
       // ddt(omega) += DDX(D2DX2(psi));
     }
 
+    RangeIterator xrdn = mesh->iterateBndryLowerY();
+    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
+    {
+      for (int jy = mesh->ystart; jy >= 0; jy--)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          ddt(omega)(xrdn.ind, jy, jz) = 0;
+          ddt(phi)(xrdn.ind, jy, jz) = 0;
+          ddt(psi)(xrdn.ind, jy, jz) = 0;
+          ddt(P)(xrdn.ind, jy, jz) = 0;
+          u_x(xrdn.ind, jy, jz) = 0;
+          u_y(xrdn.ind, jy, jz) = 0;
+        }
+      }
+    }
+
+    RangeIterator xrup = mesh->iterateBndryUpperY();
+    for (xrup.first(); !xrup.isDone(); xrup.next())
+    {
+      for (int jy = mesh->yend; jy < mesh->LocalNy; jy++)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          ddt(omega)(xrup.ind, jy, jz) = 0;
+          ddt(phi)(xrup.ind, jy, jz) = 0;
+          ddt(psi)(xrup.ind, jy, jz) = 0;
+          ddt(P)(xrup.ind, jy, jz) = 0;
+          ddt(phi)(xrdn.ind, jy, jz) = 0;
+          u_x(xrdn.ind, jy, jz) = 0;
+          u_y(xrdn.ind, jy, jz) = 0;
+        }
+      }
+    }
+
     // RangeIterator xrdn = mesh->iterateBndryLowerY();
-    // for (xrdn.first(); !xrdn.isDone(); xrdn.next())
-    // {
-    //   for (int jy = mesh->ystart; jy >= 0; jy--)
-    //   {
-    //     for (int jz = 0; jz < mesh->LocalNz; jz++)
-    //     {
-    //       ddt(omega)(xrdn.ind, jy, jz) = 0;
-    //       ddt(phi)(xrdn.ind, jy, jz) = 0;
-    //       ddt(psi)(xrdn.ind, jy, jz) = 0;
-    //       ddt(P)(xrdn.ind, jy, jz) = 0;
-    //       u_x(xrdn.ind, jy, jz) = 0;
-    //       u_y(xrdn.ind, jy, jz) = 0;
-    //     }
-    //   }
-    // }
+    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
+    {
+      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          ddt(omega)(jy, xrdn.ind, jz) = 0;
+          ddt(phi)(jy, xrdn.ind, jz) = 0;
+          ddt(psi)(jy, xrdn.ind, jz) = 0;
+          ddt(P)(jy, xrdn.ind, jz) = 0;
+          u_x(jy, xrdn.ind, jz) = 0;
+          u_y(jy, xrdn.ind, jz) = 0;
+        }
+      }
+    }
 
     // RangeIterator xrup = mesh->iterateBndryUpperY();
-    // for (xrup.first(); !xrup.isDone(); xrup.next())
-    // {
-    //   for (int jy = mesh->yend; jy < mesh->LocalNy; jy++)
-    //   {
-    //     for (int jz = 0; jz < mesh->LocalNz; jz++)
-    //     {
-    //       ddt(omega)(xrup.ind, jy, jz) = 0;
-    //       ddt(phi)(xrup.ind, jy, jz) = 0;
-    //       ddt(psi)(xrup.ind, jy, jz) = 0;
-    //       ddt(P)(xrup.ind, jy, jz) = 0;
-    //       ddt(phi)(xrdn.ind, jy, jz) = 0;
-    //       u_x(xrdn.ind, jy, jz) = 0;
-    //       u_y(xrdn.ind, jy, jz) = 0;
-    //     }
-    //   }
-    // }
-
-    // // RangeIterator xrdn = mesh->iterateBndryLowerY();
-    // for (xrdn.first(); !xrdn.isDone(); xrdn.next())
-    // {
-    //   for (int jy = mesh->ystart; jy >= 0; jy--)
-    //   {
-    //     for (int jz = 0; jz < mesh->LocalNz; jz++)
-    //     {
-    //       ddt(omega)(jy, xrdn.ind, jz) = 0;
-    //       ddt(phi)(jy, xrdn.ind, jz) = 0;
-    //       ddt(psi)(jy, xrdn.ind, jz) = 0;
-    //       ddt(P)(jy, xrdn.ind, jz) = 0;
-    //       u_x(jy, xrdn.ind, jz) = 0;
-    //       u_y(jy, xrdn.ind, jz) = 0;
-    //     }
-    //   }
-    // }
-
-    // // RangeIterator xrup = mesh->iterateBndryUpperY();
-    // for (xrup.first(); !xrup.isDone(); xrup.next())
-    // {
-    //   for (int jy = mesh->yend; jy < mesh->LocalNy; jy++)
-    //   {
-    //     for (int jz = 0; jz < mesh->LocalNz; jz++)
-    //     {
-    //       ddt(omega)(jy, xrup.ind, jz) = 0;
-    //       ddt(phi)(jy, xrup.ind, jz) = 0;
-    //       ddt(psi)(jy, xrup.ind, jz) = 0;
-    //       ddt(P)(jy, xrup.ind, jz) = 0;
-    //       u_x(jy, xrup.ind, jz) = 0;
-    //       u_y(jy, xrup.ind, jz) = 0;
-    //     }
-    //   }
-    // }
+    for (xrup.first(); !xrup.isDone(); xrup.next())
+    {
+      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          ddt(omega)(jy, xrup.ind, jz) = 0;
+          ddt(phi)(jy, xrup.ind, jz) = 0;
+          ddt(psi)(jy, xrup.ind, jz) = 0;
+          ddt(P)(jy, xrup.ind, jz) = 0;
+          u_x(jy, xrup.ind, jz) = 0;
+          u_y(jy, xrup.ind, jz) = 0;
+        }
+      }
+    }
 
     return 0;
   }
