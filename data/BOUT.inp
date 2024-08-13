@@ -65,16 +65,16 @@ type = cvode
 atol = 1e-16  # absolute tolerance
 rtol = 1e-8   # relative tolerance
 mxstep = 10000  # Maximum internal steps per output
-use_precon = false
+#use_precon = false 
 
 ##################################################
 # general settings for the model
 
 [phiSolver]
-type = petsc  # Needed if Boussinesq = false
-#pctype = bjacobi  # Preconditioning type
+#type = hypre3d  # Needed if Boussinesq = false
+#pctype = hypre3d  # Preconditioning type
 
-fourth_order = true  # 4th order or 2nd order
+#fourth_order = true  # 4th order or 2nd order
 
 inner_boundary_flags = 0
 outer_boundary_flags = 0
@@ -103,7 +103,7 @@ B_t0 = 2            # Toroidal field strength [T]
 B_pmid = 2          # Poloidal field strength [T]
 
 # Switches
-invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = false              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
