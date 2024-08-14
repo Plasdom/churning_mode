@@ -237,10 +237,11 @@ protected:
       // ddt(omega) += DDX(D2DX2(psi));
     }
 
+    // Apply additional BCs on first two cells all around domain to handle thrid derivatives
     RangeIterator xrdn = mesh->iterateBndryLowerY();
     for (xrdn.first(); !xrdn.isDone(); xrdn.next())
     {
-      for (int jy = mesh->ystart; jy >= 0; jy--)
+      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
@@ -257,7 +258,7 @@ protected:
     RangeIterator xrup = mesh->iterateBndryUpperY();
     for (xrup.first(); !xrup.isDone(); xrup.next())
     {
-      for (int jy = mesh->yend; jy < mesh->LocalNy; jy++)
+      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
@@ -272,7 +273,7 @@ protected:
       }
     }
 
-    // RangeIterator xrdn = mesh->iterateBndryLowerY();
+    // TODO: There is no mesh->iterateBndryInnerX object, so having to do this in a janky way which won't parallelise. Fix in future.
     for (xrdn.first(); !xrdn.isDone(); xrdn.next())
     {
       for (int jy = mesh->ystart + 1; jy >= 0; jy--)
@@ -289,7 +290,6 @@ protected:
       }
     }
 
-    // RangeIterator xrup = mesh->iterateBndryUpperY();
     for (xrup.first(); !xrup.isDone(); xrup.next())
     {
       for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
