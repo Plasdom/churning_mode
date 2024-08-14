@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 20    # number of time-steps
+nout = 40    # number of time-steps
 timestep = 1.0e-1  # time between outputs [1/wci]
 
 MXG = 3                  
@@ -17,7 +17,7 @@ periodicX = false
 
 [mesh]
 
-nx = 70
+nx = 64+6
 ny = 64
 nz = 1
 
@@ -101,11 +101,11 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 2          # Poloidal field strength [T]
+B_pmid = 0.02          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
-evolve_pressure = false              # Evolve plasma pressure
+evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
@@ -113,7 +113,7 @@ include_advection = true            # Include advection terms
 [P]
 
 # Initialise in normalised form
-gradient = 5
+gradient = 1
 ny = 64
 dy = 0.03125
 Ly = dy * ny 
@@ -158,7 +158,9 @@ theta = atan(y_c, x_c)
 
 #function = (y_c^3 - 3*x_c^2*y_c)
 #function = -0.0001*(x_c^2 - y_c^2)
-function = -0.01*r^2 * sin(2 * (theta + (pi/4) + chi_0 * e ^ (-r^2 / d^2) ) )
+initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+function = [r_arg = r, theta_arg = theta](initial_psi)
+scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
 [omega]
 

@@ -108,7 +108,7 @@ protected:
     psi_0 = B_pmid * R_0 * a_mid;
     phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
     epsilon = a_mid / R_0;
-    beta_p = mu_0 * 2 * P_0 / pow(B_pmid, 2); // Maxim I think used this formula, although paper says beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2)
+    beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2);
     P_grad_0 = P_0 / a_mid;
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
