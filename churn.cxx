@@ -266,9 +266,8 @@ protected:
           ddt(phi)(xrup.ind, jy, jz) = 0;
           ddt(psi)(xrup.ind, jy, jz) = 0;
           ddt(P)(xrup.ind, jy, jz) = 0;
-          ddt(phi)(xrdn.ind, jy, jz) = 0;
-          u_x(xrdn.ind, jy, jz) = 0;
-          u_y(xrdn.ind, jy, jz) = 0;
+          u_x(xrup.ind, jy, jz) = 0;
+          u_y(xrup.ind, jy, jz) = 0;
         }
       }
     }
