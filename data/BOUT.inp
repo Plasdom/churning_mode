@@ -17,8 +17,8 @@ periodicX = false
 
 [mesh]
 
-nx = 64+6
-ny = 64
+nx = 32+6
+ny = 32
 nz = 1
 
 staggergrids = false
@@ -28,9 +28,9 @@ staggergrids = false
 #dx = Lx / nx
 #dy = Ly / ny
 #dz = Lz / nz
-dx = 0.03125
-dy = 0.03125
-dz = 0.03125
+dx = 2*0.03125
+dy = 2*0.03125
+dz = 2*0.03125
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -113,9 +113,9 @@ include_advection = true            # Include advection terms
 [P]
 
 # Initialise in normalised form
-gradient = 1
-ny = 64
-dy = 0.03125
+gradient = 5
+ny = 32
+dy = 2*0.03125
 Ly = dy * ny 
 intercept = 1 - gradient * Ly / 2
 initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
@@ -140,10 +140,10 @@ d = 0.35         # Decay length of differential rotation from centre
 chi_0 = 0     # Max rotation of psi at the centre
 e = 2.71828
 
-nx = 64+6
-ny = 64
-dx = 0.03125
-dy = 0.03125
+nx = 32+6
+ny = 32
+dx = 2*0.03125
+dy = 2*0.03125
 Lx = dx * (nx-6) 
 Ly = dy * ny
 
@@ -159,6 +159,7 @@ theta = atan(y_c, x_c)
 #function = (y_c^3 - 3*x_c^2*y_c)
 #function = -0.0001*(x_c^2 - y_c^2)
 initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+#initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](initial_psi)
 scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
