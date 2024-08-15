@@ -1,6 +1,7 @@
 #include <bout/derivs.hxx>         // To use DDZ()
 #include <bout/invert_laplace.hxx> // Laplacian inversion
 #include <bout/physicsmodel.hxx>   // Commonly used BOUT++ components
+#include <bout/interpolation.hxx>
 
 /// Churning mode model
 ///
@@ -12,7 +13,9 @@ private:
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi, u_x, u_y; // TODO: Use Vector2D object for u
+  Field3D u_x, u_y; // TODO: Use Vector2D object for u
+  // Field3D u_x, u_y; // TODO: Use Vector2D object for u
+  Field3D phi_xlow, phi_ylow;
 
   // Input Parameters
   BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
@@ -51,8 +54,8 @@ private:
   bool include_advection;          ///< Use advection terms
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
-  std::unique_ptr<Laplacian> phiSolver{
-      nullptr}; ///< Performs Laplacian inversions to calculate phi
+  // std::unique_ptr<Laplacian> phiSolver{
+  //     nullptr}; ///< Performs Laplacian inversions to calculate phi
 
 protected:
   int init(bool UNUSED(restarting)) // TODO: Use the restart flag
@@ -116,19 +119,27 @@ protected:
     Options &non_boussinesq_options = Options::root()["phiSolver"];
     if (invert_laplace)
     {
-      phiSolver = Laplacian::create(&non_boussinesq_options);
-      phi = 0.0; // Starting guess for first solve (if iterative)
-      phi_init_options.setConditionallyUsed();
+      // phiSolver = Laplacian::create(&non_boussinesq_options);
+      // phi = 0.0; // Starting guess for first solve (if iterative)
+      // phi_init_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_y, phi);
+      // SAVE_REPEAT(u_x, u_y, phi);
     }
     else
     {
-      phi.setBoundary("phi");
+      // phi.setBoundary("phi");
+      phi_xlow.setBoundary("phi");
+      phi_ylow.setBoundary("phi");
+      // phi = 0.0;
+      phi_xlow = 0.0;
+      phi_ylow = 0.0;
+      phi_xlow.setLocation(CELL_XLOW);
+      phi_ylow.setLocation(CELL_YLOW);
       non_boussinesq_options.setConditionallyUsed();
 
-      SOLVE_FOR(P, psi, omega, phi);
+      // SOLVE_FOR(P, psi, omega, phi, phi_xlow, phi_ylow);
+      SOLVE_FOR(P, psi, omega, phi_xlow, phi_ylow);
       SAVE_REPEAT(u_x, u_y);
     }
 
@@ -160,19 +171,21 @@ protected:
     {
       // TODO: Use LaplaceXY when this option is switched on
       mesh->communicate(P, psi, omega);
-      phi = phiSolver->solve(omega);
+      // phi = phiSolver->solve(omega);
 
-      mesh->communicate(phi);
+      // mesh->communicate(phi);
     }
     else
     {
-      mesh->communicate(P, psi, omega, phi);
+      mesh->communicate(P, psi, omega, phi_xlow, phi_ylow);
       // ddt(phi) = Laplace(phi) - omega;
-      ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+      // ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+      ddt(phi_xlow) = Laplace(phi_xlow, CELL_XLOW) - interp_to(omega, CELL_XLOW);
+      ddt(phi_ylow) = Laplace(phi_ylow, CELL_YLOW) - interp_to(omega, CELL_YLOW);
     }
 
-    u_x = DDY(phi);
-    u_y = DDX(phi);
+    u_x = DDY(phi_ylow, CELL_CENTER);
+    u_y = DDX(phi_xlow, CELL_CENTER);
     mesh->communicate(u_x, u_y);
 
     // Pressure Evolution
@@ -246,7 +259,8 @@ protected:
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(xrdn.ind, jy, jz) = 0;
-          ddt(phi)(xrdn.ind, jy, jz) = 0;
+          ddt(phi_xlow)(xrdn.ind, jy, jz) = 0;
+          ddt(phi_ylow)(xrdn.ind, jy, jz) = ddt(phi_ylow)(xrdn.ind, jy + 1, jz);
           ddt(psi)(xrdn.ind, jy, jz) = 0;
           ddt(P)(xrdn.ind, jy, jz) = 0;
           u_x(xrdn.ind, jy, jz) = 0;
@@ -263,10 +277,10 @@ protected:
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(xrup.ind, jy, jz) = 0;
-          ddt(phi)(xrup.ind, jy, jz) = 0;
+          ddt(phi_xlow)(xrup.ind, jy, jz) = 0;
+          ddt(phi_ylow)(xrup.ind, jy, jz) = 0;
           ddt(psi)(xrup.ind, jy, jz) = 0;
           ddt(P)(xrup.ind, jy, jz) = 0;
-          ddt(phi)(xrdn.ind, jy, jz) = 0;
           u_x(xrdn.ind, jy, jz) = 0;
           u_y(xrdn.ind, jy, jz) = 0;
         }
@@ -281,7 +295,8 @@ protected:
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(jy, xrdn.ind, jz) = 0;
-          ddt(phi)(jy, xrdn.ind, jz) = 0;
+          ddt(phi_xlow)(jy, xrdn.ind, jz) = ddt(phi_xlow)(jy + 1, xrdn.ind, jz);
+          ddt(phi_ylow)(jy, xrdn.ind, jz) = 0;
           ddt(psi)(jy, xrdn.ind, jz) = 0;
           ddt(P)(jy, xrdn.ind, jz) = 0;
           u_x(jy, xrdn.ind, jz) = 0;
@@ -297,7 +312,8 @@ protected:
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(jy, xrup.ind, jz) = 0;
-          ddt(phi)(jy, xrup.ind, jz) = 0;
+          ddt(phi_xlow)(jy, xrup.ind, jz) = 0;
+          ddt(phi_ylow)(jy, xrup.ind, jz) = 0;
           ddt(psi)(jy, xrup.ind, jz) = 0;
           ddt(P)(jy, xrup.ind, jz) = 0;
           u_x(jy, xrup.ind, jz) = 0;
