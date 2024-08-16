@@ -21,7 +21,7 @@ nx = 32+6
 ny = 32
 nz = 1
 
-staggergrids = false
+staggergrids = true
 
 #Ly = 1
 #Lz = 4

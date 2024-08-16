@@ -197,8 +197,8 @@ protected:
 
     if (include_advection)
     {
-      // ddt(psi) = -bracket(phi, psi);
-      ddt(psi) = -(DDX(psi) * u_x - u_y * DDY(psi));
+      // ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
+      ddt(psi) = -V_dot_Grad(u, psi);
     }
     else
     {
@@ -212,8 +212,8 @@ protected:
 
     if (include_advection)
     {
-      // ddt(omega) = -bracket(phi, omega);
-      ddt(omega) = -(DDX(omega) * u_x - u_y * DDY(omega));
+      // ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
+      ddt(omega) = -V_dot_Grad(u, omega);
     }
     else
     {
@@ -227,14 +227,7 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      // ddt(omega) += -(2 / beta_p) * bracket(psi, Delp2(psi), BRACKET_ARAKAWA);
-      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
       ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
-
-      // ddt(omega) += DDY(D2DX2(psi));
-      // ddt(omega) += DDY(D2DY2(psi));
-      // ddt(omega) += DDX(D2DY2(psi));
-      // ddt(omega) += DDX(D2DX2(psi));
     }
 
     // Apply additional BCs on first two cells all around domain to handle thrid derivatives
