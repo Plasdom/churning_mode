@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 40    # number of time-steps
+nout = 30    # number of time-steps
 timestep = 1.0e-1  # time between outputs [1/wci]
 
 MXG = 3                  
@@ -39,23 +39,23 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddy]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddz]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 ###################################################
@@ -101,7 +101,7 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.02          # Poloidal field strength [T]
+B_pmid = 0.05          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -113,21 +113,34 @@ include_advection = true            # Include advection terms
 [P]
 
 # Initialise in normalised form
-gradient = 5
-ny = 32
-dy = 2*0.03125
-Ly = dy * ny 
-intercept = 1 - gradient * Ly / 2
-initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
-function = [yarg = y](initial_P)
+gradient = 1
+#ny = 32
+#dy = 2*0.03125
+#Ly = dy * ny 
+#intercept = 1 - gradient * Ly / 2
+#initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
+#function = [yarg = y](initial_P)
 #function = 3*sin(z-pi)
 
+# a = 0.15
+# e = 2.71828
+# nx = 32+6
+ny = 32
+# dx = 2*0.03125
+dy = 2*0.03125
+# Lx = dx * (nx-6) 
+Ly = dy * ny
+
+# x_c = (x - 0.5) * Lx
+y_c = (y/(2*pi) - 0.5) * Ly
+# r = sqrt(x_c^2 + y_c^2)
+
+# function = e ^ (-r^2/a) * gradient * y_c
+function = gradient * y_c
+
 # TODO: Check these BCs on P
-#bndry_ydown = dirichlet(5*4/2 + 1)
-#bndry_yup = dirichlet(1 - 5*4/2)
-#bndry_xin = none
-#bndry_xout = none
-bndry_all = none
+bndry_yup = neumann
+bndry_ydown = neumann
 
 [psi]
 
@@ -171,7 +184,11 @@ bndry_all = dirichlet
 function = 0
 
 [phi]
-bndry_all = dirichlet
+#bndry_yup = dirichlet
+#bndry_ydown = dirichlet
+#bndry_xin = zerolaplace
+#bndry_xout = zerolaplace
+
 
 # Initialise in normalised form
 function = 0
