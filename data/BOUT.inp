@@ -6,11 +6,11 @@
 
 # settings used by the core code
 
-nout = 30    # number of time-steps
-timestep = 1.0e-1  # time between outputs [1/wci]
+nout = 10    # number of time-steps
+timestep = 1.0e-2  # time between outputs [1/wci]
 
 MXG = 3                  
-MYG = 3                
+MYG = 0                
 
 periodicX = false 
 #periodicY = false
@@ -18,8 +18,8 @@ periodicX = false
 [mesh]
 
 nx = 32+6
-ny = 32
-nz = 1
+ny = 1
+nz = 32
 
 staggergrids = true
 
@@ -39,23 +39,23 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddy]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddz]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 ###################################################
@@ -72,10 +72,10 @@ use_precon = false
 # general settings for the model
 
 [phiSolver]
-type = petsc  # Needed if Boussinesq = false
+#type = petsc  # Needed if Boussinesq = false
 #pctype = bjacobi  # Preconditioning type
 
-fourth_order = true  # 4th order or 2nd order
+#fourth_order = true  # 4th order or 2nd order
 
 inner_boundary_flags = 0
 outer_boundary_flags = 0
@@ -101,10 +101,10 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.05          # Poloidal field strength [T]
+B_pmid = 0.005          # Poloidal field strength [T]
 
 # Switches
-invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
@@ -113,13 +113,13 @@ include_advection = true            # Include advection terms
 [P]
 
 # Initialise in normalised form
-gradient = 1
+gradient = 5
 #ny = 32
 #dy = 2*0.03125
 #Ly = dy * ny 
 #intercept = 1 - gradient * Ly / 2
 #initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
-#function = [yarg = y](initial_P)
+#function = [yarg = z](initial_P)
 #function = 3*sin(z-pi)
 
 # a = 0.15
@@ -132,19 +132,19 @@ dy = 2*0.03125
 Ly = dy * ny
 
 # x_c = (x - 0.5) * Lx
-y_c = (y/(2*pi) - 0.5) * Ly
+y_c = (z/(2*pi) - 0.5) * Ly
 # r = sqrt(x_c^2 + y_c^2)
 
 # function = e ^ (-r^2/a) * gradient * y_c
 function = gradient * y_c
 
 # TODO: Check these BCs on P
-bndry_yup = neumann
-bndry_ydown = neumann
+#bndry_yup = neumann
+#bndry_ydown = neumann
 
 [psi]
 
-bndry_all = none
+#bndry_all = none
 
 # Define parameters and functions for psi initialisation
 
@@ -161,7 +161,7 @@ Lx = dx * (nx-6)
 Ly = dy * ny
 
 x_c = (x - 0.5) * Lx
-y_c = (y/(2*pi) - 0.5) * Ly
+y_c = (z/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 #initial_psi = (e ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * e ^ (-{r_coord}^2 / d^2))) ) )
@@ -178,7 +178,7 @@ scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
 [omega]
 
-bndry_all = dirichlet
+#bndry_all = dirichlet
 
 # Initialise in normalised form
 function = 0

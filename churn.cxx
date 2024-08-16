@@ -12,9 +12,9 @@ private:
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi, u_x, u_y;
+  Field3D phi, u_x, u_z;
   Vector3D u;
-  Vector3D e_z; // Unit vector in z direction
+  Vector3D e_y; // Unit vector in z direction
 
   // Input Parameters
   BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
@@ -123,7 +123,7 @@ protected:
       phi_init_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_y, phi);
+      SAVE_REPEAT(u_x, u_z, phi);
     }
     else
     {
@@ -131,13 +131,16 @@ protected:
       non_boussinesq_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega, phi);
-      SAVE_REPEAT(u_x, u_y);
+      SAVE_REPEAT(u_x, u_z);
     }
 
     // Initialise unit vector in z direction
-    e_z.x = 0;
-    e_z.y = 0;
-    e_z.z = 1;
+    e_y.x = 0;
+    e_y.y = 0;
+    e_y.z = 1;
+    u_x = 0;
+    u_z = 0;
+    u = 0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -161,72 +164,48 @@ protected:
   int rhs(BoutReal UNUSED(t))
   {
 
-    // Apply additional BCs on first two cells all around domain to handle thrid derivatives
-    // RangeIterator xrdn = mesh->iterateBndryLowerY();
-    RangeIterator xrdn = mesh->iterateBndryLowerY();
-    RangeIterator xrup = mesh->iterateBndryUpperY();
-    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
+    int ngc = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+    int extra_gc = 2;
+    for (int jx = 0; jx < ngc + extra_gc; jx++)
     {
-      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
-          ddt(omega)(xrdn.ind, jy, jz) = 0;
-          ddt(phi)(xrdn.ind, jy, jz) = 0;
-          ddt(psi)(xrdn.ind, jy, jz) = 0;
-          // ddt(P)(xrdn.ind, jy, jz) = 0;
-          // u_x(xrdn.ind, jy, jz) = 0;
-          // u_y(xrdn.ind, jy, jz) = 0;
+          omega(jx, jy, jz) = 0.0;
         }
       }
     }
 
-    // RangeIterator xrup = mesh->iterateBndryUpperY();
-    for (xrup.first(); !xrup.isDone(); xrup.next())
+    for (int jx = mesh->xend - extra_gc + 1; jx < mesh->xend + ngc + 1; jx++)
     {
-      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
-          ddt(omega)(xrup.ind, jy, jz) = 0;
-          ddt(phi)(xrup.ind, jy, jz) = 0;
-          ddt(psi)(xrup.ind, jy, jz) = 0;
-          ddt(P)(xrup.ind, jy, jz) = 0;
-          // u_x(xrup.ind, jy, jz) = 0;
-          // u_y(xrup.ind, jy, jz) = 0;
+          omega(jx, jy, jz) = 0.0;
         }
       }
     }
 
-    // TODO: There is no mesh->iterateBndryInnerX object, so having to do this in a janky way which won't parallelise. Fix in future.
-    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
+    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
     {
-      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
       {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        for (int jz = mesh->zstart; jz < mesh->zstart + extra_gc; jz++)
         {
-          ddt(omega)(jy, xrdn.ind, jz) = 0;
-          ddt(phi)(jy, xrdn.ind, jz) = 0;
-          ddt(psi)(jy, xrdn.ind, jz) = 0;
-          ddt(P)(jy, xrdn.ind, jz) = 0;
-          // u_x(jy, xrdn.ind, jz) = 0;
-          // u_y(jy, xrdn.ind, jz) = 0;
+          omega(jx, jy, jz) = 0.0;
         }
       }
     }
 
-    for (xrup.first(); !xrup.isDone() - 1; xrup.next())
+    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
     {
-      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
       {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        for (int jz = mesh->zend; jz > mesh->zend - extra_gc; jz--)
         {
-          ddt(omega)(jy, xrup.ind, jz) = 0;
-          ddt(phi)(jy, xrup.ind, jz) = 0;
-          ddt(psi)(jy, xrup.ind, jz) = 0;
-          ddt(P)(jy, xrup.ind, jz) = 0;
-          // u_x(jy, xrup.ind, jz) = 0;
-          // u_y(jy, xrup.ind, jz) = 0;
+          omega(jx, jy, jz) = 0.0;
         }
       }
     }
@@ -244,66 +223,15 @@ protected:
     else
     {
       mesh->communicate(P, psi, omega, phi);
-      // ddt(phi) = Laplace(phi) - omega;
-      ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+
+      ddt(phi) = Delp2(phi) - omega;
+      // ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+      // ddt(phi) = 0.0;
     }
+    // u_x = u.x;
+    // u_z = u.y;
 
-    u = -cross(e_z, Grad(phi));
-
-    // Apply additional BCs on first two cells all around domain to handle thrid derivatives
-    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
-    {
-      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          u.x(xrdn.ind, jy, jz) = 0;
-          u.y(xrdn.ind, jy, jz) = 0;
-        }
-      }
-    }
-
-    for (xrup.first(); !xrup.isDone(); xrup.next())
-    {
-      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          u.x(xrup.ind, jy, jz) = 0;
-          u.y(xrup.ind, jy, jz) = 0;
-        }
-      }
-    }
-
-    // TODO: There is no mesh->iterateBndryInnerX object, so having to do this in a janky way which won't parallelise. Fix in future.
-    for (xrdn.first(); !xrdn.isDone(); xrdn.next())
-    {
-      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          u.x(jy, xrdn.ind, jz) = 0;
-          u.y(jy, xrdn.ind, jz) = 0;
-        }
-      }
-    }
-
-    for (xrup.first(); !xrup.isDone(); xrup.next())
-    {
-      for (int jy = mesh->yend - 1; jy < mesh->LocalNy; jy++)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          u.x(jy, xrup.ind, jz) = 0;
-          u.y(jy, xrup.ind, jz) = 0;
-        }
-      }
-    }
-
-    u_x = u.x;
-    u_y = u.y;
-
-    mesh->communicate(u, u_x, u_y);
+    mesh->communicate(u, u_x, u_z);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -312,7 +240,8 @@ protected:
       if (include_advection)
       {
         // ddt(P) = -(DDX(P) * u_x + u_y * DDY(P));
-        ddt(P) = -V_dot_Grad(u, P);
+        // ddt(P) = -V_dot_Grad(u, P);
+        ddt(P) = bracket(P, phi);
       }
       else
       {
@@ -328,7 +257,8 @@ protected:
     if (include_advection)
     {
       // ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
-      ddt(psi) = -V_dot_Grad(u, psi);
+      // ddt(psi) = -V_dot_Grad(u, psi);
+      ddt(psi) = bracket(psi, phi);
     }
     else
     {
@@ -343,7 +273,8 @@ protected:
     if (include_advection)
     {
       // ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
-      ddt(omega) = -V_dot_Grad(u, omega);
+      // ddt(omega) = -V_dot_Grad(u, omega);
+      ddt(omega) = bracket(omega, phi);
     }
     else
     {
@@ -353,11 +284,72 @@ protected:
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-      ddt(omega) += 2 * epsilon * DDY(P);
+      ddt(omega) += 2 * epsilon * DDZ(P);
     }
     if (include_mag_restoring_term)
     {
-      ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
+      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDZ(Laplace(psi)) - DDZ(psi) * DDX(Laplace(psi)));
+      ddt(omega) += bracket(psi, Delp2(psi));
+    }
+
+    for (int jx = 0; jx < ngc + extra_gc; jx++)
+    {
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          // omega(jx, jy, jz) = 10.0;
+          ddt(omega)(jx, jy, jz) = 0.0;
+          ddt(phi)(jx, jy, jz) = 0.0;
+          ddt(P)(jx, jy, jz) = 0.0;
+          ddt(psi)(jx, jy, jz) = 0.0;
+        }
+      }
+    }
+
+    for (int jx = mesh->xend - extra_gc + 1; jx < mesh->xend + ngc + 1; jx++)
+    {
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      {
+        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        {
+          // omega(jx, jy, jz) = 10.0;
+          ddt(omega)(jx, jy, jz) = 0.0;
+          ddt(phi)(jx, jy, jz) = 0.0;
+          ddt(P)(jx, jy, jz) = 0.0;
+          ddt(psi)(jx, jy, jz) = 0.0;
+        }
+      }
+    }
+
+    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
+    {
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      {
+        for (int jz = mesh->zstart; jz < mesh->zstart + extra_gc; jz++)
+        {
+          // omega(jx, jy, jz) = 10.0;
+          ddt(omega)(jx, jy, jz) = 0.0;
+          ddt(phi)(jx, jy, jz) = 0.0;
+          ddt(P)(jx, jy, jz) = 0.0;
+          ddt(psi)(jx, jy, jz) = 0.0;
+        }
+      }
+    }
+
+    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
+    {
+      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      {
+        for (int jz = mesh->zend; jz > mesh->zend - extra_gc; jz--)
+        {
+          // omega(jx, jy, jz) = 10.0;
+          ddt(omega)(jx, jy, jz) = 0.0;
+          ddt(phi)(jx, jy, jz) = 0.0;
+          ddt(P)(jx, jy, jz) = 0.0;
+          ddt(psi)(jx, jy, jz) = 0.0;
+        }
+      }
     }
 
     return 0;
