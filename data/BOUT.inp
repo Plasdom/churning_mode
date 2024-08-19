@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 10    # number of time-steps
+nout = 25    # number of time-steps
 timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 3                  
@@ -39,23 +39,23 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddy]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 [mesh:ddz]
 
-first = C4
-second = C4
-fourth = C4
+first = C2
+second = C2
+fourth = C2
 upwind = W3
 
 ###################################################
@@ -94,6 +94,9 @@ use_precon = false
 #filter = 0.0     # Must not filter solution
 #flags = 49152  # set_rhs i.e. identity matrix in boundaries
 
+[invertible]
+
+#ksp_type = gmres
 
 [model]
 
@@ -106,7 +109,7 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.25          # Poloidal field strength [T]
+B_pmid = 0.1          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -155,8 +158,8 @@ y_c = (y/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 
-#initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+#initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](initial_psi)
 scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 

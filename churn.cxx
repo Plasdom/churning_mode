@@ -53,10 +53,15 @@ private:
   bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
   bool include_advection;          ///< Use advection terms
 
+  int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+  int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
+  int ngc_extra = 3;
+
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
   {
     Field3D D = 1.0, C = 1.0, A = 0.0;
+    int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
 
     // Drop C term for now
     Field3D operator()(const Field3D &input)
@@ -66,6 +71,47 @@ private:
       Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
 
       // Ensure boundary points are set appropriately as given by the input field.
+      for (int jx = 0; jx < ngcx_tot; jx++)
+      {
+        for (int jy = 0; jy < ny_tot; jy++)
+        {
+          for (int jz = 0; jz < nz_tot; jz++)
+          {
+            result(jx, jy, jz) = 0.0;
+          }
+        }
+      }
+      for (int jx = nx_tot - 1; jx > nx_tot - ngcx_tot - 1; jx--)
+      {
+        for (int jy = 0; jy < ny_tot; jy++)
+        {
+          for (int jz = 0; jz < nz_tot; jz++)
+          {
+            result(jx, jy, jz) = 0.0;
+          }
+        }
+      }
+      for (int jx = 0; jx < nx_tot; jx++)
+      {
+        for (int jy = 0; jy < ngcy_tot; jy++)
+        {
+          for (int jz = 0; jz < nz_tot; jz++)
+          {
+            result(jx, jy, jz) = 0.0;
+          }
+        }
+      }
+      for (int jx = 0; jx < nx_tot; jx++)
+      {
+        for (int jy = ny_tot - 1; jy > ny_tot - ngcy_tot - 1; jy--)
+        {
+          for (int jz = 0; jz < nz_tot; jz++)
+          {
+            result(jx, jy, jz) = 0.0;
+          }
+        }
+      }
+
       result.setBoundaryTo(input);
 
       return result;
@@ -142,6 +188,11 @@ protected:
       phi_init_options.setConditionallyUsed();
       mm.A = 0;
       mm.D = 1.0;
+      mm.ngcx_tot = ngcx + ngc_extra;
+      mm.ngcy_tot = ngcy + ngc_extra;
+      mm.nx_tot = mesh->GlobalNx;
+      mm.ny_tot = mesh->GlobalNy;
+      mm.nz_tot = mesh->GlobalNz;
       mySolver.setOperatorFunction(mm);
       mySolver.setup();
 
@@ -204,7 +255,6 @@ protected:
     else
     {
       mesh->communicate(P, psi, omega, phi);
-      // ddt(phi) = Laplace(phi) - omega;
       ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
     }
     mesh->communicate(phi);
@@ -245,7 +295,6 @@ protected:
     {
       ddt(psi) = 0;
     }
-    // ddt(psi) += (D_m / D_0) * Laplace(psi);
     ddt(psi) += (D_m / D_0) * (D2DX2(psi) + D2DY2(psi));
 
     // Vorticity evolution
@@ -260,7 +309,6 @@ protected:
     {
       ddt(omega) = 0;
     }
-    // ddt(omega) += (mu / D_0) * Laplace(omega);
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
@@ -268,43 +316,47 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(Laplace(psi)) - DDY(psi) * DDX(Laplace(psi)));
+      ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
     }
 
     // Apply additional BCs on first two cells all around domain to handle thrid derivatives
     // TODO: Make these BCs work when runnning in parallel
     // Lower Y
-    int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
-    int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
     for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
     {
-      for (int jy = mesh->ystart + 1; jy >= 0; jy--)
+      for (int jy = mesh->ystart + (ngc_extra - 1); jy >= 0; jy--)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(jx, jy, jz) = 0;
           ddt(phi)(jx, jy, jz) = 0;
-          ddt(psi)(jx, jy, jz) = 0;
           ddt(P)(jx, jy, jz) = 0;
+          if (invert_laplace == false)
+          {
+            ddt(psi)(jx, jy, jz) = 0;
+          }
         }
       }
     }
     // Upper Y
     for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
     {
-      for (int jy = mesh->yend - 1; jy < mesh->LocalNy + 1; jy++)
+      for (int jy = mesh->yend - (ngc_extra - 1); jy < mesh->LocalNy + 1; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
           ddt(omega)(jx, jy, jz) = 0;
           ddt(phi)(jx, jy, jz) = 0;
-          ddt(psi)(jx, jy, jz) = 0;
           ddt(P)(jx, jy, jz) = 0;
+          if (invert_laplace == false)
+          {
+            ddt(psi)(jx, jy, jz) = 0;
+          }
         }
       }
     }
     // Lower X
-    for (int jx = 0; jx < ngcx + 2; jx++)
+    for (int jx = 0; jx < ngcx + ngc_extra; jx++)
     {
       for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
       {
@@ -312,13 +364,16 @@ protected:
         {
           ddt(omega)(jx, jy, jz) = 0;
           ddt(phi)(jx, jy, jz) = 0;
-          ddt(psi)(jx, jy, jz) = 0;
           ddt(P)(jx, jy, jz) = 0;
+          if (invert_laplace == false)
+          {
+            ddt(psi)(jx, jy, jz) = 0;
+          }
         }
       }
     }
     // Upper X
-    for (int jx = mesh->xend - 1; jx < mesh->xend + ngcx + 1; jx++)
+    for (int jx = mesh->xend - (ngc_extra - 1); jx < mesh->xend + ngcx + 1; jx++)
     {
       for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
       {
@@ -326,8 +381,11 @@ protected:
         {
           ddt(omega)(jx, jy, jz) = 0;
           ddt(phi)(jx, jy, jz) = 0;
-          ddt(psi)(jx, jy, jz) = 0;
           ddt(P)(jx, jy, jz) = 0;
+          if (invert_laplace == false)
+          {
+            ddt(psi)(jx, jy, jz) = 0;
+          }
         }
       }
     }
