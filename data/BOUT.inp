@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 30    # number of time-steps
-timestep = 1.0e-1  # time between outputs [1/wci]
+nout = 50    # number of time-steps
+timestep = 1.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 3                  
 MYG = 3                
@@ -28,9 +28,9 @@ staggergrids = true
 #dx = Lx / nx
 #dy = Ly / ny
 #dz = Lz / nz
-dx = 2*0.03125
-dy = 2*0.03125
-dz = 2*0.03125
+dx = 0.008
+dy = 0.008
+dz = 0.008
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -39,23 +39,23 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddy]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddz]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 ###################################################
@@ -101,41 +101,26 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.05          # Poloidal field strength [T]
+B_pmid = 0.15          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 
 [P]
 
 # Initialise in normalised form
-gradient = 1
-#ny = 32
-#dy = 2*0.03125
-#Ly = dy * ny 
-#intercept = 1 - gradient * Ly / 2
-#initial_P = intercept + gradient * (Ly * {yarg} / (2*pi))
-#function = [yarg = y](initial_P)
-#function = 3*sin(z-pi)
+gradient = 2.5
 
-# a = 0.15
-# e = 2.71828
-# nx = 32+6
 ny = 32
-# dx = 2*0.03125
-dy = 2*0.03125
-# Lx = dx * (nx-6) 
+dy = 0.008
 Ly = dy * ny
 
-# x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
-# r = sqrt(x_c^2 + y_c^2)
 
-# function = e ^ (-r^2/a) * gradient * y_c
 function = gradient * y_c
 
 # TODO: Check these BCs on P
@@ -155,8 +140,8 @@ e = 2.71828
 
 nx = 32+6
 ny = 32
-dx = 2*0.03125
-dy = 2*0.03125
+dx = 0.008
+dy = 0.008
 Lx = dx * (nx-6) 
 Ly = dy * ny
 
@@ -164,13 +149,7 @@ x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
-#initial_psi = (e ^ (-({r_coord}^2/a^2)) * ( {r_coord}^3 * sin(3 * ({theta_coord} + chi_0 * e ^ (-{r_coord}^2 / d^2))) ) )
 
-#function = [r_coord=r, theta_coord=theta](initial_psi)
-#scale = [r_coord = 1.0, theta_coord = 3*pi/2] (2.71828 ^ (-(1/a^2)) / initial_psi)
-
-#function = (y_c^3 - 3*x_c^2*y_c)
-#function = -0.0001*(x_c^2 - y_c^2)
 initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 #initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](initial_psi)
