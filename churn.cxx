@@ -178,8 +178,8 @@ protected:
       ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
     }
 
+    // Calculate velocity
     u = -cross(e_z, Grad(phi));
-
     u_x = u.x;
     u_y = u.y;
 
@@ -243,8 +243,9 @@ protected:
     // Apply additional BCs on first two cells all around domain to handle thrid derivatives
     // TODO: Make these BCs work when runnning in parallel
     // Lower Y
-    int ngc = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
-    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
+    int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+    int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
+    for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
     {
       for (int jy = mesh->ystart + 1; jy >= 0; jy--)
       {
@@ -258,7 +259,7 @@ protected:
       }
     }
     // Upper Y
-    for (int jx = 0; jx < mesh->xend + ngc + 1; jx++)
+    for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
     {
       for (int jy = mesh->yend - 1; jy < mesh->LocalNy + 1; jy++)
       {
@@ -272,9 +273,9 @@ protected:
       }
     }
     // Lower X
-    for (int jx = 0; jx < ngc + 2; jx++)
+    for (int jx = 0; jx < ngcx + 2; jx++)
     {
-      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {
@@ -286,9 +287,9 @@ protected:
       }
     }
     // Upper X
-    for (int jx = mesh->xend - 1; jx < mesh->xend + ngc + 1; jx++)
+    for (int jx = mesh->xend - 1; jx < mesh->xend + ngcx + 1; jx++)
     {
-      for (int jy = mesh->ystart; jy < mesh->yend + 1; jy++)
+      for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
       {
         for (int jz = 0; jz < mesh->LocalNz; jz++)
         {

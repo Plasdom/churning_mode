@@ -7,7 +7,7 @@
 # settings used by the core code
 
 nout = 50    # number of time-steps
-timestep = 1.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 3.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 3                  
 MYG = 3                
