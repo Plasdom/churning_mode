@@ -1,6 +1,7 @@
-#include <bout/derivs.hxx>         // To use DDZ()
-#include <bout/invert_laplace.hxx> // Laplacian inversion
-#include <bout/physicsmodel.hxx>   // Commonly used BOUT++ components
+#include <bout/derivs.hxx> // To use DDZ()
+// #include "bout/invert/laplacexy.hxx" // Laplacian inversion
+#include <bout/physicsmodel.hxx> // Commonly used BOUT++ components
+#include <bout/invertable_operator.hxx>
 
 /// Churning mode model
 ///
@@ -53,8 +54,26 @@ private:
   bool include_advection;          ///< Use advection terms
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
-  std::unique_ptr<Laplacian> phiSolver{
-      nullptr}; ///< Performs Laplacian inversions to calculate phi
+  struct myLaplacian
+  {
+    Field3D D = 1.0, C = 1.0, A = 0.0;
+
+    // Drop C term for now
+    Field3D operator()(const Field3D &input)
+    {
+      // TRACE("myLaplacian::operator()");
+      // Timer timer("invertable_operator_operate");
+      Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
+
+      // Ensure boundary points are set appropriately as given by the input field.
+      result.setBoundaryTo(input);
+
+      return result;
+    };
+  };
+  myLaplacian mm;
+  bout::inversion::InvertableOperator<Field3D> mySolver;
+  const int nits = 5;
 
 protected:
   int init(bool UNUSED(restarting)) // TODO: Use the restart flag
@@ -115,12 +134,16 @@ protected:
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
-    Options &non_boussinesq_options = Options::root()["phiSolver"];
     if (invert_laplace)
     {
-      phiSolver = Laplacian::create(&non_boussinesq_options);
+      // TODO: Get LaplaceXY working as it is quicker
+      //  phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
       phi = 0.0; // Starting guess for first solve (if iterative)
       phi_init_options.setConditionallyUsed();
+      mm.A = 0;
+      mm.D = 1.0;
+      mySolver.setOperatorFunction(mm);
+      mySolver.setup();
 
       SOLVE_FOR(P, psi, omega);
       SAVE_REPEAT(u_x, u_y, phi);
@@ -128,7 +151,6 @@ protected:
     else
     {
       phi.setBoundary("phi");
-      non_boussinesq_options.setConditionallyUsed();
 
       SOLVE_FOR(P, psi, omega, phi);
       SAVE_REPEAT(u_x, u_y);
@@ -165,11 +187,19 @@ protected:
     ////////////////////////////////////////////////////////////////////////////
     if (invert_laplace)
     {
-      // TODO: Use LaplaceXY when this option is switched on
       mesh->communicate(P, psi, omega);
-      phi = phiSolver->solve(omega);
-
-      mesh->communicate(phi);
+      phi = mySolver.invert(omega, 0.0);
+      try
+      {
+        for (int i = 0; i < nits; i++)
+        {
+          phi = mySolver.invert(omega, phi);
+          mesh->communicate(phi);
+        }
+      }
+      catch (BoutException &e)
+      {
+      };
     }
     else
     {
@@ -177,6 +207,7 @@ protected:
       // ddt(phi) = Laplace(phi) - omega;
       ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
     }
+    mesh->communicate(phi);
 
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
