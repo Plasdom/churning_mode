@@ -93,7 +93,7 @@ private:
   };
   myLaplacian mm;
   bout::inversion::InvertableOperator<Field3D> mySolver;
-  const int nits = 5;
+  const int nits = 10;
 
 protected:
   int init(bool restarting) // TODO: Use the restart flag
@@ -236,6 +236,7 @@ protected:
 
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
+
     u_x = u.x;
     u_y = u.y;
 
@@ -247,8 +248,14 @@ protected:
     {
       if (include_advection)
       {
-        // ddt(P) = -(DDX(P) * u_x + u_y * DDY(P));
-        ddt(P) = -V_dot_Grad(u, P);
+        if (mesh->StaggerGrids)
+        {
+          ddt(P) = -V_dot_Grad(u, P);
+        }
+        else
+        {
+          ddt(P) = -(DDX(P) * u_x + u_y * DDY(P));
+        }
       }
       else
       {
@@ -263,8 +270,14 @@ protected:
 
     if (include_advection)
     {
-      // ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
-      ddt(psi) = -V_dot_Grad(u, psi);
+      if (mesh->StaggerGrids)
+      {
+        ddt(psi) = -V_dot_Grad(u, psi);
+      }
+      else
+      {
+        ddt(P) = -(DDX(psi) * u_x + u_y * DDY(psi));
+      }
     }
     else
     {
@@ -277,8 +290,14 @@ protected:
 
     if (include_advection)
     {
-      // ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
-      ddt(omega) = -V_dot_Grad(u, omega);
+      if (mesh->StaggerGrids)
+      {
+        ddt(omega) = -V_dot_Grad(u, omega);
+      }
+      else
+      {
+        ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
+      }
     }
     else
     {
