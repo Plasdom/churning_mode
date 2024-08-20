@@ -11,7 +11,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngc_extra = 2;
+  int ngc_extra = 3;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
 
@@ -133,6 +133,10 @@ private:
   myLaplacian mm;
   bout::inversion::InvertableOperator<Field3D> mySolver;
   const int nits = 3;
+
+  // Y boundary iterators
+  RangeIterator itl = mesh->iterateBndryLowerY();
+  RangeIterator itu = mesh->iterateBndryUpperY();
 
 protected:
   int init(bool restarting) // TODO: Use the restart flag
@@ -369,6 +373,7 @@ protected:
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
+              // ddt(phi)(ix + 1, iy, iz) = 0.0;
             }
           }
         }
@@ -388,13 +393,13 @@ protected:
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
+              // ddt(phi)(ix - 1, iy, iz) = 0.0;
             }
           }
         }
       }
     }
     // Y boundaries
-    RangeIterator itl = mesh->iterateBndryLowerY();
     for (itl.first(); !itl.isDone(); itl++)
     {
       // it.ind contains the x index
@@ -408,11 +413,11 @@ protected:
           if (invert_laplace == false)
           {
             ddt(phi)(itl.ind, iy, iz) = 0.0;
+            // ddt(phi)(itl.ind, iy + 1, iz) = 0.0;
           }
         }
       }
     }
-    RangeIterator itu = mesh->iterateBndryUpperY();
     for (itu.first(); !itu.isDone(); itu++)
     {
       // it.ind contains the x index
@@ -426,6 +431,7 @@ protected:
           if (invert_laplace == false)
           {
             ddt(phi)(itu.ind, iy, iz) = 0.0;
+            // ddt(phi)(itu.ind, iy - 1, iz) = 0.0;
           }
         }
       }
