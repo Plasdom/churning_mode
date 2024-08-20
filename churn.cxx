@@ -276,7 +276,7 @@ protected:
       }
       else
       {
-        ddt(P) = -(DDX(psi) * u_x + u_y * DDY(psi));
+        ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
       }
     }
     else
