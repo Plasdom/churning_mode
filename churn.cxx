@@ -11,7 +11,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngc_extra = 3;
+  int ngc_extra = 2;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
 
@@ -63,7 +63,7 @@ private:
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
   {
-    BoutReal D = 1.0, C = 1.0, A = 0.0;
+    BoutReal D = 1.0, A = 0.0;
     int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
 
     Field3D operator()(const Field3D &input)
@@ -72,18 +72,45 @@ private:
 
       // Ensure boundary points are set appropriately as given by the input field.
       Mesh *mesh = result.getMesh();
-      BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+      // X boundaries
+      if (mesh->firstX())
       {
-        // X boundaries
-        if (mesh->getGlobalXIndex(i.x()) < ngcx_tot || mesh->getGlobalXIndex(i.x()) >= nx_tot - ngcx_tot)
-        {
-          result[i] = 0.0;
-        }
-        // Y boundaries
-        if (mesh->getGlobalYIndex(i.y()) < ngcy_tot || mesh->getGlobalYIndex(i.y()) >= ny_tot - ngcy_tot)
-        {
-          result[i] = 0.0;
-        }
+        for (int ix = 0; ix < ngcx_tot; ix++)
+          for (int iy = 0; iy < mesh->LocalNy; iy++)
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+              result(ix, iy, iz) = 0.0;
+            }
+      }
+      if (mesh->lastX())
+      {
+        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+          for (int iy = 0; iy < mesh->LocalNy; iy++)
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+              result(ix, iy, iz) = 0.0;
+            }
+      }
+      // Y boundaries
+      RangeIterator itl = mesh->iterateBndryLowerY();
+      for (itl.first(); !itl.isDone(); itl++)
+      {
+        // it.ind contains the x index
+        for (int iy = 0; iy < ngcy_tot; iy++) // Boundary width 3 points
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            result(itl.ind, iy, iz) = 0.0;
+          }
+      }
+      RangeIterator itu = mesh->iterateBndryUpperY();
+      for (itu.first(); !itu.isDone(); itu++)
+      {
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++) // Boundary width 3 points
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            result(itu.ind, iy, iz) = 0.0;
+          }
       }
 
       result.setBoundaryTo(input);
@@ -161,7 +188,7 @@ protected:
       //  phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
       phi = 0.0; // Starting guess for first solve (if iterative)
       phi_init_options.setConditionallyUsed();
-      mm.A = 0;
+      mm.A = 0.0;
       mm.D = 1.0;
       mm.ngcx_tot = ngcx_tot;
       mm.ngcy_tot = ngcy_tot;
@@ -191,6 +218,7 @@ protected:
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
+    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot);
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -314,31 +342,69 @@ protected:
     }
 
     // Apply ddt = 0 BCs
-    // TODO: Come up with more efficient way of doing this?
-    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    // X boundaries
+    if (mesh->firstX())
     {
-      // X boundaries
-      if (mesh->getGlobalXIndex(i.x()) < ngcx_tot || mesh->getGlobalXIndex(i.x()) >= nx_tot - ngcx_tot)
-      {
-        ddt(omega)(i.x(), i.y(), i.z()) = 0;
-        ddt(phi)(i.x(), i.y(), i.z()) = 0;
-        ddt(P)(i.x(), i.y(), i.z()) = 0;
-        if (invert_laplace == false)
+      for (int ix = 0; ix < ngcx_tot; ix++)
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            ddt(omega)(ix, iy, iz) = 0.0;
+            ddt(psi)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
+            if (invert_laplace == false)
+            {
+              ddt(phi)(ix, iy, iz) = 0.0;
+            }
+          }
+    }
+    if (mesh->lastX())
+    {
+      for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            ddt(omega)(ix, iy, iz) = 0.0;
+            ddt(psi)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
+            if (invert_laplace == false)
+            {
+              ddt(phi)(ix, iy, iz) = 0.0;
+            }
+          }
+    }
+    // Y boundaries
+    RangeIterator itl = mesh->iterateBndryLowerY();
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+      // it.ind contains the x index
+      for (int iy = 0; iy < ngcy_tot; iy++) // Boundary width 3 points
+        for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
-          ddt(psi)(i.x(), i.y(), i.z()) = 0;
+          ddt(omega)(itl.ind, iy, iz) = 0.0;
+          ddt(psi)(itl.ind, iy, iz) = 0.0;
+          ddt(P)(itl.ind, iy, iz) = 0.0;
+          if (invert_laplace == false)
+          {
+            ddt(phi)(itl.ind, iy, iz) = 0.0;
+          }
         }
-      }
-      // Y boundaries
-      if (mesh->getGlobalYIndex(i.y()) < ngcy_tot || mesh->getGlobalYIndex(i.y()) >= ny_tot - ngcy_tot)
-      {
-        ddt(omega)(i.x(), i.y(), i.z()) = 0;
-        ddt(phi)(i.x(), i.y(), i.z()) = 0;
-        ddt(P)(i.x(), i.y(), i.z()) = 0;
-        if (invert_laplace == false)
+    }
+    RangeIterator itu = mesh->iterateBndryUpperY();
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+      // it.ind contains the x index
+      for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++) // Boundary width 3 points
+        for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
-          ddt(psi)(i.x(), i.y(), i.z()) = 0;
+          ddt(omega)(itu.ind, iy, iz) = 0.0;
+          ddt(psi)(itu.ind, iy, iz) = 0.0;
+          ddt(P)(itu.ind, iy, iz) = 0.0;
+          if (invert_laplace == false)
+          {
+            ddt(phi)(itu.ind, iy, iz) = 0.0;
+          }
         }
-      }
     }
 
     return 0;
