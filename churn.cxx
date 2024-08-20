@@ -113,7 +113,7 @@ private:
           }
       }
 
-      result.setBoundaryTo(input);
+      // result.setBoundaryTo(input);
 
       return result;
     };

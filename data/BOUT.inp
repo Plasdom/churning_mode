@@ -118,6 +118,10 @@ include_churn_drive_term = true    # Include the churn driving term in the vorti
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 
+[all]
+
+bndry_all = none
+
 [P]
 
 # Initialise in normalised form
@@ -132,12 +136,12 @@ y_c = (y/(2*pi) - 0.5) * Ly
 function = gradient * y_c
 
 # TODO: Check these BCs on P
-bndry_yup = neumann
-bndry_ydown = neumann
+#bndry_yup = neumann
+#bndry_ydown = neumann
 
 [psi]
 
-bndry_all = none
+#bndry_all = none
 
 # Define parameters and functions for psi initialisation
 
@@ -165,7 +169,7 @@ scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
 [omega]
 
-bndry_all = dirichlet
+#bndry_all = dirichlet
 
 # Initialise in normalised form
 function = 0
