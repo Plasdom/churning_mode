@@ -76,41 +76,53 @@ private:
       if (mesh->firstX())
       {
         for (int ix = 0; ix < ngcx_tot; ix++)
+        {
           for (int iy = 0; iy < mesh->LocalNy; iy++)
+          {
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
               result(ix, iy, iz) = 0.0;
             }
+          }
+        }
       }
       if (mesh->lastX())
       {
         for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+        {
           for (int iy = 0; iy < mesh->LocalNy; iy++)
+          {
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
               result(ix, iy, iz) = 0.0;
             }
+          }
+        }
       }
       // Y boundaries
       RangeIterator itl = mesh->iterateBndryLowerY();
       for (itl.first(); !itl.isDone(); itl++)
       {
         // it.ind contains the x index
-        for (int iy = 0; iy < ngcy_tot; iy++) // Boundary width 3 points
+        for (int iy = 0; iy < ngcy_tot; iy++)
+        {
           for (int iz = 0; iz < mesh->LocalNz; iz++)
           {
             result(itl.ind, iy, iz) = 0.0;
           }
+        }
       }
       RangeIterator itu = mesh->iterateBndryUpperY();
       for (itu.first(); !itu.isDone(); itu++)
       {
         // it.ind contains the x index
-        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++) // Boundary width 3 points
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        {
           for (int iz = 0; iz < mesh->LocalNz; iz++)
           {
             result(itu.ind, iy, iz) = 0.0;
           }
+        }
       }
 
       // result.setBoundaryTo(input);
@@ -120,7 +132,7 @@ private:
   };
   myLaplacian mm;
   bout::inversion::InvertableOperator<Field3D> mySolver;
-  const int nits = 10;
+  const int nits = 3;
 
 protected:
   int init(bool restarting) // TODO: Use the restart flag
@@ -346,7 +358,9 @@ protected:
     if (mesh->firstX())
     {
       for (int ix = 0; ix < ngcx_tot; ix++)
+      {
         for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
           for (int iz = 0; iz < mesh->LocalNz; iz++)
           {
             ddt(omega)(ix, iy, iz) = 0.0;
@@ -357,11 +371,15 @@ protected:
               ddt(phi)(ix, iy, iz) = 0.0;
             }
           }
+        }
+      }
     }
     if (mesh->lastX())
     {
       for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+      {
         for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
           for (int iz = 0; iz < mesh->LocalNz; iz++)
           {
             ddt(omega)(ix, iy, iz) = 0.0;
@@ -372,6 +390,8 @@ protected:
               ddt(phi)(ix, iy, iz) = 0.0;
             }
           }
+        }
+      }
     }
     // Y boundaries
     RangeIterator itl = mesh->iterateBndryLowerY();
@@ -379,6 +399,7 @@ protected:
     {
       // it.ind contains the x index
       for (int iy = 0; iy < ngcy_tot; iy++) // Boundary width 3 points
+      {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
           ddt(omega)(itl.ind, iy, iz) = 0.0;
@@ -389,12 +410,14 @@ protected:
             ddt(phi)(itl.ind, iy, iz) = 0.0;
           }
         }
+      }
     }
     RangeIterator itu = mesh->iterateBndryUpperY();
     for (itu.first(); !itu.isDone(); itu++)
     {
       // it.ind contains the x index
       for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++) // Boundary width 3 points
+      {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
           ddt(omega)(itu.ind, iy, iz) = 0.0;
@@ -405,6 +428,7 @@ protected:
             ddt(phi)(itu.ind, iy, iz) = 0.0;
           }
         }
+      }
     }
 
     return 0;
