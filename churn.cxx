@@ -8,6 +8,13 @@
 ///
 class Churn : public PhysicsModel
 {
+public:
+  int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+  int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
+  int ngc_extra = 3;
+  int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
+  int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
+
 private:
   // Evolving variables
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
@@ -53,62 +60,29 @@ private:
   bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
   bool include_advection;          ///< Use advection terms
 
-  int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
-  int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngc_extra = 3;
-
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
   {
-    Field3D D = 1.0, C = 1.0, A = 0.0;
+    BoutReal D = 1.0, C = 1.0, A = 0.0;
     int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
 
-    // Drop C term for now
     Field3D operator()(const Field3D &input)
     {
-      // TRACE("myLaplacian::operator()");
-      // Timer timer("invertable_operator_operate");
       Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
 
       // Ensure boundary points are set appropriately as given by the input field.
-      for (int jx = 0; jx < ngcx_tot; jx++)
+      Mesh *mesh = result.getMesh();
+      BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
       {
-        for (int jy = 0; jy < ny_tot; jy++)
+        // X boundaries
+        if (mesh->getGlobalXIndex(i.x()) < ngcx_tot || mesh->getGlobalXIndex(i.x()) >= nx_tot - ngcx_tot)
         {
-          for (int jz = 0; jz < nz_tot; jz++)
-          {
-            result(jx, jy, jz) = 0.0;
-          }
+          result[i] = 0.0;
         }
-      }
-      for (int jx = nx_tot - 1; jx > nx_tot - ngcx_tot - 1; jx--)
-      {
-        for (int jy = 0; jy < ny_tot; jy++)
+        // Y boundaries
+        if (mesh->getGlobalYIndex(i.y()) < ngcy_tot || mesh->getGlobalYIndex(i.y()) >= ny_tot - ngcy_tot)
         {
-          for (int jz = 0; jz < nz_tot; jz++)
-          {
-            result(jx, jy, jz) = 0.0;
-          }
-        }
-      }
-      for (int jx = 0; jx < nx_tot; jx++)
-      {
-        for (int jy = 0; jy < ngcy_tot; jy++)
-        {
-          for (int jz = 0; jz < nz_tot; jz++)
-          {
-            result(jx, jy, jz) = 0.0;
-          }
-        }
-      }
-      for (int jx = 0; jx < nx_tot; jx++)
-      {
-        for (int jy = ny_tot - 1; jy > ny_tot - ngcy_tot - 1; jy--)
-        {
-          for (int jz = 0; jz < nz_tot; jz++)
-          {
-            result(jx, jy, jz) = 0.0;
-          }
+          result[i] = 0.0;
         }
       }
 
@@ -122,7 +96,7 @@ private:
   const int nits = 5;
 
 protected:
-  int init(bool UNUSED(restarting)) // TODO: Use the restart flag
+  int init(bool restarting) // TODO: Use the restart flag
   {
 
     /******************Reading options *****************/
@@ -176,6 +150,7 @@ protected:
     phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
     epsilon = a_mid / R_0;
     beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2);
+    // beta_p = mu_0 * 2.0 * P_0 / pow(B_pmid, 2);
     P_grad_0 = P_0 / a_mid;
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
@@ -188,11 +163,11 @@ protected:
       phi_init_options.setConditionallyUsed();
       mm.A = 0;
       mm.D = 1.0;
-      mm.ngcx_tot = ngcx + ngc_extra;
-      mm.ngcy_tot = ngcy + ngc_extra;
-      mm.nx_tot = mesh->GlobalNx;
-      mm.ny_tot = mesh->GlobalNy;
-      mm.nz_tot = mesh->GlobalNz;
+      mm.ngcx_tot = ngcx_tot;
+      mm.ngcy_tot = ngcy_tot;
+      mm.nx_tot = nx_tot;
+      mm.ny_tot = ny_tot;
+      mm.nz_tot = nz_tot;
       mySolver.setOperatorFunction(mm);
       mySolver.setup();
 
@@ -319,73 +294,30 @@ protected:
       ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
     }
 
-    // Apply additional BCs on first two cells all around domain to handle thrid derivatives
-    // TODO: Make these BCs work when runnning in parallel
-    // Lower Y
-    for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
+    // Apply ddt = 0 BCs
+    // TODO: Come up with more efficient way of doing this?
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     {
-      for (int jy = mesh->ystart + (ngc_extra - 1); jy >= 0; jy--)
+      // X boundaries
+      if (mesh->getGlobalXIndex(i.x()) < ngcx_tot || mesh->getGlobalXIndex(i.x()) >= nx_tot - ngcx_tot)
       {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        ddt(omega)(i.x(), i.y(), i.z()) = 0;
+        ddt(phi)(i.x(), i.y(), i.z()) = 0;
+        ddt(P)(i.x(), i.y(), i.z()) = 0;
+        if (invert_laplace == false)
         {
-          ddt(omega)(jx, jy, jz) = 0;
-          ddt(phi)(jx, jy, jz) = 0;
-          ddt(P)(jx, jy, jz) = 0;
-          if (invert_laplace == false)
-          {
-            ddt(psi)(jx, jy, jz) = 0;
-          }
+          ddt(psi)(i.x(), i.y(), i.z()) = 0;
         }
       }
-    }
-    // Upper Y
-    for (int jx = 0; jx < mesh->xend + ngcx + 1; jx++)
-    {
-      for (int jy = mesh->yend - (ngc_extra - 1); jy < mesh->LocalNy + 1; jy++)
+      // Y boundaries
+      if (mesh->getGlobalYIndex(i.y()) < ngcy_tot || mesh->getGlobalYIndex(i.y()) >= ny_tot - ngcy_tot)
       {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
+        ddt(omega)(i.x(), i.y(), i.z()) = 0;
+        ddt(phi)(i.x(), i.y(), i.z()) = 0;
+        ddt(P)(i.x(), i.y(), i.z()) = 0;
+        if (invert_laplace == false)
         {
-          ddt(omega)(jx, jy, jz) = 0;
-          ddt(phi)(jx, jy, jz) = 0;
-          ddt(P)(jx, jy, jz) = 0;
-          if (invert_laplace == false)
-          {
-            ddt(psi)(jx, jy, jz) = 0;
-          }
-        }
-      }
-    }
-    // Lower X
-    for (int jx = 0; jx < ngcx + ngc_extra; jx++)
-    {
-      for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          ddt(omega)(jx, jy, jz) = 0;
-          ddt(phi)(jx, jy, jz) = 0;
-          ddt(P)(jx, jy, jz) = 0;
-          if (invert_laplace == false)
-          {
-            ddt(psi)(jx, jy, jz) = 0;
-          }
-        }
-      }
-    }
-    // Upper X
-    for (int jx = mesh->xend - (ngc_extra - 1); jx < mesh->xend + ngcx + 1; jx++)
-    {
-      for (int jy = 0; jy < mesh->yend + ngcy + 1; jy++)
-      {
-        for (int jz = 0; jz < mesh->LocalNz; jz++)
-        {
-          ddt(omega)(jx, jy, jz) = 0;
-          ddt(phi)(jx, jy, jz) = 0;
-          ddt(P)(jx, jy, jz) = 0;
-          if (invert_laplace == false)
-          {
-            ddt(psi)(jx, jy, jz) = 0;
-          }
+          ddt(psi)(i.x(), i.y(), i.z()) = 0;
         }
       }
     }
