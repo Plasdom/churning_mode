@@ -350,7 +350,7 @@ protected:
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-      ddt(omega) += 2 * epsilon * DDY(P);
+      ddt(omega) += epsilon * DDY(P);
     }
     if (include_mag_restoring_term)
     {
