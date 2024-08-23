@@ -6,11 +6,11 @@
 
 # settings used by the core code
 
-nout = 25    # number of time-steps
+nout = 20    # number of time-steps
 timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 3                  
-MYG = 3                
+MYG = 0                
 
 periodicX = false 
 #periodicY = false
@@ -18,15 +18,15 @@ periodicX = false
 [mesh]
 
 nx = 32+6
-ny = 32
-nz = 1
+ny = 1
+nz = 32
 
 staggergrids = true
 
 #Ly = 1
 #Lz = 4
 #dx = Lx / nx
-#dy = Ly / ny
+#dy = Ly / nz
 #dz = Lz / nz
 dx = 0.008
 dy = 0.008
@@ -112,7 +112,7 @@ B_t0 = 2            # Toroidal field strength [T]
 B_pmid = 0.1          # Poloidal field strength [T]
 
 # Switches
-invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
@@ -127,11 +127,11 @@ bndry_all = none
 # Initialise in normalised form
 gradient = 5.0
 
-ny = 32
+nz = 32
 dy = 0.008
-Ly = dy * ny
+Ly = dy * nz
 
-y_c = (y/(2*pi) - 0.5) * Ly
+y_c = (z/(2*pi) - 0.5) * Ly
 
 function = gradient * y_c
 
@@ -151,14 +151,14 @@ chi_0 = 0     # Max rotation of psi at the centre
 e = 2.71828
 
 nx = 32+6
-ny = 32
+nz = 32
 dx = 0.008
 dy = 0.008
 Lx = dx * (nx-6) 
-Ly = dy * ny
+Ly = dy * nz
 
 x_c = (x - 0.5) * Lx
-y_c = (y/(2*pi) - 0.5) * Ly
+y_c = (z/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 

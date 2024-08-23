@@ -11,6 +11,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
+  int ngcz = 2;
   int ngc_extra = 0;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
@@ -20,7 +21,7 @@ private:
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
 
   // Auxilliary variables
-  Field3D phi, u_x, u_y;
+  Field3D phi, u_x, u_z;
   Vector3D u;
   Vector3D e_z; // Unit vector in z direction
 
@@ -68,7 +69,7 @@ private:
 
     Field3D operator()(const Field3D &input)
     {
-      Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
+      Field3D result = A * input + D * (D2DX2(input) + D2DZ2(input));
 
       // Ensure boundary points are set appropriately as given by the input field.
       Mesh *mesh = result.getMesh();
@@ -215,20 +216,20 @@ protected:
       mySolver.setup();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_y, phi);
+      SAVE_REPEAT(u_x, u_z, phi);
     }
     else
     {
       phi.setBoundary("phi");
 
       SOLVE_FOR(P, psi, omega, phi);
-      SAVE_REPEAT(u_x, u_y);
+      SAVE_REPEAT(u_x, u_z);
     }
 
     // Initialise unit vector in z direction
     e_z.x = 0;
-    e_z.y = 0;
-    e_z.z = 1;
+    e_z.y = 1;
+    e_z.z = 0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -274,17 +275,17 @@ protected:
     else
     {
       mesh->communicate(P, psi, omega, phi);
-      ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+      ddt(phi) = (D2DX2(phi) + D2DZ2(phi)) - omega;
     }
     mesh->communicate(phi);
 
     // Calculate velocity
-    u = -cross(e_z, Grad(phi));
+    u = cross(e_z, Grad(phi));
 
     u_x = u.x;
-    u_y = u.y;
+    u_z = u.z;
 
-    mesh->communicate(u, u_x, u_y);
+    mesh->communicate(u, u_x, u_z);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -298,7 +299,7 @@ protected:
         }
         else
         {
-          ddt(P) = -(DDX(P) * u_x + u_y * DDY(P));
+          ddt(P) = -(DDX(P) * u_x + u_z * DDZ(P));
         }
       }
       else
@@ -306,7 +307,7 @@ protected:
         ddt(P) = 0;
       }
       // ddt(P) += (chi / D_0) * Laplace(P);
-      ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
+      ddt(P) += (chi / D_0) * (D2DX2(P) + D2DZ2(P));
     }
 
     // Psi evolution
@@ -320,14 +321,14 @@ protected:
       }
       else
       {
-        ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
+        ddt(psi) = -(DDX(psi) * u_x + u_z * DDZ(psi));
       }
     }
     else
     {
       ddt(psi) = 0;
     }
-    ddt(psi) += (D_m / D_0) * (D2DX2(psi) + D2DY2(psi));
+    ddt(psi) += (D_m / D_0) * (D2DX2(psi) + D2DZ2(psi));
 
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -340,22 +341,22 @@ protected:
       }
       else
       {
-        ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
+        ddt(omega) = -(DDX(omega) * u_x + u_z * DDZ(omega));
       }
     }
     else
     {
       ddt(omega) = 0;
     }
-    ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
+    ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DZ2(omega));
     if (include_churn_drive_term)
     {
-      ddt(omega) += epsilon * DDY(P);
+      ddt(omega) += epsilon * DDZ(P);
     }
     if (include_mag_restoring_term)
     {
-      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
-      ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
+      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDZ(D2DX2(psi) + D2DZ2(psi)) - DDZ(psi) * DDX(D2DX2(psi) + D2DZ2(psi)));
+      ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDZ(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DZ2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDZ(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DZ2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
 
     // Apply ddt = 0 BCs
@@ -398,37 +399,35 @@ protected:
         }
       }
     }
-    // Y boundaries
-    for (itl.first(); !itl.isDone(); itl++)
+    // Z boundaries
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
     {
       // it.ind contains the x index
-      for (int iy = 0; iy < ngcy_tot; iy++)
+      for (int iy = 0; iy < mesh->LocalNy; iy++)
       {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
-          ddt(omega)(itl.ind, iy, iz) = 0.0;
-          ddt(psi)(itl.ind, iy, iz) = 0.0;
-          ddt(P)(itl.ind, iy, iz) = 0.0;
-          if (invert_laplace == false)
+          if (mesh->getGlobalZIndex(iz) < ngcz)
           {
-            ddt(phi)(itl.ind, iy, iz) = 0.0;
+            ddt(omega)(ix, iy, iz) = 0.0;
+            ddt(psi)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
+            if (invert_laplace == false)
+            {
+              ddt(phi)(ix, iy, iz) = 0.0;
+            }
+            // omega(ix, iy, iz) = 10.0;
           }
-        }
-      }
-    }
-    for (itu.first(); !itu.isDone(); itu++)
-    {
-      // it.ind contains the x index
-      for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-      {
-        for (int iz = 0; iz < mesh->LocalNz; iz++)
-        {
-          ddt(omega)(itu.ind, iy, iz) = 0.0;
-          ddt(psi)(itu.ind, iy, iz) = 0.0;
-          ddt(P)(itu.ind, iy, iz) = 0.0;
-          if (invert_laplace == false)
+          if (mesh->getGlobalZIndex(iz) > mesh->GlobalNz - ngcz - 1)
           {
-            ddt(phi)(itu.ind, iy, iz) = 0.0;
+            ddt(omega)(ix, iy, iz) = 0.0;
+            ddt(psi)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
+            if (invert_laplace == false)
+            {
+              ddt(phi)(ix, iy, iz) = 0.0;
+            }
+            // omega(ix, iy, iz) = 10.0;
           }
         }
       }
