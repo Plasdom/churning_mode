@@ -11,7 +11,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngc_extra = 3;
+  int ngc_extra = 0;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
 
@@ -132,7 +132,7 @@ private:
   };
   myLaplacian mm;
   bout::inversion::InvertableOperator<Field3D> mySolver;
-  const int nits = 3;
+  const int nits_inv_extra = 0;
 
   // Y boundary iterators
   RangeIterator itl = mesh->iterateBndryLowerY();
@@ -258,10 +258,10 @@ protected:
     if (invert_laplace)
     {
       mesh->communicate(P, psi, omega);
-      phi = mySolver.invert(omega, 0.0);
+      phi = mySolver.invert(omega);
       try
       {
-        for (int i = 0; i < nits; i++)
+        for (int i = 0; i < nits_inv_extra; i++)
         {
           phi = mySolver.invert(omega, phi);
           mesh->communicate(phi);
@@ -354,7 +354,8 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
+      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
+      ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
 
     // Apply ddt = 0 BCs
@@ -373,7 +374,6 @@ protected:
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
-              // ddt(phi)(ix + 1, iy, iz) = 0.0;
             }
           }
         }
@@ -393,7 +393,6 @@ protected:
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
-              // ddt(phi)(ix - 1, iy, iz) = 0.0;
             }
           }
         }
@@ -403,7 +402,7 @@ protected:
     for (itl.first(); !itl.isDone(); itl++)
     {
       // it.ind contains the x index
-      for (int iy = 0; iy < ngcy_tot; iy++) // Boundary width 3 points
+      for (int iy = 0; iy < ngcy_tot; iy++)
       {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
@@ -413,7 +412,6 @@ protected:
           if (invert_laplace == false)
           {
             ddt(phi)(itl.ind, iy, iz) = 0.0;
-            // ddt(phi)(itl.ind, iy + 1, iz) = 0.0;
           }
         }
       }
@@ -421,7 +419,7 @@ protected:
     for (itu.first(); !itu.isDone(); itu++)
     {
       // it.ind contains the x index
-      for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++) // Boundary width 3 points
+      for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
       {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
@@ -431,7 +429,6 @@ protected:
           if (invert_laplace == false)
           {
             ddt(phi)(itu.ind, iy, iz) = 0.0;
-            // ddt(phi)(itu.ind, iy - 1, iz) = 0.0;
           }
         }
       }
