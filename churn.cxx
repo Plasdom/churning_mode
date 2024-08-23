@@ -1,7 +1,6 @@
-#include <bout/derivs.hxx> // To use DDZ()
-// #include "bout/invert/laplacexy.hxx" // Laplacian inversion
-#include <bout/physicsmodel.hxx> // Commonly used BOUT++ components
-#include <bout/invertable_operator.hxx>
+#include <bout/derivs.hxx>         // To use DDZ()
+#include "bout/invert_laplace.hxx" // Laplacian inversion
+#include <bout/physicsmodel.hxx>   // Commonly used BOUT++ components
 
 /// Churning mode model
 ///
@@ -11,8 +10,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngcz = 2;
-  int ngc_extra = 0;
+  int ngc_extra = 3;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
 
@@ -61,83 +59,7 @@ private:
   bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
   bool include_advection;          ///< Use advection terms
 
-  // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
-  struct myLaplacian
-  {
-    BoutReal D = 1.0, A = 0.0;
-    int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
-
-    Field3D operator()(const Field3D &input)
-    {
-      Field3D result = A * input + D * (D2DX2(input) + D2DZ2(input));
-
-      // Ensure boundary points are set appropriately as given by the input field.
-      Mesh *mesh = result.getMesh();
-      // X boundaries
-      if (mesh->firstX())
-      {
-        for (int ix = 0; ix < ngcx_tot; ix++)
-        {
-          for (int iy = 0; iy < mesh->LocalNy; iy++)
-          {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
-            {
-              result(ix, iy, iz) = 0.0;
-            }
-          }
-        }
-      }
-      if (mesh->lastX())
-      {
-        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
-        {
-          for (int iy = 0; iy < mesh->LocalNy; iy++)
-          {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
-            {
-              result(ix, iy, iz) = 0.0;
-            }
-          }
-        }
-      }
-      // Y boundaries
-      RangeIterator itl = mesh->iterateBndryLowerY();
-      for (itl.first(); !itl.isDone(); itl++)
-      {
-        // it.ind contains the x index
-        for (int iy = 0; iy < ngcy_tot; iy++)
-        {
-          for (int iz = 0; iz < mesh->LocalNz; iz++)
-          {
-            result(itl.ind, iy, iz) = 0.0;
-          }
-        }
-      }
-      RangeIterator itu = mesh->iterateBndryUpperY();
-      for (itu.first(); !itu.isDone(); itu++)
-      {
-        // it.ind contains the x index
-        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-        {
-          for (int iz = 0; iz < mesh->LocalNz; iz++)
-          {
-            result(itu.ind, iy, iz) = 0.0;
-          }
-        }
-      }
-
-      // result.setBoundaryTo(input);
-
-      return result;
-    };
-  };
-  myLaplacian mm;
-  bout::inversion::InvertableOperator<Field3D> mySolver;
-  const int nits_inv_extra = 0;
-
-  // Y boundary iterators
-  RangeIterator itl = mesh->iterateBndryLowerY();
-  RangeIterator itu = mesh->iterateBndryUpperY();
+  std::unique_ptr<Laplacian> phiSolver{nullptr}; ///< Performs Laplacian inversions to calculate phi
 
 protected:
   int init(bool restarting) // TODO: Use the restart flag
@@ -203,17 +125,9 @@ protected:
     {
       // TODO: Get LaplaceXY working as it is quicker
       //  phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
-      phi = 0.0; // Starting guess for first solve (if iterative)
+      phi = 0.0;
       phi_init_options.setConditionallyUsed();
-      mm.A = 0.0;
-      mm.D = 1.0;
-      mm.ngcx_tot = ngcx_tot;
-      mm.ngcy_tot = ngcy_tot;
-      mm.nx_tot = nx_tot;
-      mm.ny_tot = ny_tot;
-      mm.nz_tot = nz_tot;
-      mySolver.setOperatorFunction(mm);
-      mySolver.setup();
+      phiSolver = Laplacian::create();
 
       SOLVE_FOR(P, psi, omega);
       SAVE_REPEAT(u_x, u_z, phi);
@@ -259,18 +173,7 @@ protected:
     if (invert_laplace)
     {
       mesh->communicate(P, psi, omega);
-      phi = mySolver.invert(omega);
-      try
-      {
-        for (int i = 0; i < nits_inv_extra; i++)
-        {
-          phi = mySolver.invert(omega, phi);
-          mesh->communicate(phi);
-        }
-      }
-      catch (BoutException &e)
-      {
-      };
+      phi = phiSolver->solve(omega);
     }
     else
     {
@@ -281,6 +184,27 @@ protected:
 
     // Calculate velocity
     u = cross(e_z, Grad(phi));
+
+    // Z boundaries
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
+    {
+      for (int iy = 0; iy < mesh->LocalNy; iy++)
+      {
+        for (int iz = 0; iz < mesh->LocalNz; iz++)
+        {
+          if (mesh->getGlobalZIndex(iz) < ngc_extra)
+          {
+            u.x(ix, iy, iz) = 0.0;
+            u.z(ix, iy, iz) = 0.0;
+          }
+          if (mesh->getGlobalZIndex(iz) > mesh->GlobalNz - ngc_extra - 1)
+          {
+            u.x(ix, iy, iz) = 0.0;
+            u.z(ix, iy, iz) = 0.0;
+          }
+        }
+      }
+    }
 
     u_x = u.x;
     u_z = u.z;
@@ -407,7 +331,7 @@ protected:
       {
         for (int iz = 0; iz < mesh->LocalNz; iz++)
         {
-          if (mesh->getGlobalZIndex(iz) < ngcz)
+          if (mesh->getGlobalZIndex(iz) < ngc_extra)
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
@@ -416,9 +340,8 @@ protected:
             {
               ddt(phi)(ix, iy, iz) = 0.0;
             }
-            // omega(ix, iy, iz) = 10.0;
           }
-          if (mesh->getGlobalZIndex(iz) > mesh->GlobalNz - ngcz - 1)
+          if (mesh->getGlobalZIndex(iz) > mesh->GlobalNz - ngc_extra - 1)
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
@@ -427,7 +350,6 @@ protected:
             {
               ddt(phi)(ix, iy, iz) = 0.0;
             }
-            // omega(ix, iy, iz) = 10.0;
           }
         }
       }

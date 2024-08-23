@@ -7,7 +7,7 @@
 # settings used by the core code
 
 nout = 20    # number of time-steps
-timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 1.0e-1  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 3                  
 MYG = 0                
@@ -71,6 +71,16 @@ use_precon = false
 ##################################################
 # general settings for the model
 
+[laplace]
+type = petsc
+pctype = hypre
+#multigridlevel = 3
+#solvertype = 0
+rtol = 1e-10
+#inner_boundary_flags=0
+#outer_boundary_flags=0
+global_flags=0
+
 #[phiSolver]
 #[laplacexy]
 #include_y_derivs = true
@@ -109,13 +119,13 @@ a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.1          # Poloidal field strength [T]
+B_pmid = 0.25          # Poloidal field strength [T]
 
 # Switches
-invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 
 [all]
@@ -162,8 +172,8 @@ y_c = (z/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 
-initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-#initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+#initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](initial_psi)
 scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
