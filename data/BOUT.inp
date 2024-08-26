@@ -9,15 +9,12 @@
 nout = 25    # number of time-steps
 timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
-MXG = 3                  
-MYG = 3                
-
-periodicX = false 
-#periodicY = false
+MXG = 2                  
+MYG = 2                
 
 [mesh]
 
-nx = 32+6
+nx = 32+4
 ny = 32
 nz = 1
 
@@ -28,9 +25,9 @@ staggergrids = true
 #dx = Lx / nx
 #dy = Ly / ny
 #dz = Lz / nz
-dx = 0.008
-dy = 0.008
-dz = 0.008
+dx = 0.01
+dy = 0.01
+dz = 0.01
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -63,10 +60,14 @@ upwind = W3
 
 [solver]
 type = cvode
+#pc_type = hypre
 #atol = 1e-16  # absolute tolerance
 #rtol = 1e-8   # relative tolerance
-mxstep = 10000  # Maximum internal steps per output
-use_precon = false
+#mxstep = 10000  # Maximum internal steps per output
+#use_precon = false
+#pc_hypre_type = euclid
+
+#invertable_pctype = hypre
 
 ##################################################
 # general settings for the model
@@ -94,22 +95,22 @@ use_precon = false
 #filter = 0.0     # Must not filter solution
 #flags = 49152  # set_rhs i.e. identity matrix in boundaries
 
-[invertible]
-
-#ksp_type = gmres
+[petsc]
+options_view = true
+options_left = true
 
 [model]
 
 # Parameters
 chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
-D_m = 0.0e-2           # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0e-3            # Kinematic viscosity [m^2 s^-1]
+D_m = 0.0e0           # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0e0            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.1          # Poloidal field strength [T]
+B_pmid = 0.25          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -128,7 +129,7 @@ bndry_all = none
 gradient = 5.0
 
 ny = 32
-dy = 0.008
+dy = 0.01
 Ly = dy * ny
 
 y_c = (y/(2*pi) - 0.5) * Ly
@@ -150,11 +151,11 @@ d = 0.35         # Decay length of differential rotation from centre
 chi_0 = 0     # Max rotation of psi at the centre
 e = 2.71828
 
-nx = 32+6
+nx = 32+4
 ny = 32
-dx = 0.008
-dy = 0.008
-Lx = dx * (nx-6) 
+dx = 0.01
+dy = 0.01
+Lx = dx * (nx-4) 
 Ly = dy * ny
 
 x_c = (x - 0.5) * Lx
@@ -162,8 +163,8 @@ y_c = (y/(2*pi) - 0.5) * Ly
 r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 
-initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-#initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+#initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](initial_psi)
 scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
@@ -182,4 +183,4 @@ function = 0
 
 
 # Initialise in normalised form
-function = 0
+#function = 0

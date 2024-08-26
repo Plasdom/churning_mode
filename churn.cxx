@@ -18,6 +18,7 @@ public:
 private:
   // Evolving variables
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
+  Field3D B_x, B_y;
 
   // Auxilliary variables
   Field3D phi, u_x, u_y;
@@ -215,14 +216,14 @@ protected:
       mySolver.setup();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_y, phi);
+      SAVE_REPEAT(u_x, u_y, phi, B_x, B_y);
     }
     else
     {
       phi.setBoundary("phi");
 
       SOLVE_FOR(P, psi, omega, phi);
-      SAVE_REPEAT(u_x, u_y);
+      SAVE_REPEAT(u_x, u_y, B_x, B_y);
     }
 
     // Initialise unit vector in z direction
@@ -280,6 +281,60 @@ protected:
 
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
+
+    // if (mesh->firstX())
+    // {
+    //   for (int ix = 0; ix < ngcx_tot; ix++)
+    //   {
+    //     for (int iy = 0; iy < mesh->LocalNy; iy++)
+    //     {
+    //       for (int iz = 0; iz < mesh->LocalNz; iz++)
+    //       {
+    //         u.x(ix, iy, iz) = 0.0;
+    //         u.y(ix, iy, iz) = 0.0;
+    //       }
+    //     }
+    //   }
+    // }
+    // if (mesh->lastX())
+    // {
+    //   for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+    //   {
+    //     for (int iy = 0; iy < mesh->LocalNy; iy++)
+    //     {
+    //       for (int iz = 0; iz < mesh->LocalNz; iz++)
+    //       {
+    //         u.x(ix, iy, iz) = 0.0;
+    //         u.y(ix, iy, iz) = 0.0;
+    //       }
+    //     }
+    //   }
+    // }
+    // // Y boundaries
+    // for (itl.first(); !itl.isDone(); itl++)
+    // {
+    //   // it.ind contains the x index
+    //   for (int iy = 0; iy < ngcy_tot; iy++)
+    //   {
+    //     for (int iz = 0; iz < mesh->LocalNz; iz++)
+    //     {
+    //       u.x(itl.ind, iy, iz) = 0.0;
+    //       u.y(itl.ind, iy, iz) = 0.0;
+    //     }
+    //   }
+    // }
+    // for (itu.first(); !itu.isDone(); itu++)
+    // {
+    //   // it.ind contains the x index
+    //   for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+    //   {
+    //     for (int iz = 0; iz < mesh->LocalNz; iz++)
+    //     {
+    //       u.x(itu.ind, iy, iz) = 0.0;
+    //       u.y(itu.ind, iy, iz) = 0.0;
+    //     }
+    //   }
+    // }
 
     u_x = u.x;
     u_y = u.y;
@@ -357,6 +412,10 @@ protected:
       // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
       ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
+
+    // Calculate B
+    B_x = -DDY(psi);
+    B_y = DDY(psi);
 
     // Apply ddt = 0 BCs
     // X boundaries
