@@ -415,7 +415,7 @@ protected:
 
     // Calculate B
     B_x = -DDY(psi);
-    B_y = DDY(psi);
+    B_y = DDX(psi);
 
     // Apply ddt = 0 BCs
     // X boundaries
