@@ -6,28 +6,23 @@
 
 # settings used by the core code
 
-nout = 25    # number of time-steps
-timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+nout = 50    # number of time-steps
+timestep = 1.0e-1  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
 MYG = 2                
 
 [mesh]
 
-nx = 32+4
-ny = 32
+nx = 64+4
+ny = 64
 nz = 1
 
 staggergrids = true
 
-#Ly = 1
-#Lz = 4
-#dx = Lx / nx
-#dy = Ly / ny
-#dz = Lz / nz
-dx = 0.01
-dy = 0.01
-dz = 0.01
+dx = 0.50 / (nx-4)
+dy = 0.50 / ny
+dz = 0.50 / nz
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -95,22 +90,25 @@ type = cvode
 #filter = 0.0     # Must not filter solution
 #flags = 49152  # set_rhs i.e. identity matrix in boundaries
 
-[petsc]
-options_view = true
-options_left = true
+# [petsc]
+# options_view = true
+# options_left = true
+
+# [invertableOperator:petsc]
+# invertable_pc_type = hypre
 
 [model]
 
 # Parameters
-chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
-D_m = 0.0e0           # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0e0            # Kinematic viscosity [m^2 s^-1]
+chi = 1.0e-1         # Thermal diffusivity [m^2 s^-1]
+D_m = 1.0e-1          # Magnetic diffusivity [m^2 s^-1]
+mu = 1.0e-1            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.25          # Poloidal field strength [T]
+B_pmid = 0.2          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -126,9 +124,9 @@ bndry_all = none
 [P]
 
 # Initialise in normalised form
-gradient = 5.0
+gradient = 3.0
 
-ny = 32
+ny = 64
 dy = 0.01
 Ly = dy * ny
 
@@ -136,51 +134,60 @@ y_c = (y/(2*pi) - 0.5) * Ly
 
 function = gradient * y_c
 
-# TODO: Check these BCs on P
-#bndry_yup = neumann
-#bndry_ydown = neumann
-
 [psi]
-
-#bndry_all = none
 
 # Define parameters and functions for psi initialisation
 
-#a = 0.15        # Overall decay length of psi from centre
-d = 0.35         # Decay length of differential rotation from centre
-chi_0 = 0     # Max rotation of psi at the centre
-e = 2.71828
-
-nx = 32+4
-ny = 32
-dx = 0.01
-dy = 0.01
+nx = 64+4
+ny = 64
+dx = 0.50/(nx-4)
+dy = 0.50/ny
 Lx = dx * (nx-4) 
 Ly = dy * ny
 
 x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
-r = sqrt(x_c^2 + y_c^2)
-theta = atan(y_c, x_c)
 
-#initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-function = [r_arg = r, theta_arg = theta](initial_psi)
-scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
+# # Standard X-point
+# d = 0.35         # Decay length of differential rotation from centre
+# chi_0 = 0     # Max rotation of psi at the centre
+# e = 2.71828
+# r = sqrt(x_c^2 + y_c^2)
+# theta = atan(y_c, x_c)
+# initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+# function = [r_arg = r, theta_arg = theta](initial_psi)
+# scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
+
+# # Snowflake
+# d = 0.35         # Decay length of differential rotation from centre
+# chi_0 = 0     # Max rotation of psi at the centre
+# e = 2.71828
+# r = sqrt(x_c^2 + y_c^2)
+# theta = atan(y_c, x_c)
+# initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+# function = [r_arg = r, theta_arg = theta](initial_psi)
+# scale = [r_arg = 1, theta_arg = -pi/2](1/initial_psi)
+
+# Snowflake plus
+sf_a = 1
+sf_b = 0.3
+sf_eps = 0.1
+nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
+initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
+function = [x_coord = x_c, y_coord = y_c](initial_psi)
+scale = [x_coord = 0, y_coord = 1](1/initial_psi)
+
+# # Snowflake minus
+# sf_a = 1
+# sf_b = 0.3
+# sf_eps = -0.100
+# nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
+# initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord})
+# function = [x_coord = x_c, y_coord = y_c](initial_psi)
+# scale = [x_coord = 0, y_coord = 1](1/initial_psi)
 
 [omega]
-
-#bndry_all = dirichlet
-
-# Initialise in normalised form
-function = 0
+function = 0 # Normalised
 
 [phi]
-#bndry_yup = dirichlet
-#bndry_ydown = dirichlet
-#bndry_xin = zerolaplace
-#bndry_xout = zerolaplace
-
-
-# Initialise in normalised form
-#function = 0
+function = 0 # Normalised
