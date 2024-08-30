@@ -11,7 +11,7 @@ class Churn : public PhysicsModel
 public:
   int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
   int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
-  int ngc_extra = 1;
+  int ngc_extra = 0;
   int nx_tot = mesh->GlobalNx, ny_tot = mesh->GlobalNy, nz_tot = mesh->GlobalNz;
   int ngcx_tot = ngcx + ngc_extra, ngcy_tot = ngcy + ngc_extra;
 
@@ -72,6 +72,7 @@ private:
       Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
 
       // Ensure boundary points are set appropriately as given by the input field.
+      // TODO: Check this is doing what is expected. Surely it's the input, not result, we should be applying boundaries to?
       Mesh *mesh = result.getMesh();
       // X boundaries
       if (mesh->firstX())

@@ -7,7 +7,7 @@
 # settings used by the core code
 
 nout = 50    # number of time-steps
-timestep = 1.0e-1  # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
 MYG = 2                
@@ -100,15 +100,15 @@ type = cvode
 [model]
 
 # Parameters
-chi = 1.0e-1         # Thermal diffusivity [m^2 s^-1]
-D_m = 1.0e-1          # Magnetic diffusivity [m^2 s^-1]
-mu = 1.0e-1            # Kinematic viscosity [m^2 s^-1]
+chi = 0.0e-1         # Thermal diffusivity [m^2 s^-1]
+D_m = 0.0e-1          # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0e-1            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.2          # Poloidal field strength [T]
+B_pmid = 0.1          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -127,7 +127,7 @@ bndry_all = none
 gradient = 3.0
 
 ny = 64
-dy = 0.01
+dy = 0.50 / ny
 Ly = dy * ny
 
 y_c = (y/(2*pi) - 0.5) * Ly
