@@ -10,7 +10,9 @@ nout = 50    # number of time-steps
 timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
-MYG = 2                
+MYG = 2   
+
+#grid = "grid_32x32.nc"
 
 [mesh]
 
@@ -100,7 +102,7 @@ type = cvode
 [model]
 
 # Parameters
-chi = 0.0e-1         # Thermal diffusivity [m^2 s^-1]
+chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
 D_m = 0.0e-1          # Magnetic diffusivity [m^2 s^-1]
 mu = 0.0e-1            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
@@ -124,15 +126,29 @@ bndry_all = none
 [P]
 
 # Initialise in normalised form
-gradient = 3.0
+# gradient = 5.0
 
+nx = 64+4
 ny = 64
-dy = 0.50 / ny
+dx = 0.50/(nx-4)
+dy = 0.50/ny
+Lx = dx * (nx-4) 
 Ly = dy * ny
 
+x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
+# r = sqrt(x_c^2 + y_c^2)
+theta = atan(y_c, x_c)
 
-function = gradient * y_c
+# function = gradient * y_c
+function = where(theta-pi/4,
+           where(-theta+3*pi/4,
+                 1,0),
+                 0)
+
+bndry_xin = free
+bndry_xout = free
+bndry_ydown = free
 
 [psi]
 
@@ -158,24 +174,24 @@ y_c = (y/(2*pi) - 0.5) * Ly
 # function = [r_arg = r, theta_arg = theta](initial_psi)
 # scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
 
-# # Snowflake
-# d = 0.35         # Decay length of differential rotation from centre
-# chi_0 = 0     # Max rotation of psi at the centre
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-# function = [r_arg = r, theta_arg = theta](initial_psi)
-# scale = [r_arg = 1, theta_arg = -pi/2](1/initial_psi)
+# Snowflake
+d = 0.35         # Decay length of differential rotation from centre
+chi_0 = 0     # Max rotation of psi at the centre
+e = 2.71828
+r = sqrt(x_c^2 + y_c^2)
+theta = atan(y_c, x_c)
+initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+function = [r_arg = r, theta_arg = theta](initial_psi)
+scale = [r_arg = 1, theta_arg = -pi/2](1/initial_psi)
 
-# Snowflake plus
-sf_a = 1
-sf_b = 0.3
-sf_eps = 0.1
-nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
-initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
-function = [x_coord = x_c, y_coord = y_c](initial_psi)
-scale = [x_coord = 0, y_coord = 1](1/initial_psi)
+# # Snowflake plus
+# sf_a = 1
+# sf_b = 0.3
+# sf_eps = 0.01
+# nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
+# initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
+# function = [x_coord = x_c, y_coord = y_c](initial_psi)
+# scale = [x_coord = 0, y_coord = 1](1/initial_psi)
 
 # # Snowflake minus
 # sf_a = 1

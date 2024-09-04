@@ -283,60 +283,6 @@ protected:
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
 
-    // if (mesh->firstX())
-    // {
-    //   for (int ix = 0; ix < ngcx_tot; ix++)
-    //   {
-    //     for (int iy = 0; iy < mesh->LocalNy; iy++)
-    //     {
-    //       for (int iz = 0; iz < mesh->LocalNz; iz++)
-    //       {
-    //         u.x(ix, iy, iz) = 0.0;
-    //         u.y(ix, iy, iz) = 0.0;
-    //       }
-    //     }
-    //   }
-    // }
-    // if (mesh->lastX())
-    // {
-    //   for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
-    //   {
-    //     for (int iy = 0; iy < mesh->LocalNy; iy++)
-    //     {
-    //       for (int iz = 0; iz < mesh->LocalNz; iz++)
-    //       {
-    //         u.x(ix, iy, iz) = 0.0;
-    //         u.y(ix, iy, iz) = 0.0;
-    //       }
-    //     }
-    //   }
-    // }
-    // // Y boundaries
-    // for (itl.first(); !itl.isDone(); itl++)
-    // {
-    //   // it.ind contains the x index
-    //   for (int iy = 0; iy < ngcy_tot; iy++)
-    //   {
-    //     for (int iz = 0; iz < mesh->LocalNz; iz++)
-    //     {
-    //       u.x(itl.ind, iy, iz) = 0.0;
-    //       u.y(itl.ind, iy, iz) = 0.0;
-    //     }
-    //   }
-    // }
-    // for (itu.first(); !itu.isDone(); itu++)
-    // {
-    //   // it.ind contains the x index
-    //   for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-    //   {
-    //     for (int iz = 0; iz < mesh->LocalNz; iz++)
-    //     {
-    //       u.x(itu.ind, iy, iz) = 0.0;
-    //       u.y(itu.ind, iy, iz) = 0.0;
-    //     }
-    //   }
-    // }
-
     u_x = u.x;
     u_y = u.y;
 
@@ -411,6 +357,7 @@ protected:
     if (include_mag_restoring_term)
     {
       // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
+      // TODO: Find out why this doesn't work with 4th order differencing
       ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
 
@@ -430,7 +377,7 @@ protected:
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
-            ddt(P)(ix, iy, iz) = 0.0;
+            // ddt(P)(ix, iy, iz) = 0.0;
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
@@ -449,7 +396,7 @@ protected:
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
-            ddt(P)(ix, iy, iz) = 0.0;
+            // ddt(P)(ix, iy, iz) = 0.0;
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
@@ -468,7 +415,7 @@ protected:
         {
           ddt(omega)(itl.ind, iy, iz) = 0.0;
           ddt(psi)(itl.ind, iy, iz) = 0.0;
-          ddt(P)(itl.ind, iy, iz) = 0.0;
+          // ddt(P)(itl.ind, iy, iz) = 0.0;
           if (invert_laplace == false)
           {
             ddt(phi)(itl.ind, iy, iz) = 0.0;
