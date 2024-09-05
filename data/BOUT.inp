@@ -7,22 +7,22 @@
 # settings used by the core code
 
 nout = 50    # number of time-steps
-timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 1.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
-MXG = 2                  
-MYG = 2   
+MXG = 4                  
+MYG = 4   
 
 #grid = "grid_32x32.nc"
 
 [mesh]
 
-nx = 64+4
+nx = 64+8
 ny = 64
 nz = 1
 
 staggergrids = true
 
-dx = 0.50 / (nx-4)
+dx = 0.50 / (nx-8)
 dy = 0.50 / ny
 dz = 0.50 / nz
 
@@ -33,23 +33,23 @@ ixseps1 = -1    # Required to get BCs in y-axis to work
 
 [mesh:ddx]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddy]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 [mesh:ddz]
 
-first = C2
-second = C2
-fourth = C2
+first = C4
+second = C4
+fourth = C4
 upwind = W3
 
 ###################################################
@@ -102,7 +102,7 @@ type = cvode
 [model]
 
 # Parameters
-chi = 0.0e0         # Thermal diffusivity [m^2 s^-1]
+chi = 1.0e1         # Thermal diffusivity [m^2 s^-1]
 D_m = 0.0e-1          # Magnetic diffusivity [m^2 s^-1]
 mu = 0.0e-1            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
@@ -115,9 +115,10 @@ B_pmid = 0.1          # Poloidal field strength [T]
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
-include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
+include_parallel_conduction = true
 
 [all]
 
@@ -125,40 +126,64 @@ bndry_all = none
 
 [P]
 
-# Initialise in normalised form
-# gradient = 5.0
+# # Simple vertical gradient
+# gradient = 2.5
+# ny = 64
+# dy = 0.50/ny
+# Ly = dy * ny
+# y_c = (y/(2*pi) - 0.5) * Ly
+# function = 1 + gradient * y_c
 
-nx = 64+4
+# # P=1 in core, P=0.5 elsewhere
+# nx = 64+8
+# ny = 64
+# dx = 0.50/(nx-8)
+# dy = 0.50/ny
+# Lx = dx * (nx-8) 
+# Ly = dy * ny
+# x_c = (x - 0.5) * Lx
+# y_c = (y/(2*pi) - 0.5) * Ly
+# # r = sqrt(x_c^2 + y_c^2)
+# theta = atan(y_c, x_c)
+# function = where(theta-pi/3,
+#            where(-theta+2*pi/3,
+#                  1,0),
+#                  0.5)
+
+# P = psi (snowflake)
+nx = 64+8
 ny = 64
-dx = 0.50/(nx-4)
+dx = 0.50/(nx-8)
 dy = 0.50/ny
-Lx = dx * (nx-4) 
+Lx = dx * (nx-8) 
 Ly = dy * ny
-
 x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
-# r = sqrt(x_c^2 + y_c^2)
+d = 0.35         # Decay length of differential rotation from centre
+chi_0 = 0     # Max rotation of psi at the centre
+e = 2.71828
+r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
+initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+function = [r_arg = r, theta_arg = theta](where(theta-pi/3,
+                                                where(-theta+2*pi/3,1+100*initial_psi,1.0),
+                                                1.0
+                                                )
+                                         )
 
-# function = gradient * y_c
-function = where(theta-pi/4,
-           where(-theta+3*pi/4,
-                 1,0),
-                 0)
-
-bndry_xin = free
-bndry_xout = free
-bndry_ydown = free
+bndry_xin = free_o3
+bndry_xout = free_o3
+bndry_ydown = free_o3
 
 [psi]
 
 # Define parameters and functions for psi initialisation
 
-nx = 64+4
+nx = 64+8
 ny = 64
-dx = 0.50/(nx-4)
+dx = 0.50/(nx-8)
 dy = 0.50/ny
-Lx = dx * (nx-4) 
+Lx = dx * (nx-8) 
 Ly = dy * ny
 
 x_c = (x - 0.5) * Lx

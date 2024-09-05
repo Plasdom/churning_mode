@@ -18,12 +18,17 @@ public:
 private:
   // Evolving variables
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
-  Field3D B_x, B_y;
+  Vector3D B;
 
   // Auxilliary variables
-  Field3D phi, u_x, u_y;
-  Vector3D u;
+  Field3D phi;
+  Vector3D u;   // Advection velocity
   Vector3D e_z; // Unit vector in z direction
+
+  // Heat flow variables
+  Vector3D q;
+  Field3D kappa_par, kappa_perp;
+  Field3D B_mag, T, lambda_ei, tau_e, div_q;
 
   // Input Parameters
   BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
@@ -40,6 +45,7 @@ private:
   BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
   BoutReal e;        ///< Electric charge [C]
   BoutReal m_e;      ///< Electron mass [kg]
+  BoutReal eps_0;    ///< Vacuum permittivity [F m^-1]
   BoutReal m_i;      ///< Ion mass [kg]
   BoutReal pi;       ///< Pi
   BoutReal rho;      ///< Plasma mass density [kg m^-3]
@@ -55,11 +61,12 @@ private:
   BoutReal P_grad_0; ///< Vertical pressure gradient normalisation
 
   // Switches
-  bool evolve_pressure;            ///< Evolve plasma pressure
-  bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
-  bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
-  bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
-  bool include_advection;          ///< Use advection terms
+  bool evolve_pressure;             ///< Evolve plasma pressure
+  bool include_mag_restoring_term;  ///< Include the poloidal magnetic field restoring term in the vorticity equation
+  bool include_churn_drive_term;    ///< Include the churn driving term in the vorticity equation
+  bool invert_laplace;              ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
+  bool include_advection;           ///< Use advection terms
+  bool include_parallel_conduction; ///< Use parallel heat conductivity term in pressure equation
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
@@ -176,12 +183,16 @@ protected:
     include_advection = options["include_advection"]
                             .doc("Include advection terms or not")
                             .withDefault(true);
+    include_parallel_conduction = options["include_parallel_conduction"]
+                                      .doc("Include parallel conduction term in pressure equation or not")
+                                      .withDefault(false);
 
     // Constants
-    e = options["e"].withDefault(1.602e-19);
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
-    m_e = options["m_e"].withDefault(9.11e-31);
-    mu_0 = options["mu_0"].withDefault(1.256637e-6);
+    e = 1.602e-19;
+    m_e = 9.11e-31;
+    mu_0 = 1.256637e-6;
+    eps_0 = 8.854188e-12;
     pi = 3.14159;
 
     // Get normalisation and derived parameters
@@ -217,20 +228,37 @@ protected:
       mySolver.setup();
 
       SOLVE_FOR(P, psi, omega);
-      SAVE_REPEAT(u_x, u_y, phi, B_x, B_y);
+      SAVE_REPEAT(u, phi, B);
     }
     else
     {
       phi.setBoundary("phi");
 
       SOLVE_FOR(P, psi, omega, phi);
-      SAVE_REPEAT(u_x, u_y, B_x, B_y);
+      SAVE_REPEAT(u, B);
+    }
+
+    if (include_parallel_conduction)
+    {
+      SAVE_REPEAT(q)
     }
 
     // Initialise unit vector in z direction
-    e_z.x = 0;
-    e_z.y = 0;
-    e_z.z = 1;
+    e_z.x = 0.0;
+    e_z.y = 0.0;
+    e_z.z = 1.0;
+
+    // Initialise B field
+    B.x = 0.0;
+    B.y = 0.0;
+    B.z = 1.0; // Normalised to B_t0?
+
+    // Initialise heat flow
+    q = 0.0;
+    kappa_par = 0.0;
+    kappa_perp = 0.0;
+    lambda_ei = 0.0;
+    tau_e = 0.0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -241,7 +269,7 @@ protected:
     Coordinates *coord = mesh->getCoordinates();
 
     // generate coordinate system
-    coord->Bxy = 1.0; // TODO: Use B_t here?
+    // coord->Bxy = 1.0; // TODO: Use B_t here?
     coord->g11 = 1.0;
     coord->g22 = 1.0;
     coord->g33 = 1.0;
@@ -283,10 +311,12 @@ protected:
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
 
-    u_x = u.x;
-    u_y = u.y;
+    // mesh->communicate(u);
 
-    mesh->communicate(u, u_x, u_y);
+    // // Calculate B
+    B.x = -DDY(psi);
+    B.y = DDX(psi);
+    // mesh->communicate(B);
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -300,7 +330,7 @@ protected:
         }
         else
         {
-          ddt(P) = -(DDX(P) * u_x + u_y * DDY(P));
+          ddt(P) = -(DDX(P) * u.x + u.y * DDY(P));
         }
       }
       else
@@ -309,6 +339,19 @@ protected:
       }
       // ddt(P) += (chi / D_0) * Laplace(P);
       ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
+      if (include_parallel_conduction)
+      {
+        // Calculate heat flow
+        T = P; // Normalised T = normalised P when rho = const
+        lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
+        tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+        B_mag = abs(B);
+        q = -T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2.0);
+        div_q = (1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * Div(q);
+        mesh->communicate(div_q); // TODO: Check this is necessary
+
+        ddt(P) -= div_q;
+      }
     }
 
     // Psi evolution
@@ -322,7 +365,7 @@ protected:
       }
       else
       {
-        ddt(psi) = -(DDX(psi) * u_x + u_y * DDY(psi));
+        ddt(psi) = -(DDX(psi) * u.x + u.y * DDY(psi));
       }
     }
     else
@@ -342,7 +385,7 @@ protected:
       }
       else
       {
-        ddt(omega) = -(DDX(omega) * u_x + u_y * DDY(omega));
+        ddt(omega) = -(DDX(omega) * u.x + u.y * DDY(omega));
       }
     }
     else
@@ -357,13 +400,9 @@ protected:
     if (include_mag_restoring_term)
     {
       // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
-      // TODO: Find out why this doesn't work with 4th order differencing
+      // TODO: Find out why this doesn't work with 4th order differencing? I think it does now. Need to check whether the additional arguments to each diff op are necessary
       ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
-
-    // Calculate B
-    B_x = -DDY(psi);
-    B_y = DDX(psi);
 
     // Apply ddt = 0 BCs
     // X boundaries
