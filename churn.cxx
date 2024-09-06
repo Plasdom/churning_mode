@@ -26,20 +26,22 @@ private:
   Vector3D e_z; // Unit vector in z direction
 
   // Heat flow variables
-  Vector3D q;
+  Vector3D q_par, q_perp;
   Field3D kappa_par, kappa_perp;
-  Field3D B_mag, T, lambda_ei, tau_e, div_q;
+  Field3D B_mag, T, lambda_ei, tau_e;
 
   // Input Parameters
-  BoutReal chi;    ///< Thermal diffusivity [m^2 s^-1]
-  BoutReal D_m;    ///< Magnetic diffusivity [m^2 s^-1]
-  BoutReal mu;     ///< Vorticity diffusivity [m^2 s^-1]
-  BoutReal R_0;    ///< Major radius [m]
-  BoutReal a_mid;  ///< Minor radius at midplane [m]
-  BoutReal n_sepx; ///< Electron density at separatrix [m^-3]
-  BoutReal T_sepx; ///< Plasma temperature at separatrix [eV]
-  BoutReal B_t0;   ///< Toroidal field strength [T]
-  BoutReal B_pmid; ///< Poloidal field strength [T]
+  BoutReal chi;      ///< Thermal diffusivity [m^2 s^-1]
+  BoutReal chi_par;  ///< Parallel thermal diffusivity [m^2 s^-1]
+  BoutReal chi_perp; ///< Perpendicular thermal diffusivity [m^2 s^-1]
+  BoutReal D_m;      ///< Magnetic diffusivity [m^2 s^-1]
+  BoutReal mu;       ///< Vorticity diffusivity [m^2 s^-1]
+  BoutReal R_0;      ///< Major radius [m]
+  BoutReal a_mid;    ///< Minor radius at midplane [m]
+  BoutReal n_sepx;   ///< Electron density at separatrix [m^-3]
+  BoutReal T_sepx;   ///< Plasma temperature at separatrix [eV]
+  BoutReal B_t0;     ///< Toroidal field strength [T]
+  BoutReal B_pmid;   ///< Poloidal field strength [T]
 
   // Other parameters
   BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
@@ -66,7 +68,9 @@ private:
   bool include_churn_drive_term;    ///< Include the churn driving term in the vorticity equation
   bool invert_laplace;              ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
   bool include_advection;           ///< Use advection terms
-  bool include_parallel_conduction; ///< Use parallel heat conductivity term in pressure equation
+  bool include_diffusive_heat_flow; ///< Use diffusive heat flow term in pressure equation
+  bool include_par_conduction;      ///< Use parallel heat conductivity term in pressure equation
+  bool include_perp_conduction;     ///< Use perpendicular heat conductivity term in pressure equation
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
@@ -158,6 +162,8 @@ protected:
 
     // Load system parameters
     chi = options["chi"].doc("Thermal diffusivity").withDefault(0.0);
+    chi_par = options["chi_par"].doc("Parallel thermal conductivity").withDefault(0.0);
+    chi_perp = options["chi_perp"].doc("Perpendicular thermal conductivity").withDefault(0.0);
     D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(0.0);
     mu = options["mu"].doc("Kinematic viscosity").withDefault(0.0);
     R_0 = options["R_0"].doc("Major radius [m]").withDefault(1.5);
@@ -183,9 +189,15 @@ protected:
     include_advection = options["include_advection"]
                             .doc("Include advection terms or not")
                             .withDefault(true);
-    include_parallel_conduction = options["include_parallel_conduction"]
-                                      .doc("Include parallel conduction term in pressure equation or not")
+    include_diffusive_heat_flow = options["include_diffusive_heat_flow"]
+                                      .doc("Include diffusive heat flow in pressure equation or not")
                                       .withDefault(false);
+    include_par_conduction = options["include_par_conduction"]
+                                 .doc("Include parallel conduction term in pressure equation or not")
+                                 .withDefault(false);
+    include_perp_conduction = options["include_perp_conduction"]
+                                  .doc("Include perpendicular conduction term in pressure equation or not")
+                                  .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -238,9 +250,13 @@ protected:
       SAVE_REPEAT(u, B);
     }
 
-    if (include_parallel_conduction)
+    if (include_par_conduction)
     {
-      SAVE_REPEAT(q)
+      SAVE_REPEAT(q_par)
+    }
+    if (include_perp_conduction)
+    {
+      SAVE_REPEAT(q_perp)
     }
 
     // Initialise unit vector in z direction
@@ -248,13 +264,14 @@ protected:
     e_z.y = 0.0;
     e_z.z = 1.0;
 
-    // Initialise B field
+    // Initialise poloidal B field
     B.x = 0.0;
     B.y = 0.0;
     B.z = 1.0; // Normalised to B_t0?
 
     // Initialise heat flow
-    q = 0.0;
+    q_par = 0.0;
+    q_perp = 0.0;
     kappa_par = 0.0;
     kappa_perp = 0.0;
     lambda_ei = 0.0;
@@ -264,7 +281,7 @@ protected:
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
-    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot);
+    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_par);
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -314,9 +331,13 @@ protected:
     // mesh->communicate(u);
 
     // // Calculate B
-    B.x = -DDY(psi);
-    B.y = DDX(psi);
+    B.x = -DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B.y = DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B_mag = abs(B);
     // mesh->communicate(B);
+
+    // Get T
+    T = P; // Normalised T = normalised P when rho = const
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -338,19 +359,31 @@ protected:
         ddt(P) = 0;
       }
       // ddt(P) += (chi / D_0) * Laplace(P);
-      ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
-      if (include_parallel_conduction)
+      if (include_diffusive_heat_flow)
       {
-        // Calculate heat flow
-        T = P; // Normalised T = normalised P when rho = const
-        lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
-        tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
-        B_mag = abs(B);
-        q = -T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2.0);
-        div_q = (1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * Div(q);
-        mesh->communicate(div_q); // TODO: Check this is necessary
+        ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
+      }
+      if (include_par_conduction)
+      {
+        // Calculate parallel heat flow
+        // lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
+        // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+        // q_par.x = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
+        // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
 
-        ddt(P) -= div_q;
+        q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0);
+        q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0);
+
+        // Add divergence to pressure equation
+        ddt(P) -= (DDX(q_par.x, CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(q_par.y, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+      }
+      if (include_perp_conduction)
+      {
+        // Calculate perpendicular heat flow
+        q_perp.x = -(chi_perp / D_0) * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+        q_perp.y = -(chi_perp / D_0) * (DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+
+        ddt(P) -= (DDX(q_perp.x, CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(q_perp.y, CELL_CENTER, "DEFAULT", "RGN_ALL"));
       }
     }
 
@@ -395,7 +428,7 @@ protected:
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-      ddt(omega) += epsilon * DDY(P);
+      ddt(omega) += epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
     }
     if (include_mag_restoring_term)
     {

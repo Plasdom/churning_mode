@@ -7,12 +7,12 @@
 # settings used by the core code
 
 nout = 50    # number of time-steps
-timestep = 1.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 4                  
 MYG = 4   
 
-#grid = "grid_32x32.nc"
+#grid = "grid_64x64.nc"
 
 [mesh]
 
@@ -103,22 +103,27 @@ type = cvode
 
 # Parameters
 chi = 1.0e1         # Thermal diffusivity [m^2 s^-1]
-D_m = 0.0e-1          # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0e-1            # Kinematic viscosity [m^2 s^-1]
+chi_par = 1.0e1         # Parallel Thermal diffusivity [m^2 s^-1]
+chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
+D_m = 0.0e-2          # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0e-3            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.1          # Poloidal field strength [T]
+B_pmid = 0.05          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
-include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
-include_advection = true            # Include advection terms
-include_parallel_conduction = true
+include_advection = false            # Include advection terms
+include_diffusive_heat_flow = false # Include diffusive heat flow term
+include_par_conduction = true # Include separate parallel and perpendicular heat conduction terms
+include_perp_conduction = true # Include separate parallel and perpendicular heat conduction terms
+
 
 [all]
 
@@ -126,8 +131,10 @@ bndry_all = none
 
 [P]
 
+# function = 1
+
 # # Simple vertical gradient
-# gradient = 2.5
+# gradient = 0.0001
 # ny = 64
 # dy = 0.50/ny
 # Ly = dy * ny
@@ -147,10 +154,11 @@ bndry_all = none
 # theta = atan(y_c, x_c)
 # function = where(theta-pi/3,
 #            where(-theta+2*pi/3,
-#                  1,0),
+#                  1,0.5),
 #                  0.5)
 
 # P = psi (snowflake)
+lambda_q = 0.01
 nx = 64+8
 ny = 64
 dx = 0.50/(nx-8)
@@ -166,18 +174,28 @@ r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
 initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
 function = [r_arg = r, theta_arg = theta](where(theta-pi/3,
-                                                where(-theta+2*pi/3,1+100*initial_psi,1.0),
-                                                1.0
+                                                where(-theta+2*pi/3,1+50*initial_psi,1*e^(-abs(initial_psi)/lambda_q)),
+                                                1*e^(-abs(initial_psi)/lambda_q)
                                                 )
                                          )
+
 
 bndry_xin = free_o3
 bndry_xout = free_o3
 bndry_ydown = free_o3
+bndry_yup = none
 
 [psi]
 
 # Define parameters and functions for psi initialisation
+
+# # Simple vertical gradient
+# gradient = 2.5
+# ny = 64
+# dy = 0.50/ny
+# Ly = dy * ny
+# y_c = (x/(2*pi) - 0.5) * Ly
+# function = 1 + gradient * y_c
 
 nx = 64+8
 ny = 64
@@ -185,7 +203,6 @@ dx = 0.50/(nx-8)
 dy = 0.50/ny
 Lx = dx * (nx-8) 
 Ly = dy * ny
-
 x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
 
@@ -212,7 +229,7 @@ scale = [r_arg = 1, theta_arg = -pi/2](1/initial_psi)
 # # Snowflake plus
 # sf_a = 1
 # sf_b = 0.3
-# sf_eps = 0.01
+# sf_eps = 0.0
 # nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
 # initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
 # function = [x_coord = x_c, y_coord = y_c](initial_psi)
