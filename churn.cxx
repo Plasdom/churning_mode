@@ -277,6 +277,58 @@ protected:
     lambda_ei = 0.0;
     tau_e = 0.0;
 
+    // Initialise P in guard cells
+    // X boundaries
+    if (mesh->firstX())
+    {
+      for (int ix = 0; ix < ngcx_tot; ix++)
+      {
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            P(ix, iy, iz) = 0.0;
+          }
+        }
+      }
+    }
+    if (mesh->lastX())
+    {
+      for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+      {
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            P(ix, iy, iz) = 1.0;
+          }
+        }
+      }
+    }
+    // Y boundaries
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+      // it.ind contains the x index
+      for (int iy = 0; iy < ngcy_tot; iy++)
+      {
+        for (int iz = 0; iz < mesh->LocalNz; iz++)
+        {
+          P(itl.ind, iy, iz) = 1.0;
+        }
+      }
+    }
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+      // it.ind contains the x index
+      for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+      {
+        for (int iz = 0; iz < mesh->LocalNz; iz++)
+        {
+          P(itu.ind, iy, iz) = 0.0;
+        }
+      }
+    }
+
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
