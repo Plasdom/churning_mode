@@ -422,20 +422,22 @@ protected:
         // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
         // q_par.x = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
+        ddt(P) += (chi_par / D_0) * (pow((-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + pow((DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + 2.0 * (-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * D2DXDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
-        q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
-        q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
-
-        // Add divergence to pressure equation
-        ddt(P) -= (DDX(q_par.x, CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(q_par.y, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+        // Calculate q_par for output
+        // q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+        // q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+        q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
       }
       if (include_perp_conduction)
       {
         // Calculate perpendicular heat flow
-        q_perp.x = -(chi_perp / D_0) * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
-        q_perp.y = -(chi_perp / D_0) * (DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+        ddt(P) += (chi_perp / D_0) * (pow((DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + pow((-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - 2.0 * (-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * D2DXDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
-        ddt(P) -= (DDX(q_perp.x, CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(q_perp.y, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+        // Calculate q_perp for output
+        // q_perp.x = -(chi_perp / D_0) * ((1.0 + pow(B.y, 2)) * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+        // q_perp.y = -(chi_perp / D_0) * ((1.0 + pow(B.x, 2)) * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * B.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+        q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
       }
     }
 
