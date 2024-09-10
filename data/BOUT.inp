@@ -102,9 +102,9 @@ type = cvode
 [model]
 
 # Parameters
-chi = 1.0e2         # Thermal diffusivity [m^2 s^-1]
-chi_par = 1.0e0         # Parallel Thermal diffusivity [m^2 s^-1]
-chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
+chi = 0.0e2         # Thermal diffusivity [m^2 s^-1]
+chi_par = 1.0e2         # Parallel Thermal diffusivity [m^2 s^-1]
+chi_perp = 0.0e2         # Perpendicular Thermal diffusivity [m^2 s^-1]
 D_m = 0.0e-2          # Magnetic diffusivity [m^2 s^-1]
 mu = 0.0e-3            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
@@ -120,9 +120,9 @@ evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = false            # Include advection terms
-include_diffusive_heat_flow = true # Include diffusive heat flow term
-include_par_conduction = false # Include separate parallel and perpendicular heat conduction terms
-include_perp_conduction = false # Include separate parallel and perpendicular heat conduction terms
+include_diffusive_heat_flow = false # Include diffusive heat flow term
+include_par_conduction = true # Include separate parallel and perpendicular heat conduction terms
+include_perp_conduction = true # Include separate parallel and perpendicular heat conduction terms
 
 
 [all]
