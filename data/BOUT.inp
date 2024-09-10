@@ -180,10 +180,10 @@ function = [r_arg = r, theta_arg = theta](where(theta-pi/3,
                                          )
 
 
-bndry_xin = free_o3
-bndry_xout = free_o3
-bndry_ydown = free_o3
-bndry_yup = none
+# bndry_xin = free_o3
+# bndry_xout = free_o3
+# bndry_ydown = free_o3
+# bndry_yup = none
 
 [psi]
 

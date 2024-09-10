@@ -371,8 +371,8 @@ protected:
         // q_par.x = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
 
-        q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0);
-        q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0);
+        q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
+        q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
 
         // Add divergence to pressure equation
         ddt(P) -= (DDX(q_par.x, CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(q_par.y, CELL_CENTER, "DEFAULT", "RGN_ALL"));
@@ -449,7 +449,7 @@ protected:
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
-            // ddt(P)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
@@ -468,7 +468,7 @@ protected:
           {
             ddt(omega)(ix, iy, iz) = 0.0;
             ddt(psi)(ix, iy, iz) = 0.0;
-            // ddt(P)(ix, iy, iz) = 0.0;
+            ddt(P)(ix, iy, iz) = 0.0;
             if (invert_laplace == false)
             {
               ddt(phi)(ix, iy, iz) = 0.0;
@@ -487,7 +487,7 @@ protected:
         {
           ddt(omega)(itl.ind, iy, iz) = 0.0;
           ddt(psi)(itl.ind, iy, iz) = 0.0;
-          // ddt(P)(itl.ind, iy, iz) = 0.0;
+          ddt(P)(itl.ind, iy, iz) = 0.0;
           if (invert_laplace == false)
           {
             ddt(phi)(itl.ind, iy, iz) = 0.0;
