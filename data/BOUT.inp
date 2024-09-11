@@ -123,7 +123,7 @@ include_advection = false            # Include advection terms
 include_diffusive_heat_flow = false # Include diffusive heat flow term
 include_par_conduction = true # Include separate parallel and perpendicular heat conduction terms
 include_perp_conduction = true # Include separate parallel and perpendicular heat conduction terms
-
+use_sk9_anis_diffop = true   # Use SK9 stencil for the anisotropic heat flow operator
 
 [all]
 

@@ -71,6 +71,7 @@ private:
   bool include_diffusive_heat_flow; ///< Use diffusive heat flow term in pressure equation
   bool include_par_conduction;      ///< Use parallel heat conductivity term in pressure equation
   bool include_perp_conduction;     ///< Use perpendicular heat conductivity term in pressure equation
+  bool use_sk9_anis_diffop;         ///< Use the SK9 stencil for anisotropic heat flow operator
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
@@ -151,6 +152,25 @@ private:
   RangeIterator itl = mesh->iterateBndryLowerY();
   RangeIterator itu = mesh->iterateBndryUpperY();
 
+  // Skewed 9-point stencil for anisotropic diffusion (A,B & C currently assumed to not vary with f)
+  Field3D Anis_Diff_SK9(const Field3D &f, const Field3D &A, const Field3D &B, const Field3D &C)
+  {
+    TRACE("Anis_Diff");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      result[i] =
+          ((B[i] - C[i]) * f[i.yp()] + C[i] * f[i.yp().xp()] + (A[i] - C[i]) * f[i.xm()] + (-2.0 * A[i] - 2.0 * B[i] + 2.0 * C[i]) * f[i] + (A[i] - C[i]) * f[i.xp()] + C[i] * f[i.xm().ym()] + (B[i] - C[i]) * f[i.ym()]) / (coord->dy[i] * coord->dx[i]);
+    }
+
+    return result;
+  }
+
 protected:
   int init(bool restarting) // TODO: Use the restart flag
   {
@@ -198,7 +218,9 @@ protected:
     include_perp_conduction = options["include_perp_conduction"]
                                   .doc("Include perpendicular conduction term in pressure equation or not")
                                   .withDefault(false);
-
+    use_sk9_anis_diffop = options["use_sk9_anis_diffop"]
+                              .doc("Use SK9 stencil for the anisotropic heat flow operator")
+                              .withDefault(false);
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
     e = 1.602e-19;
@@ -422,21 +444,37 @@ protected:
         // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
         // q_par.x = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
-        ddt(P) += (chi_par / D_0) * (pow((-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + pow((DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + 2.0 * (-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * D2DXDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+        if (use_sk9_anis_diffop)
+        {
+          ddt(P) += (1.0 / D_0) * Anis_Diff_SK9(P,
+                                                (chi_par * pow(B.x, 2.0)) / pow(B_mag, 2.0),
+                                                (chi_par * pow(B.y, 2.0)) / pow(B_mag, 2.0),
+                                                (chi_par * B.x * B.y) / pow(B_mag, 2.0));
+        }
+        else
+        {
+          ddt(P) += (chi_par / D_0) * (pow((-DDY(psi)), 2) * D2DX2(T) + pow((DDX(psi)), 2) * D2DY2(T) + 2.0 * (-DDY(psi)) * (DDX(psi)) * D2DXDY(T)) / pow(B_mag, 2);
+        }
 
         // Calculate q_par for output
-        // q_par.x = -(chi_par / D_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
-        // q_par.y = -(chi_par / D_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2);
         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
       }
       if (include_perp_conduction)
       {
         // Calculate perpendicular heat flow
-        ddt(P) += (chi_perp / D_0) * (pow((DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + pow((-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")), 2) * D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - 2.0 * (-DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * D2DXDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+        if (use_sk9_anis_diffop)
+        {
+          ddt(P) += (1.0 / D_0) * Anis_Diff_SK9(P,
+                                                (chi_perp * pow(B.y, 2.0)) / pow(B_mag, 2.0),
+                                                (chi_perp * pow(B.x, 2.0)) / pow(B_mag, 2.0),
+                                                (-chi_perp * B.x * B.y) / pow(B_mag, 2.0));
+        }
+        else
+        {
+          ddt(P) += (chi_perp / D_0) * (pow((DDX(psi)), 2) * D2DX2(T) + pow((-DDY(psi)), 2) * D2DY2(T) - 2.0 * (-DDY(psi)) * (DDX(psi)) * D2DXDY(T)) / pow(B_mag, 2);
+        }
 
         // Calculate q_perp for output
-        // q_perp.x = -(chi_perp / D_0) * ((1.0 + pow(B.y, 2)) * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-        // q_perp.y = -(chi_perp / D_0) * ((1.0 + pow(B.x, 2)) * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - B.x * B.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
         q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
       }
     }
