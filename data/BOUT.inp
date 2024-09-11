@@ -121,8 +121,9 @@ include_churn_drive_term = true    # Include the churn driving term in the vorti
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
 include_diffusive_heat_flow = false # Include diffusive heat flow term
-include_par_conduction = true # Include separate parallel and perpendicular heat conduction terms
-include_perp_conduction = true # Include separate parallel and perpendicular heat conduction terms
+include_par_conduction = false # Include separate parallel and perpendicular heat conduction terms
+include_perp_conduction = false # Include separate parallel and perpendicular heat conduction terms
+use_sk9_anis_diffop = false   # Use SK9 stencil for the anisotropic heat flow operator
 
 
 [all]
