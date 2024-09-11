@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 50    # number of time-steps
-timestep = 5.0e-2  # time between outputs [1/t_0 = a_mid/C_s0]
+nout = 10    # number of time-steps
+timestep = 0.1e-2  # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 4                  
 MYG = 4   
@@ -102,24 +102,24 @@ type = cvode
 [model]
 
 # Parameters
-chi = 1.0e1         # Thermal diffusivity [m^2 s^-1]
-chi_par = 1.0e1         # Parallel Thermal diffusivity [m^2 s^-1]
+chi = 0.0e1         # Thermal diffusivity [m^2 s^-1]
+chi_par = 1.0e6         # Parallel Thermal diffusivity [m^2 s^-1]
 chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
-D_m = 0.0e-2          # Magnetic diffusivity [m^2 s^-1]
-mu = 0.0e-3            # Kinematic viscosity [m^2 s^-1]
+D_m = 1.0e-2          # Magnetic diffusivity [m^2 s^-1]
+mu = 1.0e-3            # Kinematic viscosity [m^2 s^-1]
 R_0 = 1.5           # Major radius [m]
 a_mid = 0.6         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 100        # Plasma temperature at separatrix [eV]
 B_t0 = 2            # Toroidal field strength [T]
-B_pmid = 0.05          # Poloidal field strength [T]
+B_pmid = 0.15          # Poloidal field strength [T]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
-include_advection = false            # Include advection terms
+include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_advection = true            # Include advection terms
 include_diffusive_heat_flow = false # Include diffusive heat flow term
 include_par_conduction = true # Include separate parallel and perpendicular heat conduction terms
 include_perp_conduction = true # Include separate parallel and perpendicular heat conduction terms
@@ -141,24 +141,7 @@ bndry_all = none
 # y_c = (y/(2*pi) - 0.5) * Ly
 # function = 1 + gradient * y_c
 
-# # P=1 in core, P=0.5 elsewhere
-# nx = 64+8
-# ny = 64
-# dx = 0.50/(nx-8)
-# dy = 0.50/ny
-# Lx = dx * (nx-8) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# # r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# function = where(theta-pi/3,
-#            where(-theta+2*pi/3,
-#                  1,0.5),
-#                  0.5)
-
-# P = psi (snowflake)
-lambda_q = 0.01
+# P=1 in core, P=0.5 elsewhere
 nx = 64+8
 ny = 64
 dx = 0.50/(nx-8)
@@ -167,17 +150,34 @@ Lx = dx * (nx-8)
 Ly = dy * ny
 x_c = (x - 0.5) * Lx
 y_c = (y/(2*pi) - 0.5) * Ly
-d = 0.35         # Decay length of differential rotation from centre
-chi_0 = 0     # Max rotation of psi at the centre
-e = 2.71828
-r = sqrt(x_c^2 + y_c^2)
+# r = sqrt(x_c^2 + y_c^2)
 theta = atan(y_c, x_c)
-initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-function = [r_arg = r, theta_arg = theta](where(theta-pi/3,
-                                                where(-theta+2*pi/3,1+50*initial_psi,1*e^(-abs(initial_psi)/lambda_q)),
-                                                1*e^(-abs(initial_psi)/lambda_q)
-                                                )
-                                         )
+function = where(theta-pi/3,
+           where(-theta+2*pi/3,
+                 1,0.0),
+                 0.0)
+
+# # P = psi (snowflake)
+# lambda_q = 0.01
+# nx = 64+8
+# ny = 64
+# dx = 0.50/(nx-8)
+# dy = 0.50/ny
+# Lx = dx * (nx-8) 
+# Ly = dy * ny
+# x_c = (x - 0.5) * Lx
+# y_c = (y/(2*pi) - 0.5) * Ly
+# d = 0.35         # Decay length of differential rotation from centre
+# chi_0 = 0     # Max rotation of psi at the centre
+# e = 2.71828
+# r = sqrt(x_c^2 + y_c^2)
+# theta = atan(y_c, x_c)
+# initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
+# function = [r_arg = r, theta_arg = theta](where(theta-pi/3,
+#                                                 where(-theta+2*pi/3,1+50*initial_psi,1*e^(-abs(initial_psi)/lambda_q)),
+#                                                 1*e^(-abs(initial_psi)/lambda_q)
+#                                                 )
+#                                          )
 
 
 # bndry_xin = free_o3
