@@ -6,3 +6,9 @@ data/*
 reference
 *.gif
 umanksy_code
+*.dmp*
+*.pid*
+*.restart*
+*.log*
+*.settings*
+*.pyc
