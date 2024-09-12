@@ -31,7 +31,7 @@ private:
   Field3D B_mag, T, lambda_ei, tau_e;
 
   // Input Parameters
-  BoutReal chi;      ///< Thermal diffusivity [m^2 s^-1]
+  BoutReal chi_diff; ///< Isotropic thermal diffusivity [m^2 s^-1]
   BoutReal chi_par;  ///< Parallel thermal diffusivity [m^2 s^-1]
   BoutReal chi_perp; ///< Perpendicular thermal diffusivity [m^2 s^-1]
   BoutReal D_m;      ///< Magnetic diffusivity [m^2 s^-1]
@@ -42,6 +42,7 @@ private:
   BoutReal T_sepx;   ///< Plasma temperature at separatrix [eV]
   BoutReal B_t0;     ///< Toroidal field strength [T]
   BoutReal B_pmid;   ///< Poloidal field strength [T]
+  BoutReal T_down;   ///< Fixed downstream temperature [eV]
 
   // Other parameters
   BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
@@ -63,15 +64,14 @@ private:
   BoutReal P_grad_0; ///< Vertical pressure gradient normalisation
 
   // Switches
-  bool evolve_pressure;             ///< Evolve plasma pressure
-  bool include_mag_restoring_term;  ///< Include the poloidal magnetic field restoring term in the vorticity equation
-  bool include_churn_drive_term;    ///< Include the churn driving term in the vorticity equation
-  bool invert_laplace;              ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
-  bool include_advection;           ///< Use advection terms
-  bool include_diffusive_heat_flow; ///< Use diffusive heat flow term in pressure equation
-  bool include_par_conduction;      ///< Use parallel heat conductivity term in pressure equation
-  bool include_perp_conduction;     ///< Use perpendicular heat conductivity term in pressure equation
-  bool use_sk9_anis_diffop;         ///< Use the SK9 stencil for anisotropic heat flow operator
+  bool evolve_pressure;            ///< Evolve plasma pressure
+  bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
+  bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
+  bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
+  bool include_advection;          ///< Use advection terms
+  bool use_sk9_anis_diffop;        ///< Use the SK9 stencil for anisotropic heat flow operator
+  bool fixed_T_down;               ///< Use a constant value for P on downstream boundaries
+  bool T_dependent_q_par;          ///< Use Spitzer-Harm form of parallel conductivity
 
   // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
   struct myLaplacian
@@ -181,7 +181,7 @@ protected:
     auto &options = globalOptions["model"];
 
     // Load system parameters
-    chi = options["chi"].doc("Thermal diffusivity").withDefault(0.0);
+    chi_diff = options["chi_diff"].doc("Thermal diffusivity").withDefault(0.0);
     chi_par = options["chi_par"].doc("Parallel thermal conductivity").withDefault(0.0);
     chi_perp = options["chi_perp"].doc("Perpendicular thermal conductivity").withDefault(0.0);
     D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(0.0);
@@ -192,6 +192,7 @@ protected:
     T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100);
     B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2);
     B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
+    T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -209,18 +210,16 @@ protected:
     include_advection = options["include_advection"]
                             .doc("Include advection terms or not")
                             .withDefault(true);
-    include_diffusive_heat_flow = options["include_diffusive_heat_flow"]
-                                      .doc("Include diffusive heat flow in pressure equation or not")
-                                      .withDefault(false);
-    include_par_conduction = options["include_par_conduction"]
-                                 .doc("Include parallel conduction term in pressure equation or not")
-                                 .withDefault(false);
-    include_perp_conduction = options["include_perp_conduction"]
-                                  .doc("Include perpendicular conduction term in pressure equation or not")
-                                  .withDefault(false);
     use_sk9_anis_diffop = options["use_sk9_anis_diffop"]
                               .doc("Use SK9 stencil for the anisotropic heat flow operator")
                               .withDefault(false);
+    fixed_T_down = options["fixed_T_down"]
+                       .doc("Use a constant value for P on downstream boundaries")
+                       .withDefault(false);
+    T_dependent_q_par = options["T_dependent_q_par"]
+                            .doc("Use Spitzer-Harm form of parallel conductivity")
+                            .withDefault(false);
+
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
     e = 1.602e-19;
@@ -272,13 +271,64 @@ protected:
       SAVE_REPEAT(u, B);
     }
 
-    if (include_par_conduction)
+    if (chi_par > 0.0)
     {
-      SAVE_REPEAT(q_par)
+      if (T_dependent_q_par)
+      {
+        SAVE_REPEAT(q_par, tau_e, lambda_ei)
+      }
+      else
+      {
+        SAVE_REPEAT(q_par)
+      }
     }
-    if (include_perp_conduction)
+    if (chi_perp > 0.0)
     {
       SAVE_REPEAT(q_perp)
+    }
+
+    // Set downstream pressure boundaries
+    if (fixed_T_down)
+    {
+
+      if (mesh->firstX())
+      {
+        for (int ix = 0; ix < ngcx_tot; ix++)
+        {
+          for (int iy = 0; iy < mesh->LocalNy; iy++)
+          {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+              P(ix, iy, iz) = T_down / T_sepx;
+            }
+          }
+        }
+      }
+      if (mesh->lastX())
+      {
+        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+        {
+          for (int iy = 0; iy < mesh->LocalNy; iy++)
+          {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+              P(ix, iy, iz) = T_down / T_sepx;
+            }
+          }
+        }
+      }
+      // Y boundaries
+      for (itl.first(); !itl.isDone(); itl++)
+      {
+        // it.ind contains the x index
+        for (int iy = 0; iy < ngcy_tot; iy++)
+        {
+          for (int iz = 0; iz < mesh->LocalNz; iz++)
+          {
+            P(itl.ind, iy, iz) = T_down / T_sepx;
+          }
+        }
+      }
     }
 
     // Initialise unit vector in z direction
@@ -300,7 +350,7 @@ protected:
     tau_e = 0.0;
 
     // Output constants, input options and derived parameters
-    SAVE_ONCE(e, m_i, m_e, chi, D_m, mu, epsilon, beta_p, rho, P_0);
+    SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
     SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_par);
@@ -381,15 +431,13 @@ protected:
         ddt(P) = 0;
       }
       // ddt(P) += (chi / D_0) * Laplace(P);
-      if (include_diffusive_heat_flow)
+      if (chi_diff > 0.0)
       {
-        ddt(P) += (chi / D_0) * (D2DX2(P) + D2DY2(P));
+        ddt(P) += (chi_diff / D_0) * (D2DX2(P) + D2DY2(P));
       }
-      if (include_par_conduction)
+      if ((chi_par > 0.0) || (T_dependent_q_par))
       {
         // Calculate parallel heat flow
-        // lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
-        // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
         // q_par.x = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         if (use_sk9_anis_diffop)
@@ -402,13 +450,25 @@ protected:
         else
         {
           // ddt(P) += (chi_par / D_0) * (pow((-DDY(psi)), 2) * D2DX2(T) + pow((DDX(psi)), 2) * D2DY2(T) + 2.0 * (-DDY(psi)) * (DDX(psi)) * D2DXDY(T)) / pow(B_mag, 2);
-          ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-        }
+          if (T_dependent_q_par)
+          {
+            lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
+            tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+            ddt(P) += ((1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * (DDX(T * (tau_e / t_0) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(T * (tau_e / t_0) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
-        // Calculate q_par for output
-        q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+            // Calculate q_par for output
+            q_par = -((1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+          }
+          else
+          {
+            ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+
+            // Calculate q_par for output
+            q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+          }
+        }
       }
-      if (include_perp_conduction)
+      if (chi_perp > 0.0)
       {
         // Calculate perpendicular heat flow
         if (use_sk9_anis_diffop)
