@@ -19,6 +19,7 @@ private:
   // Evolving variables
   Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
   Vector3D B;
+  Field3D theta_m, phi_m;
 
   // Auxilliary variables
   Field3D phi;
@@ -158,14 +159,16 @@ private:
     TRACE("Anis_Diff");
 
     Field3D result;
+    BoutReal r;
 
     Coordinates *coord = mesh->getCoordinates();
 
     result.allocate();
     for (auto i : result)
     {
+      r = coord->dx[i] / coord->dy[i];
       result[i] =
-          ((B[i] - C[i]) * f[i.yp()] + C[i] * f[i.yp().xp()] + (A[i] - C[i]) * f[i.xm()] + (-2.0 * A[i] - 2.0 * B[i] + 2.0 * C[i]) * f[i] + (A[i] - C[i]) * f[i.xp()] + C[i] * f[i.xm().ym()] + (B[i] - C[i]) * f[i.ym()]) / (coord->dy[i] * coord->dx[i]);
+          ((B[i] * pow(r, 2.0) - C[i] * r) * f[i.yp()] + C[i] * r * f[i.yp().xp()] + (A[i] - C[i] * r) * f[i.xm()] + (-2.0 * A[i] - 2.0 * B[i] * pow(r, 2.0) + 2.0 * C[i] * r) * f[i] + (A[i] - C[i] * r) * f[i.xp()] + C[i] * r * f[i.xm().ym()] + (B[i] * pow(r, 2.0) - C[i] * r) * f[i.ym()]) / (coord->dy[i] * coord->dx[i]);
     }
 
     return result;
@@ -189,8 +192,8 @@ protected:
     R_0 = options["R_0"].doc("Major radius [m]").withDefault(1.5);
     a_mid = options["a_mid"].doc("Minor radius at outer midplane [m]").withDefault(0.6);
     n_sepx = options["n_sepx"].doc("Electron density at separatrix [m^-3]").withDefault(1.0e19);
-    T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100);
-    B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2);
+    T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100.0);
+    B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2.0);
     B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
     T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
 
@@ -339,7 +342,12 @@ protected:
     // Initialise poloidal B field
     B.x = 0.0;
     B.y = 0.0;
-    B.z = 1.0;
+    B.z = B_t0 / B_pmid;
+    if (use_sk9_anis_diffop)
+    {
+      phi_m = 0.0;
+      theta_m = 0.0;
+    }
 
     // Initialise heat flow
     q_par = 0.0;
@@ -406,6 +414,15 @@ protected:
     B.x = -DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B.y = DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B_mag = abs(B);
+    if (use_sk9_anis_diffop)
+    {
+      BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+      {
+        theta_m[i] = atan2(sqrt(pow(B.x[i], 2.0) + pow(B.y[i], 2.0)), B.z[i]);
+        phi_m[i] = atan2(B.y[i], B.x[i]);
+      }
+    }
+
     // mesh->communicate(B);
 
     // Get T
@@ -442,10 +459,13 @@ protected:
         // q_par.y = -(1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e) * (T * (tau_e / t_0) * (B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))) / pow(B_mag, 2.0));
         if (use_sk9_anis_diffop)
         {
-          ddt(P) += (1.0 / D_0) * Anis_Diff_SK9(P,
-                                                (chi_par * pow(B.x, 2.0)) / pow(B_mag, 2.0),
-                                                (chi_par * pow(B.y, 2.0)) / pow(B_mag, 2.0),
-                                                (chi_par * B.x * B.y) / pow(B_mag, 2.0));
+          ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
+                                                    pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
+                                                    pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
+                                                    pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
+
+          // Calculate q_par for output
+          q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
         }
         else
         {
@@ -473,10 +493,13 @@ protected:
         // Calculate perpendicular heat flow
         if (use_sk9_anis_diffop)
         {
-          ddt(P) += (1.0 / D_0) * Anis_Diff_SK9(P,
-                                                (chi_perp * pow(B.y, 2.0)) / pow(B_mag, 2.0),
-                                                (chi_perp * pow(B.x, 2.0)) / pow(B_mag, 2.0),
-                                                (-chi_perp * B.x * B.y) / pow(B_mag, 2.0));
+          ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
+                                                     pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
+                                                     pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
+                                                     (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
+
+          // Calculate q_perp for output
+          q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
         }
         else
         {
