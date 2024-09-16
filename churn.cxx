@@ -472,12 +472,12 @@ protected:
           // ddt(P) += (chi_par / D_0) * (pow((-DDY(psi)), 2) * D2DX2(T) + pow((DDX(psi)), 2) * D2DY2(T) + 2.0 * (-DDY(psi)) * (DDX(psi)) * D2DXDY(T)) / pow(B_mag, 2);
           if (T_dependent_q_par)
           {
-            lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T / 2.0, -1.5)));
+            lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.5)));
             tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
-            ddt(P) += ((1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * (DDX(T * (tau_e / t_0) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(T * (tau_e / t_0) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+            ddt(P) += (t_0 * pow(e * T_sepx, 3.5) / (P_0 * pow(a_mid, 2.0))) * ((2.0 / 3.0) * 3.2 * (3.0 / (64.0 * sqrt(pi))) * (pow(4.0 * pi * eps_0, 2.0) / pow(e, 4.0)) * (1.0 / sqrt(m_e))) * (DDX((pow(T, 2.5) / lambda_ei) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY((pow(T, 2.5) / lambda_ei) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
             // Calculate q_par for output
-            q_par = -((1.0 / 4.0) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+            q_par = -((1.0 / (8.0 * sqrt(2.0))) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
           }
           else
           {
@@ -504,7 +504,7 @@ protected:
         else
         {
           // ddt(P) += (chi_perp / D_0) * (pow((DDX(psi)), 2) * D2DX2(T) + pow((-DDY(psi)), 2) * D2DY2(T) - 2.0 * (-DDY(psi)) * (DDX(psi)) * D2DXDY(T)) / pow(B_mag, 2);
-          ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+          ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
         }
 
         // Calculate q_perp for output
