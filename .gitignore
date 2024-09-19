@@ -4,6 +4,9 @@ build
 data/*
 !data/BOUT.inp
 reference
+notebooks
+!notebooks/plot_output.ipynb
+!notebooks/analysis.py
 *.gif
 umanksy_code
 *.dmp*
