@@ -68,8 +68,15 @@ def contour_list(
         ax[i].set_title(v)
     fig.tight_layout()
 
+    return ax
 
-def contour_overlay(ds: xr.Dataset, var: str = "P", timestamps: list[int] = [0, -1]):
+
+def contour_overlay(
+    ds: xr.Dataset,
+    var: str = "P",
+    timestamps: list[int] = [0, -1],
+    colorbar: bool = False,
+):
     """Plot overlaid contours at several timestamps
 
 
@@ -84,7 +91,16 @@ def contour_overlay(ds: xr.Dataset, var: str = "P", timestamps: list[int] = [0, 
     if var == "psi":
         levels = np.sort(np.array(list(levels) + [0]))
     for t in timestamps:
-        ax.contour(ds["x"], ds["x"], ds[var][t].values.T, linestyles="-", levels=levels)
+        c = ax.contour(
+            ds["x"], ds["y"], ds[var][t].values.T, linestyles="-", levels=levels
+        )
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(var)
+    if colorbar:
+        fig.colorbar(c)
+
+    return ax
 
 
 def animate_contour_list(
@@ -92,12 +108,13 @@ def animate_contour_list(
     vars: list[str] = ["P", "psi"],
     savepath: str | None = None,
     plot_every: int = 1,
+    fps: int | float = 24,
 ):
     """Animate a list of variables using axes.contourf
 
     :param ds: Bout dataset
     :param vars: List of variables to plot, defaults to ["P", "psi"]
-    :param savepath: _description_, defaults to None
+    :param savepath: Location to save gif, defaults to None
     :return: Animation
     """
     # TODO: Add colorbar
@@ -112,6 +129,13 @@ def animate_contour_list(
     if len(vars) == 1:
         ax = [ax]
 
+    # Get the predicted convection zone region
+    r_cz = predicted_r_cz(ds)
+    theta_cz = np.linspace(0, 2 * np.pi, 100)
+    x_cz = np.median(ds.x) + r_cz * np.cos(theta_cz)
+    y_cz = np.median(ds.y) + r_cz * np.sin(theta_cz)
+    print("r_cz = {:.2f}cm".format(r_cz * ds.metadata["a_mid"] * 100))
+
     levels = {}
     var_arrays = {}
     for j, v in enumerate(vars):
@@ -119,30 +143,44 @@ def animate_contour_list(
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
-        vmin = var_arrays[v][0].min()
-        vmax = var_arrays[v][0].max()
-        levels[v] = np.sort(list(np.linspace(vmin, vmax, 20)))
-        # levels[v] = np.linspace(0.001,1.0,20)
+        vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
+        vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
         if v == "psi":
+            levels[v] = np.sort(list(np.linspace(vmin, vmax, 50)))
             levels[v] = np.sort(np.array(list(levels[v]) + [0]))
+        else:
+            levels[v] = np.sort(list(np.linspace(vmin, vmax, 50)))
 
     def animate(i):
         for j, v in enumerate(vars):
             ax[j].clear()
             z = var_arrays[v][plot_every * i].T
             # cont = ax[j].contour(xvals, yvals, z, vmin=levels[v].min(), vmax=levels[v].max(), levels=levels[v])
-            cont = ax[j].contourf(
-                xvals,
-                yvals,
-                z,
-                vmin=levels[v].min(),
-                vmax=levels[v].max(),
-                levels=levels[v],
-                cmap="inferno",
-            )
+            if v == "psi":
+                cont = ax[j].contour(
+                    xvals,
+                    yvals,
+                    z,
+                    vmin=levels[v].min(),
+                    vmax=levels[v].max(),
+                    levels=levels[v],
+                    cmap="inferno",
+                )
+            else:
+                cont = ax[j].contourf(
+                    xvals,
+                    yvals,
+                    z,
+                    vmin=levels[v].min(),
+                    vmax=levels[v].max(),
+                    levels=levels[v],
+                    cmap="inferno",
+                )
+            ax[j].plot(x_cz, y_cz, linestyle="--", color="red")
             ax[j].set_xlabel("x")
             ax[j].set_ylabel("y")
-            ax[j].set_title(v + ", " + str(plot_every * i))
+            timestamp = ds.t.values[plot_every * i] - ds.t.values[0]
+            ax[j].set_title(v + ", t={:.2f}$t_0$".format(timestamp))
 
         return cont
 
@@ -150,7 +188,7 @@ def animate_contour_list(
         fig, animate, frames=int(var_arrays[vars[0]].shape[0] / plot_every)
     )
     if savepath is not None:
-        anim.save("demo.gif", fps=24)
+        anim.save(savepath, fps=fps)
 
     return anim
 
@@ -314,3 +352,12 @@ def plot_conservation(ds: xr.Dataset):
     ax[-1].set_xlabel(r"$t\ [t_0]$")
     [a.grid() for a in ax]
     fig.tight_layout()
+
+    return ax
+
+
+def predicted_r_cz(ds):
+    d_over_a = 0.71 * (
+        ds.metadata["beta_p"] * ds.metadata["a_mid"] / ds.metadata["R_0"]
+    ) ** (1 / 3)
+    return d_over_a
