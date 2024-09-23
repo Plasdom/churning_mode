@@ -289,8 +289,8 @@ protected:
     psi_0 = B_pmid * R_0 * a_mid;
     phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
     epsilon = a_mid / R_0;
-    beta_p = mu_0 * 8 * pi * P_0 / pow(B_pmid, 2);
-    // beta_p = mu_0 * 2.0 * P_0 / pow(B_pmid, 2);
+    // beta_p = 1.0e-7 * 8.0 * pi * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
+    beta_p = 2.0 * mu_0 * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
     P_grad_0 = P_0 / a_mid;
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
@@ -495,77 +495,103 @@ protected:
       {
         ddt(P) = 0;
       }
-      // ddt(P) += (chi / D_0) * Laplace(P);
       if (chi_diff > 0.0)
       {
         ddt(P) += (chi_diff / D_0) * (D2DX2(P) + D2DY2(P));
       }
-      if (use_symmetric_div_q_stencil)
+      else if ((chi_par > 0.0) || (chi_perp > 0.0))
       {
-        ddt(P) += div_q_symmetric(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
-
+        // TODO: Add T-dependent q_par
+        if (use_symmetric_div_q_stencil)
+        {
+          ddt(P) += div_q_symmetric(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
+        }
+        else if (use_sk9_anis_diffop)
+        {
+          ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
+                                                    pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
+                                                    pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
+                                                    pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
+          ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
+                                                     pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
+                                                     pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
+                                                     (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
+        }
+        else
+        {
+          ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+          ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
+        }
         // Calculate q for output
         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
         q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
       }
-      else
-      {
-        // TODO: Simplify this, remove SK9 diffop, etc
-        if ((chi_par > 0.0) || (T_dependent_q_par))
-        {
-          // Calculate parallel heat flow
-          if (use_sk9_anis_diffop)
-          {
-            ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
-                                                      pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
-                                                      pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
-                                                      pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
+      // if (use_symmetric_div_q_stencil)
+      // {
+      //   ddt(P) += div_q_symmetric(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
 
-            // Calculate q_par for output
-            q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-          }
-          else
-          {
-            if (T_dependent_q_par)
-            {
-              lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.5)));
-              tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
-              ddt(P) += (t_0 * pow(e * T_sepx, 3.5) / (P_0 * pow(a_mid, 2.0))) * ((2.0 / 3.0) * 3.2 * (3.0 / (64.0 * sqrt(pi))) * (pow(4.0 * pi * eps_0, 2.0) / pow(e, 4.0)) * (1.0 / sqrt(m_e))) * (DDX((pow(T, 2.5) / lambda_ei) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY((pow(T, 2.5) / lambda_ei) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+      //   // Calculate q for output
+      //   q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+      //   q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+      // }
+      // else
+      // {
+      //   // TODO: Simplify this, remove SK9 diffop, etc
+      //   if ((chi_par > 0.0) || (T_dependent_q_par))
+      //   {
+      //     // Calculate parallel heat flow
+      //     if (use_sk9_anis_diffop)
+      //     {
+      //       ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
+      //                                                 pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
+      //                                                 pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
+      //                                                 pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
 
-              // Calculate q_par for output
-              q_par = -((1.0 / (8.0 * sqrt(2.0))) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-            }
-            else
-            {
-              ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
+      //       // Calculate q_par for output
+      //       q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+      //     }
+      //     else
+      //     {
+      //       if (T_dependent_q_par)
+      //       {
+      //         lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.5)));
+      //         tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+      //         ddt(P) += (t_0 * pow(e * T_sepx, 3.5) / (P_0 * pow(a_mid, 2.0))) * ((2.0 / 3.0) * 3.2 * (3.0 / (64.0 * sqrt(pi))) * (pow(4.0 * pi * eps_0, 2.0) / pow(e, 4.0)) * (1.0 / sqrt(m_e))) * (DDX((pow(T, 2.5) / lambda_ei) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY((pow(T, 2.5) / lambda_ei) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
-              // Calculate q_par for output
-              q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-            }
-          }
-        }
-        if (chi_perp > 0.0)
-        {
-          // Calculate perpendicular heat flow
-          if (use_sk9_anis_diffop)
-          {
-            ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
-                                                       pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
-                                                       pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
-                                                       (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
+      //         // Calculate q_par for output
+      //         q_par = -((1.0 / (8.0 * sqrt(2.0))) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+      //       }
+      //       else
+      //       {
+      //         ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
 
-            // Calculate q_perp for output
-            q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-          }
-          else
-          {
-            ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
-          }
+      //         // Calculate q_par for output
+      //         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+      //       }
+      //     }
+      //   }
+      //   if (chi_perp > 0.0)
+      //   {
+      //     // Calculate perpendicular heat flow
+      //     if (use_sk9_anis_diffop)
+      //     {
+      //       ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
+      //                                                  pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
+      //                                                  pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
+      //                                                  (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
 
-          // Calculate q_perp for output
-          q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-        }
-      }
+      //       // Calculate q_perp for output
+      //       q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+      //     }
+      //     else
+      //     {
+      //       ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
+      //     }
+
+      //     // Calculate q_perp for output
+      //     q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+      //   }
+      // }
     }
 
     // Psi evolution
@@ -609,13 +635,13 @@ protected:
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-      ddt(omega) += epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+      ddt(omega) += 2.0 * epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
     }
     if (include_mag_restoring_term)
     {
       // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
       // TODO: Find out why this doesn't work with 4th order differencing? I think it does now. Need to check whether the additional arguments to each diff op are necessary
-      ddt(omega) += -(2 / beta_p) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
+      ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
     }
 
     // Apply ddt = 0 BCs
