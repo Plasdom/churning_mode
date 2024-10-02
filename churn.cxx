@@ -219,6 +219,114 @@ private:
     return result;
   }
 
+  Field3D D3DX3(const Field3D &f)
+  {
+    TRACE("D3DX3");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      // 2nd order
+      // result[i] = (1.0 / (2.0 * pow(coord->dx[i], 3.0))) * (-f[i.xmm()] + 2.0 * f[i.xm()] - 2.0 * f[i.xp()] + f[i.xpp()]);
+
+      // 4th order
+      result[i] = (1.0 / (8.0 * pow(coord->dx[i], 3.0))) * (f[i.xm().xm().xm()] - 8.0 * f[i.xmm()] + 13.0 * f[i.xm()] - 13.0 * f[i.xp()] + 8.0 * f[i.xpp()] - f[i.xp().xp().xp()]);
+    }
+
+    return result;
+  }
+
+  Field3D D3DY3(const Field3D &f)
+  {
+    TRACE("D3DY3");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      // 2nd order
+      // result[i] = (1.0 / (2.0 * pow(coord->dy[i], 3.0))) * (-f[i.ymm()] + 2.0 * f[i.ym()] - 2.0 * f[i.yp()] + f[i.ypp()]);
+
+      // 4th order
+      result[i] = (1.0 / (8.0 * pow(coord->dy[i], 3.0))) * (f[i.ym().ym().ym()] - 8.0 * f[i.ymm()] + 13.0 * f[i.ym()] - 13.0 * f[i.yp()] + 8.0 * f[i.ypp()] - f[i.yp().yp().yp()]);
+    }
+
+    return result;
+  }
+
+  Field3D D3D2YDX(const Field3D &f)
+  {
+    TRACE("D3D2YDX");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      // 2nd order
+      // result[i] = (1.0 / (2.0 * pow(coord->dy[i], 2.0) * coord->dx[i])) * (f[i.xp().ym()] - f[i.xm().ym()] + f[i.xp().yp()] - f[i.xm().yp()] - 2.0 * f[i.xp()] + 2.0 * f[i.xm()]);
+
+      // 4th order
+      result[i] = (1.0 / (144.0 * pow(coord->dy[i], 2.0) * coord->dx[i])) * (-(-f[i.xpp().ypp()] + 8.0 * f[i.xp().ypp()] - 8.0 * f[i.xm().ypp()] + f[i.xmm().ypp()]) + 16.0 * (-f[i.xpp().yp()] + 8.0 * f[i.xp().yp()] - 8.0 * f[i.xm().yp()] + f[i.xmm().yp()]) - 30.0 * (-f[i.xpp()] + 8.0 * f[i.xp()] - 8.0 * f[i.xm()] + f[i.xmm()]) + 16.0 * (-f[i.xpp().ym()] + 8.0 * f[i.xp().ym()] - 8.0 * f[i.xm().ym()] + f[i.xmm().ym()]) - (-f[i.xpp().ymm()] + 8.0 * f[i.xp().ymm()] - 8.0 * f[i.xm().ymm()] + f[i.xmm().ymm()]));
+    }
+
+    return result;
+  }
+
+  Field3D D3D2XDY(const Field3D &f)
+  {
+    TRACE("D3D2XDY");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      // 2nd order
+      // result[i] = (1.0 / (2.0 * pow(coord->dx[i], 2.0) * coord->dy[i])) * (f[i.yp().xm()] - f[i.ym().xm()] + f[i.yp().xp()] - f[i.ym().xp()] - 2.0 * f[i.yp()] + 2.0 * f[i.ym()]);
+
+      // 4th order
+      result[i] = (1.0 / (144.0 * pow(coord->dx[i], 2.0) * coord->dy[i])) * (-(-f[i.ypp().xpp()] + 8.0 * f[i.yp().xpp()] - 8.0 * f[i.ym().xpp()] + f[i.ymm().xpp()]) + 16.0 * (-f[i.ypp().xp()] + 8.0 * f[i.yp().xp()] - 8.0 * f[i.ym().xp()] + f[i.ymm().xp()]) - 30.0 * (-f[i.ypp()] + 8.0 * f[i.yp()] - 8.0 * f[i.ym()] + f[i.ymm()]) + 16.0 * (-f[i.ypp().xm()] + 8.0 * f[i.yp().xm()] - 8.0 * f[i.ym().xm()] + f[i.ymm().xm()]) - (-f[i.ypp().xmm()] + 8.0 * f[i.yp().xmm()] - 8.0 * f[i.ym().xmm()] + f[i.ymm().xmm()]));
+    }
+
+    return result;
+  }
+
+  Field3D rotated_laplacexy(const Field3D &f)
+  {
+    TRACE("rotated_laplacexy");
+
+    Field3D result, f_corners;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    f_corners.allocate();
+    for (auto i : result)
+    {
+      f_corners[i] = 0.25 * (f[i.xm()] + f[i.xm().ym()] + f[i.ym()] + f[i]);
+    }
+
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    {
+      result[i] = (2.0 / (12.0 * (pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0)))) * (-f_corners[i.xpp().ypp()] + 16.0 * f_corners[i.xp().yp()] - 30.0 * f[i] + 16.0 * f_corners[i] - f_corners[i.xm().ym()]);
+      result[i] += (2.0 / (12.0 * (pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0)))) * (-f_corners[i.xm().ypp()] + 16.0 * f_corners[i.yp()] - 30.0 * f[i] + 16.0 * f_corners[i.xp()] - f_corners[i.xpp().ym()]);
+    }
+
+    return result;
+  }
+
 protected:
   int init(bool restarting) // TODO: Use the restart flag
   {
@@ -526,72 +634,6 @@ protected:
         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
         q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
       }
-      // if (use_symmetric_div_q_stencil)
-      // {
-      //   ddt(P) += div_q_symmetric(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
-
-      //   // Calculate q for output
-      //   q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-      //   q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-      // }
-      // else
-      // {
-      //   // TODO: Simplify this, remove SK9 diffop, etc
-      //   if ((chi_par > 0.0) || (T_dependent_q_par))
-      //   {
-      //     // Calculate parallel heat flow
-      //     if (use_sk9_anis_diffop)
-      //     {
-      //       ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
-      //                                                 pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
-      //                                                 pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
-      //                                                 pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
-
-      //       // Calculate q_par for output
-      //       q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-      //     }
-      //     else
-      //     {
-      //       if (T_dependent_q_par)
-      //       {
-      //         lambda_ei = where(T_sepx * T / 2 - 10.0, 24 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.0)), 23 - log(sqrt(1.0e-6 * n_sepx) * pow(T_sepx * T / 2.0, -1.5)));
-      //         tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T / 2), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
-      //         ddt(P) += (t_0 * pow(e * T_sepx, 3.5) / (P_0 * pow(a_mid, 2.0))) * ((2.0 / 3.0) * 3.2 * (3.0 / (64.0 * sqrt(pi))) * (pow(4.0 * pi * eps_0, 2.0) / pow(e, 4.0)) * (1.0 / sqrt(m_e))) * (DDX((pow(T, 2.5) / lambda_ei) * B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY((pow(T, 2.5) / lambda_ei) * B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-
-      //         // Calculate q_par for output
-      //         q_par = -((1.0 / (8.0 * sqrt(2.0))) * (2.0 / 3.0) * 3.2 * (m_i / m_e)) * T * (tau_e / t_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-      //       }
-      //       else
-      //       {
-      //         ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-
-      //         // Calculate q_par for output
-      //         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
-      //       }
-      //     }
-      //   }
-      //   if (chi_perp > 0.0)
-      //   {
-      //     // Calculate perpendicular heat flow
-      //     if (use_sk9_anis_diffop)
-      //     {
-      //       ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
-      //                                                  pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
-      //                                                  pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
-      //                                                  (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
-
-      //       // Calculate q_perp for output
-      //       q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-      //     }
-      //     else
-      //     {
-      //       ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
-      //     }
-
-      //     // Calculate q_perp for output
-      //     q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-      //   }
-      // }
     }
 
     // Psi evolution
@@ -639,9 +681,14 @@ protected:
     }
     if (include_mag_restoring_term)
     {
-      // ddt(omega) += -(2 / beta_p) * (DDX(psi) * DDY(D2DX2(psi) + D2DY2(psi)) - DDY(psi) * DDX(D2DX2(psi) + D2DY2(psi)));
-      // TODO: Find out why this doesn't work with 4th order differencing? I think it does now. Need to check whether the additional arguments to each diff op are necessary
+      // Basic approach
       ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
+
+      // Using 3rd derivative stencils
+      // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * (D3D2XDY(psi) + D3DY3(psi)) - DDY(psi) * (D3D2YDX(psi) + D3DX3(psi)));
+
+      // Using a rotated Laplacian stencil
+      // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * DDY(rotated_laplacexy(psi)) - DDY(psi) * DDX(rotated_laplacexy(psi)));
     }
 
     // Apply ddt = 0 BCs
