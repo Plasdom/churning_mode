@@ -219,6 +219,42 @@ private:
     return result;
   }
 
+  Field3D stegmeir_div_q(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b)
+  {
+    TRACE("stegmeir_div_q");
+
+    Field3D result;
+    Field3D q_plus, q_minus;
+    BoutReal f;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    q_plus.allocate();
+    q_minus.allocate();
+    result.allocate();
+    for (auto i : q_plus)
+    {
+      f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+      // u_plus = (1.0 - f) * T[i.xp()] + f * T[i.xp().yp()];
+      // u_minus = (1.0 - f) * T[i.xm()] + f * T[i.xm().ym()];
+      // K_plus = (1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()];
+      // K_minus = (1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()];
+      // K_plus_half = 0.5 * (K_plus + K[i]);
+      // K_minus_half = 0.5 * (K_minus + K[i]);
+      // ds_plus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      // ds_minus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      // q_plus[i] = (0.5 * (((1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()]) + K_par[i])) * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
+      // q_minus[i] = -(0.5 * (((1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()]) + K_par[i])) * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
+      q_plus[i] = K_par * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      q_minus[i] = -K_par * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+
+      // Naive
+      result[i] = (1.0 / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0))) * (q_plus[i] - q_minus[i]);
+    }
+
+    return result;
+  }
+
   Field3D D3DX3(const Field3D &f)
   {
     TRACE("D3DX3");
