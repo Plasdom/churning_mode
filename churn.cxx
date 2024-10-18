@@ -226,8 +226,8 @@ private:
     Field3D result;
     BoutReal f;
     float y_plus;
-    int in, n;
-    Ind3D iypn;
+    int n;
+    // Ind3D iypn;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -237,11 +237,36 @@ private:
       y_plus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_plus / coord->dy[i]));
 
-      iypn = i;
-      in = 0;
+      // iypn = i;
+      // in = 0;
 
       // Limit y extrapolation to number of guard cells
       // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      // if (y_plus > 0.0)
+      // {
+      //   if (n >= ngcy)
+      //   {
+      //     n = ngcy;
+      //   }
+      //   while (in < n)
+      //   {
+      //     iypn = iypn.yp();
+      //     in = in + 1;
+      //   }
+      // }
+      // else
+      // {
+      //   if (n <= -ngcy)
+      //   {
+      //     n = -ngcy;
+      //   }
+      //   while (in < n)
+      //   {
+      //     iypn = iypn.ym();
+      //     in = in + 1;
+      //   }
+      // }
+
       if (n >= ngcy)
       {
         n = ngcy;
@@ -250,13 +275,11 @@ private:
       {
         n = -ngcy;
       }
-      while (in < n)
-      {
-        iypn = iypn.yp();
-        in = in + 1;
-      }
+
       f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = K_par * (((1.0 - f) * u[iypn.xp()] + f * u[iypn.xp().yp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      // result[i] = K_par * (((1.0 - f) * u[iypn.xp()] + f * u[iypn.xp().yp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      // result[i] = n;
 
       // Old (no y extrapolation)
       // f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
@@ -273,8 +296,7 @@ private:
     Field3D result;
     BoutReal f;
     float y_plus;
-    int in, n;
-    Ind3D iypn;
+    int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -284,11 +306,6 @@ private:
       y_plus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_plus / coord->dy[i]));
 
-      iypn = i;
-      in = 0;
-
-      // Limit y extrapolation to number of guard cells
-      // TODO: Ensure n > ngcy or n < -ngcy can never happen
       if (n >= ngcy)
       {
         n = ngcy;
@@ -297,16 +314,13 @@ private:
       {
         n = -ngcy;
       }
-      while (in < n)
-      {
-        iypn = iypn.ym();
-        in = in + 1;
-      }
+
       f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = (((1.0 - f) * u[iypn.xm()] + f * u[iypn.xm().ym()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      result[i] = (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
     }
 
     return result;
+
     // TRACE("Q_plus_T");
 
     // Field3D result;
@@ -331,8 +345,8 @@ private:
     Field3D result;
     BoutReal f;
     float y_minus;
-    int in, n;
-    Ind3D iymn;
+    int n;
+    // Ind3D iymn;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -342,11 +356,12 @@ private:
       y_minus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_minus / coord->dy[i]));
 
-      iymn = i;
-      in = 0;
+      // iymn = i;
+      // in = 0;
 
       // Limit y extrapolation to number of guard cells
       // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
       if (n >= ngcy)
       {
         n = ngcy;
@@ -355,13 +370,14 @@ private:
       {
         n = -ngcy;
       }
-      while (in < n)
-      {
-        iymn = iymn.ym();
-        in = in + 1;
-      }
+      // while (in < n)
+      // {
+      //   iymn = iymn.ym();
+      //   in = in + 1;
+      // }
       f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = -K_par * (((1.0 - f) * u[iymn.xm()] + f * u[iymn.ym().xm()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      // result[i] = -K_par * (((1.0 - f) * u[iymn.xm()] + f * u[iymn.ym().xm()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
 
       // Old (no y extrapolation)
       // f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
@@ -378,8 +394,7 @@ private:
     Field3D result;
     BoutReal f;
     float y_minus;
-    int in, n;
-    Ind3D iymn;
+    int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -389,11 +404,9 @@ private:
       y_minus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_minus / coord->dy[i]));
 
-      iymn = i;
-      in = 0;
-
       // Limit y extrapolation to number of guard cells
       // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
       if (n >= ngcy)
       {
         n = ngcy;
@@ -402,21 +415,11 @@ private:
       {
         n = -ngcy;
       }
-      while (in < n)
-      {
-        iymn = iymn.yp();
-        in = in + 1;
-      }
       f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = -(((1.0 - f) * u[iymn.xp()] + f * u[iymn.yp().xp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+      result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
     }
 
     return result;
-
-    // TRACE("Q_minus_T");
-
-    // Field3D result;
-    // BoutReal f;
 
     // Coordinates *coord = mesh->getCoordinates();
 
