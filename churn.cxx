@@ -219,38 +219,267 @@ private:
     return result;
   }
 
+  Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
+  {
+    TRACE("Q_plus");
+
+    Field3D result;
+    BoutReal f;
+    float y_plus;
+    int in, n;
+    Ind3D iypn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      y_plus = coord->dx[i] * b.y[i] / b.x[i];
+      n = static_cast<int>(floor(y_plus / coord->dy[i]));
+
+      iypn = i;
+      in = 0;
+
+      // Limit y extrapolation to number of guard cells
+      // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      if (n >= ngcy)
+      {
+        n = ngcy;
+      }
+      else if (n <= -ngcy)
+      {
+        n = -ngcy;
+      }
+      while (in < n)
+      {
+        iypn = iypn.yp();
+        in = in + 1;
+      }
+      f = (y_plus - n * coord->dy[i]) / coord->dy[i];
+      result[i] = K_par * (((1.0 - f) * u[iypn.xp()] + f * u[iypn.xp().yp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+
+      // Old (no y extrapolation)
+      // f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+      // result[i] = K_par * (((1.0 - f) * u[i.xp()] + f * u[i.xp().yp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    }
+
+    return result;
+  }
+
+  Field3D Q_plus_T(const Field3D &u, const Vector3D &b)
+  {
+    TRACE("Q_plus_T");
+
+    Field3D result;
+    BoutReal f;
+    float y_plus;
+    int in, n;
+    Ind3D iypn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      y_plus = coord->dx[i] * b.y[i] / b.x[i];
+      n = static_cast<int>(floor(y_plus / coord->dy[i]));
+
+      iypn = i;
+      in = 0;
+
+      // Limit y extrapolation to number of guard cells
+      // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      if (n >= ngcy)
+      {
+        n = ngcy;
+      }
+      else if (n <= -ngcy)
+      {
+        n = -ngcy;
+      }
+      while (in < n)
+      {
+        iypn = iypn.ym();
+        in = in + 1;
+      }
+      f = (y_plus - n * coord->dy[i]) / coord->dy[i];
+      result[i] = (((1.0 - f) * u[iypn.xm()] + f * u[iypn.xm().ym()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    }
+
+    return result;
+    // TRACE("Q_plus_T");
+
+    // Field3D result;
+    // BoutReal f;
+
+    // Coordinates *coord = mesh->getCoordinates();
+
+    // result.allocate();
+    // for (auto i : result)
+    // {
+    //   f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+    //   result[i] = (((1.0 - f) * u[i.xm()] + f * u[i.ym().xm()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    // }
+
+    // return result;
+  }
+
+  Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
+  {
+    TRACE("Q_minus");
+
+    Field3D result;
+    BoutReal f;
+    float y_minus;
+    int in, n;
+    Ind3D iymn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      y_minus = coord->dx[i] * b.y[i] / b.x[i];
+      n = static_cast<int>(floor(y_minus / coord->dy[i]));
+
+      iymn = i;
+      in = 0;
+
+      // Limit y extrapolation to number of guard cells
+      // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      if (n >= ngcy)
+      {
+        n = ngcy;
+      }
+      else if (n <= -ngcy)
+      {
+        n = -ngcy;
+      }
+      while (in < n)
+      {
+        iymn = iymn.ym();
+        in = in + 1;
+      }
+      f = (y_minus - n * coord->dy[i]) / coord->dy[i];
+      result[i] = -K_par * (((1.0 - f) * u[iymn.xm()] + f * u[iymn.ym().xm()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+
+      // Old (no y extrapolation)
+      // f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+      // result[i] = -K_par * (((1.0 - f) * u[i.xm()] + f * u[i.ym().xm()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    }
+
+    return result;
+  }
+
+  Field3D Q_minus_T(const Field3D &u, const Vector3D &b)
+  {
+    TRACE("Q_minus_T");
+
+    Field3D result;
+    BoutReal f;
+    float y_minus;
+    int in, n;
+    Ind3D iymn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    for (auto i : result)
+    {
+      y_minus = coord->dx[i] * b.y[i] / b.x[i];
+      n = static_cast<int>(floor(y_minus / coord->dy[i]));
+
+      iymn = i;
+      in = 0;
+
+      // Limit y extrapolation to number of guard cells
+      // TODO: Ensure n > ngcy or n < -ngcy can never happen
+      if (n >= ngcy)
+      {
+        n = ngcy;
+      }
+      else if (n <= -ngcy)
+      {
+        n = -ngcy;
+      }
+      while (in < n)
+      {
+        iymn = iymn.yp();
+        in = in + 1;
+      }
+      f = (y_minus - n * coord->dy[i]) / coord->dy[i];
+      result[i] = -(((1.0 - f) * u[iymn.xp()] + f * u[iymn.yp().xp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    }
+
+    return result;
+
+    // TRACE("Q_minus_T");
+
+    // Field3D result;
+    // BoutReal f;
+
+    // Coordinates *coord = mesh->getCoordinates();
+
+    // result.allocate();
+    // for (auto i : result)
+    // {
+    //   f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+    //   result[i] = -(((1.0 - f) * u[i.xp()] + f * u[i.xp().yp()]) - u[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    // }
+
+    // return result;
+  }
+
   Field3D stegmeir_div_q(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b)
   {
     TRACE("stegmeir_div_q");
 
     Field3D result;
-    Field3D q_plus, q_minus;
-    BoutReal f;
+    Field3D ds;
+    // Field3D q_plus, q_minus;
+    // BoutReal f;
 
     Coordinates *coord = mesh->getCoordinates();
 
-    q_plus.allocate();
-    q_minus.allocate();
-    result.allocate();
-    for (auto i : q_plus)
-    {
-      f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
-      // u_plus = (1.0 - f) * T[i.xp()] + f * T[i.xp().yp()];
-      // u_minus = (1.0 - f) * T[i.xm()] + f * T[i.xm().ym()];
-      // K_plus = (1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()];
-      // K_minus = (1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()];
-      // K_plus_half = 0.5 * (K_plus + K[i]);
-      // K_minus_half = 0.5 * (K_minus + K[i]);
-      // ds_plus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
-      // ds_minus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
-      // q_plus[i] = (0.5 * (((1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()]) + K_par[i])) * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
-      // q_minus[i] = -(0.5 * (((1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()]) + K_par[i])) * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
-      q_plus[i] = K_par * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
-      q_minus[i] = -K_par * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    // q_plus.allocate();
+    // q_minus.allocate();
+    // result.allocate();
+    // for (auto i : q_plus)
+    // {
+    //   f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+    //   // u_plus = (1.0 - f) * T[i.xp()] + f * T[i.xp().yp()];
+    //   // u_minus = (1.0 - f) * T[i.xm()] + f * T[i.xm().ym()];
+    //   // K_plus = (1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()];
+    //   // K_minus = (1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()];
+    //   // K_plus_half = 0.5 * (K_plus + K[i]);
+    //   // K_minus_half = 0.5 * (K_minus + K[i]);
+    //   // ds_plus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    //   // ds_minus = sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    //   // q_plus[i] = (0.5 * (((1.0 - f) * K_par[i.xp()] + f * K_par[i.xp().yp()]) + K_par[i])) * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
+    //   // q_minus[i] = -(0.5 * (((1.0 - f) * K_par[i.xm()] + f * K_par[i.xm().ym()]) + K_par[i])) * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / (sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
+    //   q_plus[i] = K_par * (((1.0 - f) * T[i.xp()] + f * T[i.xp().yp()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
+    //   q_minus[i] = -K_par * (((1.0 - f) * T[i.xm()] + f * T[i.xm().ym()]) - T[i]) / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0));
 
-      // Naive
-      result[i] = (1.0 / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0))) * (q_plus[i] - q_minus[i]);
-    }
+    //   // Naive
+    //   result[i] = (1.0 / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0))) * (q_plus[i] - q_minus[i]);
+    // }
+
+    // ds.allocate();
+    // for (auto i : ds)
+    // {
+    //   f = (coord->dx[i] / coord->dy[i]) * (b.y[i] / b.x[i]);
+    //   // ds = (1.0 / sqrt(pow(f * coord->dy[i], 2.0) + pow(coord->dx[i], 2.0)));
+    //   ds = f;
+    // }
+
+    // Naive
+    // ds = sqrt(pow(((coord->dx / coord->dy) * (b.y / b.x)) * coord->dy, 2.0) + pow(coord->dx, 2.0));
+    // result = (Q_plus(T, K_par, b) - Q_minus(T, K_par, b)) / ds;
+
+    // Support method
+    result = -0.5 * (Q_plus_T(Q_plus(T, K_par, b), b) + Q_minus_T(Q_minus(T, K_par, b), b));
+    // result = -(Q_plus_T(Q_plus(T, K_par, b), K_par, b));
+    // result = -(Q_minus_T(Q_minus(T, K_par, b), K_par, b));
 
     return result;
   }
