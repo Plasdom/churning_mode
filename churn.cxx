@@ -186,11 +186,20 @@ private:
 
     Coordinates *coord = mesh->getCoordinates();
 
-    // Find b field on cell corners
-    bx_corners = interp_to(interp_to(b.x, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
-    by_corners = interp_to(interp_to(b.y, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
-    bx_corners.setLocation(CELL_CENTER);
-    by_corners.setLocation(CELL_CENTER);
+    // // Find b field on cell corners
+    // bx_corners = interp_to(interp_to(b.x, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
+    // by_corners = interp_to(interp_to(b.y, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
+    // bx_corners.setLocation(CELL_CENTER);
+    // by_corners.setLocation(CELL_CENTER);
+
+    // TODO: Check below is valid when dx!=dy
+    bx_corners.allocate();
+    by_corners.allocate();
+    for (auto i : result)
+    {
+      bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
+      by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
+    }
 
     // Find temperature gradients on cell corners
     DTDX_corners.allocate();
@@ -225,67 +234,89 @@ private:
 
     Field3D result;
     BoutReal f;
-    float y_plus, ds;
+    float y_plus, x_plus, ds;
     int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
-    result.allocate();
+    // result.allocate();
+    result = 0.0;
     // for (auto i : result)
-    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
+      // Attempt fixed distance x for field line extrapolation
       y_plus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_plus / coord->dy[i]));
 
-      // Limit y extrapolation to number of guard cells
-      // TODO: Ensure n > ngcy or n < -ngcy can never happen
-      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
-      if (n >= ngcy)
+      // TODO: Should extend this to when n < ngcy or n>= -ngcy?
+      if ((n < 1) && (n >= -1))
       {
-        n = ngcy;
+        f = (y_plus - n * coord->dy[i]) / coord->dy[i];
+        result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
       }
-      else if (n <= -ngcy)
+      else if (n >= 1)
       {
-        n = -ngcy;
+        // Rotate stencil 45 degress anticlockwise
+        x_plus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = x_plus / coord->dx[i];
+        result[i] = K_par * (((1.0 - f) * u(i.x(), i.y() + 1, i.z()) + f * u(i.x() + 1, i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
       }
-      f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
+      else if (n < -1)
+      {
+        // Rotate stencil 45 degress clockwise
+        x_plus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = (x_plus + coord->dx[i]) / coord->dx[i];
+        result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() - 1, i.z()) + f * u(i.x(), i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
+      }
     }
 
     return result;
   }
 
-  Field3D Q_plus_T(const Field3D &u, const Vector3D &b)
+  Field3D
+  Q_plus_T(const Field3D &u, const Vector3D &b)
   {
     TRACE("Q_plus_T");
 
     Field3D result;
     BoutReal f;
-    float y_plus;
+    float y_plus, x_plus;
     int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
-    result.allocate();
-    for (auto i : result)
+    // result.allocate();
+    result = 0.0;
+    // for (auto i : result)
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
+      // Attempt fixed distance x for field line extrapolation
       y_plus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_plus / coord->dy[i]));
 
-      // Limit y extrapolation to number of guard cells
-      // TODO: Ensure n > ngcy or n < -ngcy can never happen
-      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
-      if (n >= ngcy)
+      if ((n < 1) && (n >= -1))
       {
-        n = ngcy;
+        f = (y_plus - n * coord->dy[i]) / coord->dy[i];
+        result[i] = (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
       }
-      else if (n <= -ngcy)
+      else if (n >= 1)
       {
-        n = -ngcy;
-      }
+        // Rotate stencil 45 degress anticlockwise
+        x_plus = coord->dy[i] * b.x[i] / b.y[i];
 
-      f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
+        f = x_plus / coord->dx[i];
+        result[i] = (((1.0 - f) * u(i.x(), i.y() - 1, i.z()) + f * u(i.x() - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
+      }
+      else if (n < -1)
+      {
+        // Rotate stencil 45 degress clockwise
+        x_plus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = (x_plus + coord->dx[i]) / coord->dx[i];
+        result[i] = (((1.0 - f) * u(i.x() - 1, i.y() + 1, i.z()) + f * u(i.x(), i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
+      }
     }
 
     return result;
@@ -297,30 +328,51 @@ private:
 
     Field3D result;
     BoutReal f;
-    float y_minus;
+    float y_minus, x_minus;
     int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
-    result.allocate();
-    for (auto i : result)
+    // result.allocate();
+    result = 0.0;
+    // for (auto i : result)
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
+      // Attempt fixed distance x for field line extrapolation
       y_minus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_minus / coord->dy[i]));
 
-      // Limit y extrapolation to number of guard cells
-      // TODO: Ensure n > ngcy or n < -ngcy can never happen
-      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
-      if (n >= ngcy)
+      if ((n < 1) && (n >= -1))
       {
-        n = ngcy;
+        f = (y_minus - n * coord->dy[i]) / coord->dy[i];
+        result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
+        // result[i] = f;
       }
-      else if (n <= -ngcy)
+      else if (n >= 1)
       {
-        n = -ngcy;
+        // Rotate stencil 45 degress anticlockwise
+        x_minus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = x_minus / coord->dx[i];
+        result[i] = -K_par * (((1.0 - f) * u(i.x(), i.y() - 1, i.z()) + f * u(i.x() - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
+        // result[i] = f;
       }
-      f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
+      else if (n < -1)
+      {
+        // Rotate stencil 45 degress clockwise
+        x_minus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = (x_minus + coord->dx[i]) / coord->dx[i];
+        result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() + 1, i.z()) + f * u(i.x(), i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
+        // result[i] = f;
+      }
+
+      // // Fixed distance y
+      // x_minus = coord->dy[i] * b.x[i] / b.y[i];
+      // n = static_cast<int>(floor(x_minus / coord->dx[i]));
+
+      // f = (x_minus - n * coord->dx[i]) / coord->dx[i];
+      // result[i] = -K_par * (((1.0 - f) * u(i.x() - n, i.y() - 1, i.z()) + f * u(i.x() - n - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
     }
 
     return result;
@@ -332,30 +384,40 @@ private:
 
     Field3D result;
     BoutReal f;
-    float y_minus;
+    float y_minus, x_minus;
     int n;
 
     Coordinates *coord = mesh->getCoordinates();
 
     result.allocate();
-    for (auto i : result)
+    result = 0.0;
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
+      // Attempt fixed distance x for field line extrapolation
       y_minus = coord->dx[i] * b.y[i] / b.x[i];
       n = static_cast<int>(floor(y_minus / coord->dy[i]));
 
-      // Limit y extrapolation to number of guard cells
-      // TODO: Ensure n > ngcy or n < -ngcy can never happen
-      // TOOD: Extrapolation limit should be applied to y_plus/minus so it's consistent with n
-      if (n >= ngcy)
+      if ((n < 1) && (n >= -1))
       {
-        n = ngcy;
+        f = (y_minus - n * coord->dy[i]) / coord->dy[i];
+        result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
       }
-      else if (n <= -ngcy)
+      else if (n >= 1)
       {
-        n = -ngcy;
+        // Rotate stencil 45 degress anticlockwise
+        x_minus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = x_minus / coord->dx[i];
+        result[i] = -(((1.0 - f) * u(i.x(), i.y() + 1, i.z()) + f * u(i.x() + 1, i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
       }
-      f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-      result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
+      else if (n < -1)
+      {
+        // Rotate stencil 45 degress clockwise
+        x_minus = coord->dy[i] * b.x[i] / b.y[i];
+
+        f = (x_minus + coord->dx[i]) / coord->dx[i];
+        result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() - 1, i.z()) + f * u(i.x(), i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
+      }
     }
 
     return result;
@@ -370,7 +432,7 @@ private:
 
     Coordinates *coord = mesh->getCoordinates();
 
-    // Naive
+    // // Naive
     // ds = sqrt(pow(((coord->dx / coord->dy) * (b.y / b.x)) * coord->dy, 2.0) + pow(coord->dx, 2.0));
     // result = (Q_plus(T, K_par, b) - Q_minus(T, K_par, b)) / ds;
 
