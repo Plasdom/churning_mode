@@ -186,12 +186,6 @@ private:
 
     Coordinates *coord = mesh->getCoordinates();
 
-    // // Find b field on cell corners
-    // bx_corners = interp_to(interp_to(b.x, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
-    // by_corners = interp_to(interp_to(b.y, CELL_XLOW, "RGN_ALL"), CELL_YLOW, "RGN_ALL");
-    // bx_corners.setLocation(CELL_CENTER);
-    // by_corners.setLocation(CELL_CENTER);
-
     // TODO: Check below is valid when dx!=dy
     bx_corners.allocate();
     by_corners.allocate();
@@ -242,13 +236,39 @@ private:
     result = 0.0;
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
-      ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-      x_plus = ds_p * cos(atan2(b.y[i], b.x[i]));
-      y_plus = x_plus * b.y[i] / b.x[i];
-      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+      // // Modified Stegmeir a
+      // ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
+      // x_plus = ds_p * cos(atan2(b.y[i], b.x[i]));
+      // y_plus = x_plus * b.y[i] / b.x[i];
+      // n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
+      // n_y = static_cast<int>(floor((y_plus) / coord->dy[i]));
 
-      n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
-      n_y = static_cast<int>(floor(y_plus / coord->dy[i]));
+      // Modified Stegmeir b
+      x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+      x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+      y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+      y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+      if (b.x[i] >= 0)
+      {
+        n_x = 0;
+      }
+      else
+      {
+        n_x = -1;
+        x_plus = -x_plus;
+      }
+      if (b.y[i] >= 0)
+      {
+        n_y = 0;
+      }
+      else
+      {
+        n_y = -1;
+        y_plus = -y_plus;
+      }
+      ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+
+      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
       f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
       u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
@@ -256,63 +276,6 @@ private:
     }
 
     return result;
-
-    // TRACE("Q_plus");
-
-    // Field3D result;
-    // BoutReal f_x, f_y, dz;
-    // float y_plus, x_plus, ds, u_plus;
-    // int n_x, n_y;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // // result.allocate();
-    // result = 0.0;
-    // dz = (2.0 * pi * R_0 / a_mid) / 500.0;
-    // // for (auto i : result)
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // y_plus = dz * tan(atan2(b.y[i], b.z[i]));
-    //   // x_plus = dz * tan(atan2(b.x[i], b.z[i]));
-    //   y_plus = dz * b.y[i] / b.z[i];
-    //   x_plus = dz * b.x[i] / b.z[i];
-
-    //   // f = y_plus / coord->dy[i];
-    //   n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(y_plus / coord->dy[i]));
-    //   f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-    //   result[i] = K_par * (u_plus - u[i]) / sqrt(pow(y_plus, 2.0) + pow(x_plus, 2.0) + pow(dz, 2.0));
-    //   // result[i] = sqrt(pow(y_plus, 2.0) + pow(x_plus, 2.0) + pow(dz, 2.0));
-    //   // result[i] = f_y;
-    //   // n = static_cast<int>(floor(y_plus / coord->dy[i]));
-
-    //   // // TODO: Should extend this to when n < ngcy or n>= -ngcy?
-    //   // if ((n + i.y() < mesh->LocalNy) && (n + i.y() >= 0))
-    //   // {
-    //   //   f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-    //   //   result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
-    //   // }
-    //   // else if (n + i.y() >= mesh->LocalNy)
-    //   // {
-    //   //   // Rotate stencil 45 degress anticlockwise
-    //   //   x_plus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //   //   f = x_plus / coord->dx[i];
-    //   //   result[i] = K_par * (((1.0 - f) * u(i.x(), i.y() + 1, i.z()) + f * u(i.x() + 1, i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
-    //   // }
-    //   // else if (n + i.y() < -0)
-    //   // {
-    //   //   // Rotate stencil 45 degress clockwise
-    //   //   x_plus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //   //   f = (x_plus + coord->dx[i]) / coord->dx[i];
-    //   //   result[i] = K_par * (((1.0 - f) * u(i.x() + 1, i.y() - 1, i.z()) + f * u(i.x(), i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
-    //   // }
-    // }
-
-    // return result;
   }
 
   Field3D
@@ -330,13 +293,39 @@ private:
     result = 0.0;
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
-      ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-      x_plus = ds_p * cos(atan2(b.y[i], b.x[i]));
-      y_plus = x_plus * b.y[i] / b.x[i];
-      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+      // // Modified Stegmeir a
+      // ds_p = 0.5 * sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
+      // x_plus = ds_p * cos(atan2(b.y[i], b.x[i]));
+      // y_plus = x_plus * b.y[i] / b.x[i];
+      // n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
+      // n_y = static_cast<int>(floor(y_plus / coord->dy[i]));
 
-      n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
-      n_y = static_cast<int>(floor(y_plus / coord->dy[i]));
+      // Modified Stegmeir b
+      x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+      x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+      y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+      y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+      if (b.x[i] >= 0)
+      {
+        n_x = 0;
+      }
+      else
+      {
+        n_x = -1;
+        x_plus = -x_plus;
+      }
+      if (b.y[i] >= 0)
+      {
+        n_y = 0;
+      }
+      else
+      {
+        n_y = -1;
+        y_plus = -y_plus;
+      }
+      ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+
+      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
       f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
       u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
@@ -344,76 +333,6 @@ private:
     }
 
     return result;
-
-    // Field3D result;
-    // BoutReal f;
-    // float y_plus, x_plus;
-    // int n;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // // result.allocate();
-    // result = 0.0;
-    // // for (auto i : result)
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // Attempt fixed distance x for field line extrapolation
-    //   y_plus = coord->dx[i] * b.y[i] / b.x[i];
-    //   n = static_cast<int>(floor(y_plus / coord->dy[i]));
-
-    //   // TODO: Should extend this to when n < ngcy or n>= -ngcy?
-    //   if ((n + i.y() < mesh->LocalNy) && (n + i.y() >= 0))
-    //   {
-    //     f = (y_plus - n * coord->dy[i]) / coord->dy[i];
-    //     result[i] = (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_plus, 2.0) + pow(coord->dx[i], 2.0));
-    //   }
-    //   else if (n + i.y() >= mesh->LocalNy)
-    //   {
-    //     // Rotate stencil 45 degress anticlockwise
-    //     x_plus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //     f = x_plus / coord->dx[i];
-    //     result[i] = (((1.0 - f) * u(i.x(), i.y() - 1, i.z()) + f * u(i.x() - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
-    //   }
-    //   else if (n + i.y() < 0)
-    //   {
-    //     // Rotate stencil 45 degress clockwise
-    //     x_plus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //     f = (x_plus + coord->dx[i]) / coord->dx[i];
-    //     result[i] = (((1.0 - f) * u(i.x() - 1, i.y() + 1, i.z()) + f * u(i.x(), i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_plus, 2.0) + pow(coord->dy[i], 2.0));
-    //   }
-    // }
-
-    // Field3D result;
-    // BoutReal f_x, f_y, dz;
-    // float y_plus, x_plus, ds, u_plus;
-    // int n_x, n_y;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // // result.allocate();
-    // result = 0.0;
-    // dz = (2.0 * pi * R_0 / a_mid) / 500.0;
-    // // for (auto i : result)
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // // Attempt fixed distance x for field line extrapolation
-    //   // y_plus = dz * tan(atan2(b.y[i], b.z[i]));
-    //   // x_plus = dz * tan(atan2(b.x[i], b.z[i]));
-    //   y_plus = dz * b.y[i] / b.z[i];
-    //   x_plus = dz * b.x[i] / b.z[i];
-
-    //   // f = y_plus / coord->dy[i];
-    //   n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(y_plus / coord->dy[i]));
-    //   f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-    //   result[i] = (u_plus - u[i]) / sqrt(pow(y_plus, 2.0) + pow(x_plus, 2.0) + pow(dz, 2.0));
-    // }
-
-    // return result;
   }
 
   Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
@@ -430,13 +349,40 @@ private:
     result = 0.0;
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
-      ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-      x_minus = ds_p * cos(atan2(b.y[i], b.x[i]));
-      y_minus = x_minus * b.y[i] / b.x[i];
-      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
 
-      n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
-      n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
+      // // Modified Stegmeir a
+      // ds_p = 0.5 * sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
+      // x_minus = ds_p * cos(atan2(b.y[i], b.x[i]));
+      // y_minus = x_minus * b.y[i] / b.x[i];
+      // n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
+      // n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
+
+      // Modified Stegmeir b
+      x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+      x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+      y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+      y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+      if (b.x[i] >= 0)
+      {
+        n_x = 0;
+      }
+      else
+      {
+        n_x = -1;
+        x_minus = -x_minus;
+      }
+      if (b.y[i] >= 0)
+      {
+        n_y = 0;
+      }
+      else
+      {
+        n_y = -1;
+        y_minus = -y_minus;
+      }
+      ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
+
+      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
       f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
       u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
@@ -444,73 +390,6 @@ private:
     }
 
     return result;
-
-    // Field3D result;
-    // BoutReal f_x, f_y, dz;
-    // float y_minus, x_minus, ds, u_minus;
-    // int n_x, n_y;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // // result.allocate();
-    // result = 0.0;
-    // dz = (2.0 * pi * R_0 / a_mid) / 500.0;
-    // // for (auto i : result)
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // // Attempt fixed distance x for field line extrapolation
-    //   // y_minus = dz * tan(atan2(b.y[i], b.z[i]));
-    //   // x_minus = dz * tan(atan2(b.x[i], b.z[i]));
-    //   y_minus = dz * b.y[i] / b.z[i];
-    //   x_minus = dz * b.x[i] / b.z[i];
-
-    //   // f = y_plus / coord->dy[i];
-    //   n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
-    //   f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-    //   result[i] = -K_par * (u_minus - u[i]) / sqrt(pow(y_minus, 2.0) + pow(x_minus, 2.0) + pow(dz, 2.0));
-    //   // result[i] = n_y;
-    //   // // Attempt fixed distance x for field line extrapolation
-    //   // y_minus = coord->dx[i] * b.y[i] / b.x[i];
-    //   // n = static_cast<int>(floor(y_minus / coord->dy[i]));
-
-    //   // // TODO: Should extend this to when n < ngcy or n>= -ngcy?
-    //   // if ((n + i.y() < mesh->LocalNy) && (n + i.y() >= 0))
-    //   // {
-    //   //   f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-    //   //   result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() - n, i.z()) + f * u(i.x() - 1, i.y() - n - 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
-    //   //   // result[i] = f;
-    //   // }
-    //   // else if (n + i.y() >= mesh->LocalNy)
-    //   // {
-    //   //   // Rotate stencil 45 degress anticlockwise
-    //   //   x_minus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //   //   f = x_minus / coord->dx[i];
-    //   //   result[i] = -K_par * (((1.0 - f) * u(i.x(), i.y() - 1, i.z()) + f * u(i.x() - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
-    //   //   // result[i] = f;
-    //   // }
-    //   // else if (n + i.y() < 0)
-    //   // {
-    //   //   // Rotate stencil 45 degress clockwise
-    //   //   x_minus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //   //   f = (x_minus + coord->dx[i]) / coord->dx[i];
-    //   //   result[i] = -K_par * (((1.0 - f) * u(i.x() - 1, i.y() + 1, i.z()) + f * u(i.x(), i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
-    //   //   // result[i] = f;
-    //   // }
-
-    //   // // Fixed distance y
-    //   // x_minus = coord->dy[i] * b.x[i] / b.y[i];
-    //   // n = static_cast<int>(floor(x_minus / coord->dx[i]));
-
-    //   // f = (x_minus - n * coord->dx[i]) / coord->dx[i];
-    //   // result[i] = -K_par * (((1.0 - f) * u(i.x() - n, i.y() - 1, i.z()) + f * u(i.x() - n - 1, i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
-    // }
-
-    // return result;
   }
 
   Field3D
@@ -528,13 +407,39 @@ private:
     result = 0.0;
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
-      ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-      x_minus = ds_p * cos(atan2(b.y[i], b.x[i]));
-      y_minus = x_minus * b.y[i] / b.x[i];
-      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+      // // Modified Stegmeir a
+      // ds_p = 0.5 * sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
+      // x_minus = ds_p * cos(atan2(b.y[i], b.x[i]));
+      // y_minus = x_minus * b.y[i] / b.x[i];
+      // n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
+      // n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
 
-      n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
-      n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
+      // Modified Stegmeir b
+      x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+      x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+      y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+      y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+      if (b.x[i] >= 0)
+      {
+        n_x = 0;
+      }
+      else
+      {
+        n_x = -1;
+        x_minus = -x_minus;
+      }
+      if (b.y[i] >= 0)
+      {
+        n_y = 0;
+      }
+      else
+      {
+        n_y = -1;
+        y_minus = -y_minus;
+      }
+      ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
+
+      ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
       f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
       u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
@@ -542,75 +447,6 @@ private:
     }
 
     return result;
-
-    // Field3D result;
-    // BoutReal f;
-    // float y_minus, x_minus;
-    // int n;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // result.allocate();
-    // result = 0.0;
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // Attempt fixed distance x for field line extrapolation
-    //   y_minus = coord->dx[i] * b.y[i] / b.x[i];
-    //   n = static_cast<int>(floor(y_minus / coord->dy[i]));
-
-    //   // TODO: Should extend this to when n < ngcy or n>= -ngcy?
-    //   if ((n + i.y() < mesh->LocalNy) && (n + i.y() >= 0))
-    //   {
-    //     f = (y_minus - n * coord->dy[i]) / coord->dy[i];
-    //     result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() + n, i.z()) + f * u(i.x() + 1, i.y() + n + 1, i.z())) - u[i]) / sqrt(pow(y_minus, 2.0) + pow(coord->dx[i], 2.0));
-    //   }
-    //   else if (n + i.y() >= mesh->LocalNy)
-    //   {
-    //     // Rotate stencil 45 degress anticlockwise
-    //     x_minus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //     f = x_minus / coord->dx[i];
-    //     result[i] = -(((1.0 - f) * u(i.x(), i.y() + 1, i.z()) + f * u(i.x() + 1, i.y() + 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
-    //   }
-    //   else if (n + i.y() < 0)
-    //   {
-    //     // Rotate stencil 45 degress clockwise
-    //     x_minus = coord->dy[i] * b.x[i] / b.y[i];
-
-    //     f = (x_minus + coord->dx[i]) / coord->dx[i];
-    //     result[i] = -(((1.0 - f) * u(i.x() + 1, i.y() - 1, i.z()) + f * u(i.x(), i.y() - 1, i.z())) - u[i]) / sqrt(pow(x_minus, 2.0) + pow(coord->dy[i], 2.0));
-    //   }
-    // }
-
-    // Field3D result;
-    // BoutReal f_x, f_y, dz;
-    // float y_minus, x_minus, ds, u_minus;
-    // int n_x, n_y;
-
-    // Coordinates *coord = mesh->getCoordinates();
-
-    // // result.allocate();
-    // result = 0.0;
-    // dz = (2.0 * pi * R_0 / a_mid) / 500.0;
-    // // for (auto i : result)
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   // // Attempt fixed distance x for field line extrapolation
-    //   // y_minus = dz * tan(atan2(b.y[i], b.z[i]));
-    //   // x_minus = dz * tan(atan2(b.x[i], b.z[i]));
-    //   y_minus = dz * b.y[i] / b.z[i];
-    //   x_minus = dz * b.x[i] / b.z[i];
-
-    //   // f = y_plus / coord->dy[i];
-    //   n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
-    //   f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-    //   result[i] = -(u_minus - u[i]) / sqrt(pow(y_minus, 2.0) + pow(x_minus, 2.0) + pow(dz, 2.0));
-    // }
-
-    // return result;
   }
 
   Field3D stegmeir_div_q(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b)
