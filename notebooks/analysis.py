@@ -84,15 +84,20 @@ def contour_overlay(
     :param var: Variable to plot, defaults to "P"
     :param timestamps: List of integer timestamps to overlay, defaults to [0, -1]
     """
+    linestyles = ["--", "--", ".-"]
     fig, ax = plt.subplots(1)
     vmin = ds[var][0].min()
     vmax = ds[var][0].max()
     levels = np.sort(list(np.linspace(vmin, vmax, 20)))
     if var == "psi":
         levels = np.sort(np.array(list(levels) + [0]))
-    for t in timestamps:
+    for i, t in enumerate(timestamps):
         c = ax.contour(
-            ds["x"], ds["y"], ds[var][t].values.T, linestyles="-", levels=levels
+            ds["x"],
+            ds["y"],
+            ds[var][t].values.T,
+            linestyle=linestyles[i],
+            levels=levels,
         )
     ax.set_xlabel("x")
     ax.set_ylabel("y")
@@ -109,37 +114,59 @@ def animate_contour_list(
     savepath: str | None = None,
     plot_every: int = 1,
     fps: int | float = 24,
+    plot_r_cz: bool = True,
+    min_timestep: int | None = None,
+    max_timestep: int | None = None,
+    trim_cells: int | None = None,
 ):
     """Animate a list of variables using axes.contourf
 
     :param ds: Bout dataset
     :param vars: List of variables to plot, defaults to ["P", "psi"]
     :param savepath: Location to save gif, defaults to None
+    :param plot_r_cz: Overlay the predicted convection zone, defaults to True
+    :param min_timestep: Minimin timestep to plot
+    :param max_timestep: Maximum timestep to plot
+    :param trim_cells: Number of cells to trim from edges in plot
     :return: Animation
     """
+
+    if trim_cells is None:
+        ds_plot = ds
+    else:
+        ds_plot = ds.isel(
+            x=range(trim_cells, len(ds.x) - trim_cells),
+            y=range(trim_cells, len(ds.y) - trim_cells),
+        )
     # TODO: Add colorbar
     # Generate grid for plotting
     xmin = 0
     xmax = -1
-    xvals = ds["x"][xmin:xmax]
-    yvals = ds["y"][xmin:xmax]
+    xvals = ds_plot["x"][xmin:xmax]
+    yvals = ds_plot["y"][xmin:xmax]
     title = str(vars)
 
     fig, ax = plt.subplots(nrows=1, ncols=len(vars))
     if len(vars) == 1:
         ax = [ax]
 
+    if max_timestep is None:
+        max_timestep = len(ds_plot.t)
+    if min_timestep is None:
+        min_timestep = 0
+    ds_plot = ds_plot.isel(t=range(min_timestep, max_timestep))
+
     # Get the predicted convection zone region
-    r_cz = predicted_r_cz(ds)
+    r_cz = predicted_r_cz(ds_plot)
     theta_cz = np.linspace(0, 2 * np.pi, 100)
-    x_cz = np.median(ds.x) + r_cz * np.cos(theta_cz)
-    y_cz = np.median(ds.y) + r_cz * np.sin(theta_cz)
-    print("r_cz = {:.2f}cm".format(r_cz * ds.metadata["a_mid"] * 100))
+    x_cz = np.median(ds_plot.x) + r_cz * np.cos(theta_cz)
+    y_cz = np.median(ds_plot.y) + r_cz * np.sin(theta_cz)
+    print("r_cz = {:.2f}cm".format(r_cz * ds_plot.metadata["a_mid"] * 100))
 
     levels = {}
     var_arrays = {}
     for j, v in enumerate(vars):
-        var_arrays[v] = ds[v].values[:, xmin:xmax, xmin:xmax]
+        var_arrays[v] = ds_plot[v].values[:, xmin:xmax, xmin:xmax]
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
@@ -149,7 +176,7 @@ def animate_contour_list(
             levels[v] = np.sort(list(np.linspace(vmin, vmax, 50)))
             levels[v] = np.sort(np.array(list(levels[v]) + [0]))
         else:
-            levels[v] = np.sort(list(np.linspace(vmin, vmax, 50)))
+            levels[v] = np.sort(list(np.linspace(vmin, vmax, 100)))
 
     def animate(i):
         for j, v in enumerate(vars):
@@ -176,16 +203,19 @@ def animate_contour_list(
                     levels=levels[v],
                     cmap="inferno",
                 )
-            ax[j].plot(x_cz, y_cz, linestyle="--", color="red")
+            if plot_r_cz:
+                ax[j].plot(x_cz, y_cz, linestyle="--", color="red")
             ax[j].set_xlabel("x")
             ax[j].set_ylabel("y")
-            timestamp = ds.t.values[plot_every * i] - ds.t.values[0]
+            timestamp = ds_plot.t.values[plot_every * i] - ds.t.values[0]
             ax[j].set_title(v + ", t={:.2f}$t_0$".format(timestamp))
 
         return cont
 
     anim = animation.FuncAnimation(
-        fig, animate, frames=int(var_arrays[vars[0]].shape[0] / plot_every)
+        fig,
+        animate,
+        frames=int(var_arrays[vars[0]].shape[0] / plot_every),
     )
     if savepath is not None:
         anim.save(savepath, fps=fps)
@@ -194,7 +224,11 @@ def animate_contour_list(
 
 
 def animate_vector(
-    ds: xr.Dataset, vec_var: str, scalar: str = "P", savepath: str | None = None
+    ds: xr.Dataset,
+    vec_var: str,
+    scalar: str = "P",
+    savepath: str | None = None,
+    plot_every: int = 1,
 ):
     """Animate vector field
 
@@ -217,11 +251,9 @@ def animate_vector(
     # ls = LightSource(azdeg=110, altdeg=10)
 
     # animation function
-    plot_every = 1
-
     def animate(i):
         ax.clear()
-        cont = ax.pcolormesh(X, Y, scalar.isel(t=i).values.T)
+        cont = ax.pcolormesh(X, Y, scalar.isel(t=i).values.T, cmap="inferno")
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
         lw = 2 * vec_mag.isel(t=i).values.T / vec_mag.isel(t=i).values.max()
@@ -230,7 +262,7 @@ def animate_vector(
             Y,
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
-            color="black",
+            color="red",
             linewidth=lw,
             integration_direction="both",
             broken_streamlines=False,
@@ -251,6 +283,54 @@ def animate_vector(
         anim.save(savepath, fps=24)
 
     return anim
+
+
+def plot_vector(
+    ds: xr.Dataset,
+    vec_var: str,
+    scalar: str = "P",
+    savepath: str | None = None,
+    t: int = 1,
+):
+    """Plot vector field at a single timestamp
+
+    :param ds: Bout dataset
+    :param vec_var: Vector variable
+    :param scalar: Scalar variable to plot underneath, defaults to "P"
+    :param t: Timestamp
+    :return: Animation
+    """
+
+    # Generate grid for plotting
+    X, Y = np.meshgrid(ds["x"], ds["y"])
+    vec_x = ds[vec_var + "_x"]
+    vec_y = ds[vec_var + "_y"]
+    vec_mag = np.sqrt(vec_x**2 + vec_y**2)
+    scalar = ds["P"]
+
+    fig = plt.figure()
+    ax = plt.axes()
+    # ls = LightSource(azdeg=110, altdeg=10)
+
+    cont = ax.pcolormesh(X, Y, scalar.isel(t=t).values.T, cmap="inferno")
+    # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
+    # cont = ax.imshow(rgb)
+    lw = 2 * vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()
+    cont = ax.streamplot(
+        X,
+        Y,
+        vec_x.isel(t=t).values.T,
+        vec_y.isel(t=t).values.T,
+        color="red",
+        linewidth=lw,
+        integration_direction="both",
+        broken_streamlines=False,
+        density=0.4,
+    )
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    plt.show()
 
 
 def integrate_dxdy(ds: xr.Dataset, var: str):
@@ -361,3 +441,12 @@ def predicted_r_cz(ds):
         ds.metadata["beta_p"] * ds.metadata["a_mid"] / ds.metadata["R_0"]
     ) ** (1 / 3)
     return d_over_a
+
+
+def predicted_tau(ds):
+    tau = (
+        1.3
+        * np.sqrt(predicted_r_cz(ds) * ds.metadata["a_mid"] * ds.metadata["R_0"])
+        / np.sqrt(2 * 1.602e-19 * ds.metadata["T_sepx"] / ds.metadata["m_i"])
+    )
+    return tau
