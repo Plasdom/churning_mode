@@ -222,6 +222,345 @@ private:
     return result;
   }
 
+  std::vector<std::vector<float>> get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const float &Px, const float &Py, const float &bx, const float &by)
+  {
+    // Find the intersection points between a line with gradient given by by/bx, where (Px,Py) is a point on the line, and the box bounded by xlo, xhi, ylo, yhi
+    TRACE("intersects_plus");
+
+    // std::vector<std::vector<float>> result = {{0.0, 1.0}, {2.0, 3.0}};
+    std::vector<std::vector<float>> result;
+    std::vector<float> intersect;
+    float m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+
+    // Find line equation for b
+    if (bx == 0.0)
+    {
+      m = 1e10;
+    }
+    else
+    {
+      m = by / bx;
+    }
+    c = Py - m * Px;
+
+    // Determine which of box faces are intersected
+    y_xlo = m * xlo + c;
+    y_xhi = m * xhi + c;
+    x_ylo = (ylo - c) / m;
+    x_yhi = (yhi - c) / m;
+
+    if ((ylo <= y_xlo) && (y_xlo < yhi))
+    {
+      // Intersect lower x face
+      result.push_back(std::vector<float>{xlo, y_xlo});
+    }
+
+    if ((ylo < y_xhi) && (y_xhi <= yhi))
+    {
+      // Intersect upper x face
+      result.push_back(std::vector<float>{xhi, y_xhi});
+    }
+
+    if ((xlo < x_ylo) && (x_ylo <= xhi))
+    {
+      // Intersect lower y face
+      result.push_back(std::vector<float>{x_ylo, ylo});
+    }
+
+    if ((xlo <= x_yhi) && (x_yhi < xhi))
+    {
+      // Intersect upper y face
+      result.push_back(std::vector<float>{x_yhi, yhi});
+    }
+
+    return result;
+  }
+
+  std::vector<int> increment_cell(const int &i_prev, const float &j_prev, const float &x_next, const float &y_next, const float &dx, const float &dy)
+  {
+    // Determine which cell to move to next
+    TRACE("increment_cell");
+
+    std::vector<int> result;
+    int i_inc = 0;
+    int j_inc = 0;
+    float tol = 1.0e-6;
+
+    if (abs(((x_next / dx) - 0.5) - (static_cast<float>(i_prev))) < tol)
+    {
+      // Move one cell to the right
+      i_inc++;
+    }
+    else if (abs(((x_next / dx) - 0.5) - (static_cast<float>(i_prev) - 1)) < tol)
+    {
+      // Move one cell to the left
+      i_inc--;
+    }
+    if (abs(((y_next / dy) - 0.5) - (static_cast<float>(j_prev))) < tol)
+    {
+      // Move one cell upwards
+      j_inc++;
+    }
+    else if (abs(((y_next / dy) - 0.5) - (static_cast<float>(j_prev) - 1)) < tol)
+    {
+      // Move one cell downwards
+      j_inc--;
+    }
+    // else
+    // {
+    // TODO: Check that this condition is never met
+    //   result[i] = -999;
+    // }
+
+    result.push_back(i_inc);
+    result.push_back(j_inc);
+
+    return result;
+  }
+
+  std::vector<float> closest_point(const float &Px, const float &Py, const float &x0, const float &y0, const float &bx, const float &by)
+  {
+    // Find the closest point on the line following the magnetic field, extending from an cell face intersection point (Px,Py), to a point at (x0, y0), e.g. a cell centre. Output is a vector with three elements (x, y, distance)
+    TRACE("closest_point");
+
+    std::vector<float> result;
+    float distance, x_closest, y_closest;
+    float A, B, C;
+
+    // Find line equation
+    B = 1.0;
+    if (bx == 0.0)
+    {
+      A = 1e10;
+    }
+    else
+    {
+      A = -by / bx;
+    }
+    C = -(Py + A * Px);
+
+    // Find closest distance
+    distance = abs(A * x0 + B * y0 + C) / sqrt(pow(A, 2.0) + pow(B, 2.0));
+
+    // Find the coordinates of this closest point
+    x_closest = (B * (B * x0 - A * y0) - A * C) / (pow(A, 2.0) + pow(B, 2.0));
+    y_closest = (A * (-B * x0 + A * y0) - B * C) / (pow(A, 2.0) + pow(B, 2.0));
+
+    result.push_back(x_closest);
+    result.push_back(y_closest);
+    result.push_back(distance);
+    return result;
+  }
+
+  Field3D Q_plus_linetrace(const Vector3D &b)
+  {
+    TRACE("Q_plus_linetrace");
+
+    Field3D result;
+    Coordinates *coord = mesh->getCoordinates();
+    std::vector<std::vector<float>> intersects;
+    float x_plus, y_plus, x_plus_prev, y_plus_prev, d0, d1;
+    int i_plus, j_plus, n_steps;
+    bool continue_tracing = true;
+    std::vector<int> cell_increment;
+    std::vector<float> p, closest_p;
+    float starting_distance, closest_x_plus, closest_y_plus;
+
+    i_plus = 0;
+    j_plus = 0;
+
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+      // Reset variables for each spatial cell
+      continue_tracing = true;
+      i_plus = 0;
+      j_plus = 0;
+      x_plus = 0.0;
+      y_plus = 0.0;
+      x_plus_prev = 0.0;
+      y_plus_prev = 0.0;
+      starting_distance = sqrt(pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0));
+
+      // Get the first intersect from the centre of cell (i,j)
+      intersects = get_intersects(-coord->dx[i] / 2.0, coord->dx[i] / 2.0, -coord->dy[i] / 2.0, coord->dy[i] / 2.0, x_plus, y_plus, b.x[i], b.y[i]);
+
+      // Specify plus/minus direction (choice is arbitrary)
+      x_plus_prev = x_plus;
+      y_plus_prev = y_plus;
+      if (intersects[1][0] > 0.0)
+      {
+        x_plus = intersects[1][0];
+        y_plus = intersects[1][1];
+      }
+      else
+      {
+        x_plus = intersects[0][0];
+        y_plus = intersects[0][1];
+      }
+
+      // Determine which cell to move to next
+      cell_increment = increment_cell(i_plus, j_plus, x_plus, y_plus, coord->dx[i], coord->dy[i]);
+      i_plus += cell_increment[0];
+      j_plus += cell_increment[1];
+
+      // Find the impact parameter in this adjacent cell
+      p = closest_point(x_plus, y_plus, i_plus * coord->dx[i], j_plus * coord->dy[i], b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+      if (p[2] < starting_distance)
+      {
+        closest_p = p;
+      }
+
+      // Continue to trace field lines in the plus-direction
+      n_steps = 1;
+      while (continue_tracing == true)
+      {
+
+        // Find intercepts in the new cell
+        x_plus_prev = x_plus;
+        y_plus_prev = y_plus;
+        intersects = get_intersects((-coord->dx[i] / 2.0) + i_plus * coord->dx[i],
+                                    (coord->dx[i] / 2.0) + i_plus * coord->dx[i],
+                                    (-coord->dy[i] / 2.0) + j_plus * coord->dy[i],
+                                    (coord->dy[i] / 2.0) + j_plus * coord->dy[i],
+                                    x_plus_prev,
+                                    y_plus_prev,
+                                    b.x(i.x() + i_plus, i.y() + j_plus, i.z()),
+                                    b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+
+        // Determine which intersect borders an adjacent cell
+        d0 = sqrt(pow(x_plus_prev - intersects[0][0], 2) + pow(y_plus_prev - intersects[0][1], 2));
+        d1 = sqrt(pow(x_plus_prev - intersects[1][0], 2) + pow(y_plus_prev - intersects[1][1], 2));
+        if (d0 > d1)
+        {
+          x_plus = intersects[0][0];
+          y_plus = intersects[0][1];
+        }
+        else
+        {
+          x_plus = intersects[1][0];
+          y_plus = intersects[1][1];
+        }
+
+        // Get subsequent intersects in plus direction
+        cell_increment = increment_cell(i_plus, j_plus, x_plus, y_plus, coord->dx[i], coord->dy[i]);
+        i_plus += cell_increment[0];
+        j_plus += cell_increment[1];
+
+        // Find the impact parameter in this adjacent cell
+        p = closest_point(x_plus, y_plus, i_plus * coord->dx[i], j_plus * coord->dy[i], b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+        result[i] = p[2];
+        if (p[2] < closest_p[2])
+        {
+          closest_p = p;
+        }
+
+        // Cease tracing
+        if (i_plus >= 2)
+        {
+          continue_tracing = false;
+        }
+        if (j_plus >= 2)
+        {
+          continue_tracing = false;
+        }
+        if (n_steps >= 10)
+        {
+          continue_tracing = false;
+        }
+
+        n_steps++;
+      }
+
+      result[i] = closest_p[1] / coord->dy[i];
+    }
+
+    return result;
+  }
+
+  // Field3D x_par_p(const Vector3D &b)
+  // {
+  //   // Find the intercept between the local magnetic field line and adjacent cell face in x
+  //   TRACE("x_par_p");
+  //   Field3D result;
+  //   Coordinates *coord = mesh->getCoordinates();
+
+  //   result = coord->dy * b.x / abs(b.y);
+  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+  //   {
+  //     result[i] = std::min(static_cast<float>(coord->dx[i]), result[i]);
+  //   }
+  //   return result;
+  // }
+
+  // float x_par_m(const Vector3D &b)
+  // {
+  //   // Find the intercept between the local magnetic field line (tracing backwards) and adjacent cell face in x
+  //   TRACE("x_par_m");
+  //   Field3D result;
+  //   result = -x_par_p(b);
+  //   return result;
+  // }
+
+  // float y_par_p(const Vector3D &b)
+  // {
+  //   // Find the intercept between the local magnetic field line and adjacent cell face in y
+  //   TRACE("y_par_p");
+  //   Field3D result;
+  //   Coordinates *coord = mesh->getCoordinates();
+  //   result = coord->dx * b.y / abs(b.x);
+  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+  //   {
+  //     result[i] = std::min(static_cast<float>(coord->dy[i]), result[i]);
+  //   }
+  //   return result;
+  // }
+
+  // float y_par_m(const Vector3D &b)
+  // {
+  //   // Find the intercept between the local magnetic field line (tracing backwards) and adjacent cell face in y
+  //   TRACE("y_par_m");
+  //   Field3D result;
+  //   result = -y_par_p(b);
+  //   return result;
+  // }
+
+  // Field3D four_point_interp(const Field3D &x_off, const Field3D &y_off, const Field3D &u)
+  // {
+  //   // Find the value of a field at the grid points offset by (x_off, y_off) via 4-point linear interpolation from surrounding points
+  //   TRACE("u_par_p");
+
+  //   Field3D result;
+  //   int n_x, n_y;
+  //   float f_x, f_y;
+  //   Coordinates *coord = mesh->getCoordinates();
+
+  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+  //   {
+  //     n_x = static_cast<int>(floor(x_off[i] / coord->dx[i]));
+  //     n_y = static_cast<int>(floor(y_off[i] / coord->dy[i]));
+  //     if (x_plus[i] >= 0.0)
+  //     {
+  //       f_x = (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
+  //     }
+  //     else
+  //     {
+  //       f_x = 1.0 - (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
+  //     }
+  //     if (y_plus[i] >= 0.0)
+  //     {
+  //       f_y = (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
+  //     }
+  //     else
+  //     {
+  //       f_y = 1.0 - (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
+  //     }
+  //     result[i] = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+  //   }
+
+  //   return result;
+  // }
+
   Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
   {
     TRACE("Q_plus");
