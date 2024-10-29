@@ -4,6 +4,25 @@
 #include <bout/invertable_operator.hxx>
 #include <bout/interpolation.hxx>
 
+class Point
+{
+public:
+  float x;
+  float y;
+};
+
+class ClosestPoint : public Point
+{
+public:
+  float distance;
+};
+
+class CellIntersect : public Point
+{
+public:
+  int face; // 0 = west, 1 = north, 2 = east, 3 = south;
+};
+
 /// Churning mode model
 ///
 ///
@@ -222,14 +241,14 @@ private:
     return result;
   }
 
-  std::vector<std::vector<float>> get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const float &Px, const float &Py, const float &bx, const float &by)
+  std::vector<CellIntersect> get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by)
   {
     // Find the intersection points between a line with gradient given by by/bx, where (Px,Py) is a point on the line, and the box bounded by xlo, xhi, ylo, yhi
     TRACE("intersects_plus");
 
     // std::vector<std::vector<float>> result = {{0.0, 1.0}, {2.0, 3.0}};
-    std::vector<std::vector<float>> result;
-    std::vector<float> intersect;
+    std::vector<CellIntersect> result;
+    CellIntersect intersect;
     float m, c, y_xlo, y_xhi, x_ylo, x_yhi;
 
     // Find line equation for b
@@ -241,7 +260,7 @@ private:
     {
       m = by / bx;
     }
-    c = Py - m * Px;
+    c = P.y - m * P.x;
 
     // Determine which of box faces are intersected
     y_xlo = m * xlo + c;
@@ -252,31 +271,106 @@ private:
     if ((ylo <= y_xlo) && (y_xlo < yhi))
     {
       // Intersect lower x face
-      result.push_back(std::vector<float>{xlo, y_xlo});
+      intersect.face = 0;
+      intersect.x = xlo;
+      intersect.y = y_xlo;
+      result.push_back(intersect);
     }
 
     if ((ylo < y_xhi) && (y_xhi <= yhi))
     {
       // Intersect upper x face
-      result.push_back(std::vector<float>{xhi, y_xhi});
+      intersect.face = 2;
+      intersect.x = xhi;
+      intersect.y = y_xhi;
+      result.push_back(intersect);
     }
 
     if ((xlo < x_ylo) && (x_ylo <= xhi))
     {
       // Intersect lower y face
-      result.push_back(std::vector<float>{x_ylo, ylo});
+      intersect.face = 3;
+      intersect.x = x_ylo;
+      intersect.y = ylo;
+      result.push_back(intersect);
     }
 
     if ((xlo <= x_yhi) && (x_yhi < xhi))
     {
       // Intersect upper y face
-      result.push_back(std::vector<float>{x_yhi, yhi});
+      intersect.face = 1;
+      intersect.x = x_yhi;
+      intersect.y = yhi;
+      result.push_back(intersect);
     }
 
     return result;
   }
 
-  std::vector<int> increment_cell(const int &i_prev, const float &j_prev, const float &x_next, const float &y_next, const float &dx, const float &dy)
+  CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by)
+  {
+    // Find the intersection points between a line with gradient given by by/bx, where (Px,Py) is a point on the line, and the box bounded by xlo, xhi, ylo, yhi
+    TRACE("get_next_intersect");
+
+    // std::vector<std::vector<float>> result = {{0.0, 1.0}, {2.0, 3.0}};
+    CellIntersect result;
+    float m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+
+    // Find line equation for b
+    if (bx == 0.0)
+    {
+      m = 1e10;
+    }
+    else
+    {
+      m = by / bx;
+    }
+    c = prev_intersect.y - m * prev_intersect.x;
+
+    // Determine which of box faces are intersected
+    y_xlo = m * xlo + c;
+    y_xhi = m * xhi + c;
+    x_ylo = (ylo - c) / m;
+    x_yhi = (yhi - c) / m;
+
+    if ((ylo <= y_xlo) && (y_xlo < yhi) && (prev_intersect.face != 2))
+    {
+      // Intersect lower x face
+      result.face = 0;
+      result.x = xlo;
+      result.y = y_xlo;
+    }
+
+    if ((ylo < y_xhi) && (y_xhi <= yhi) && (prev_intersect.face != 0))
+    {
+      // Intersect upper x face
+      result.face = 2;
+      result.x = xhi;
+      result.y = y_xhi;
+    }
+
+    if ((xlo < x_ylo) && (x_ylo <= xhi) && (prev_intersect.face != 1))
+    {
+      // Intersect lower y face
+      result.face = 3;
+      result.x = x_ylo;
+      result.y = ylo;
+    }
+
+    if ((xlo <= x_yhi) && (x_yhi < xhi) && (prev_intersect.face != 3))
+    {
+      // Intersect upper y face
+      result.face = 1;
+      result.x = x_yhi;
+      result.y = yhi;
+    }
+
+    // TODO: Confirm one of above if statements is always entered
+
+    return result;
+  }
+
+  std::vector<int> increment_cell(const int &i_prev, const float &j_prev, const CellIntersect &P_next, const float &dx, const float &dy)
   {
     // Determine which cell to move to next
     TRACE("increment_cell");
@@ -286,22 +380,22 @@ private:
     int j_inc = 0;
     float tol = 1.0e-6;
 
-    if (abs(((x_next / dx) - 0.5) - (static_cast<float>(i_prev))) < tol)
+    if (abs(((P_next.x / dx) - 0.5) - (static_cast<float>(i_prev))) < tol)
     {
       // Move one cell to the right
       i_inc++;
     }
-    else if (abs(((x_next / dx) - 0.5) - (static_cast<float>(i_prev) - 1)) < tol)
+    else if (abs(((P_next.x / dx) - 0.5) - (static_cast<float>(i_prev) - 1)) < tol)
     {
       // Move one cell to the left
       i_inc--;
     }
-    if (abs(((y_next / dy) - 0.5) - (static_cast<float>(j_prev))) < tol)
+    if (abs(((P_next.y / dy) - 0.5) - (static_cast<float>(j_prev))) < tol)
     {
       // Move one cell upwards
       j_inc++;
     }
-    else if (abs(((y_next / dy) - 0.5) - (static_cast<float>(j_prev) - 1)) < tol)
+    else if (abs(((P_next.y / dy) - 0.5) - (static_cast<float>(j_prev) - 1)) < tol)
     {
       // Move one cell downwards
       j_inc--;
@@ -318,12 +412,12 @@ private:
     return result;
   }
 
-  std::vector<float> closest_point(const float &Px, const float &Py, const float &x0, const float &y0, const float &bx, const float &by)
+  ClosestPoint closest_point(const CellIntersect &P, const Point &P0, const float &bx, const float &by)
   {
     // Find the closest point on the line following the magnetic field, extending from an cell face intersection point (Px,Py), to a point at (x0, y0), e.g. a cell centre. Output is a vector with three elements (x, y, distance)
     TRACE("closest_point");
 
-    std::vector<float> result;
+    ClosestPoint result;
     float distance, x_closest, y_closest;
     float A, B, C;
 
@@ -337,37 +431,37 @@ private:
     {
       A = -by / bx;
     }
-    C = -(Py + A * Px);
+    C = -(P.y + A * P.x);
 
     // Find closest distance
-    distance = abs(A * x0 + B * y0 + C) / sqrt(pow(A, 2.0) + pow(B, 2.0));
+    distance = abs(A * P0.x + B * P0.y + C) / sqrt(pow(A, 2.0) + pow(B, 2.0));
 
     // Find the coordinates of this closest point
-    x_closest = (B * (B * x0 - A * y0) - A * C) / (pow(A, 2.0) + pow(B, 2.0));
-    y_closest = (A * (-B * x0 + A * y0) - B * C) / (pow(A, 2.0) + pow(B, 2.0));
+    x_closest = (B * (B * P0.x - A * P0.y) - A * C) / (pow(A, 2.0) + pow(B, 2.0));
+    y_closest = (A * (-B * P0.x + A * P0.y) - B * C) / (pow(A, 2.0) + pow(B, 2.0));
 
-    result.push_back(x_closest);
-    result.push_back(y_closest);
-    result.push_back(distance);
+    result.x = x_closest;
+    result.y = y_closest;
+    result.distance = distance;
     return result;
   }
 
-  Field3D Q_plus_linetrace(const Vector3D &b)
+  Field3D Q_linetrace(const Field3D &u, const Vector3D &b)
   {
-    TRACE("Q_plus_linetrace");
+    TRACE("Q_linetrace");
 
     Field3D result;
     Coordinates *coord = mesh->getCoordinates();
-    std::vector<std::vector<float>> intersects;
+    std::vector<CellIntersect> intersects;
+    CellIntersect intersect_plus, intersect_prev;
+    Point cell_centre;
+    ClosestPoint p, closest_p;
     float x_plus, y_plus, x_plus_prev, y_plus_prev, d0, d1;
-    int i_plus, j_plus, n_steps;
+    int i_plus, j_plus, n_steps, n_x, n_y;
     bool continue_tracing = true;
     std::vector<int> cell_increment;
-    std::vector<float> p, closest_p;
     float starting_distance, closest_x_plus, closest_y_plus;
-
-    i_plus = 0;
-    j_plus = 0;
+    float par_dist, par_dist_closest, f_x, f_y, u_plus;
 
     result.allocate();
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
@@ -376,39 +470,53 @@ private:
       continue_tracing = true;
       i_plus = 0;
       j_plus = 0;
-      x_plus = 0.0;
-      y_plus = 0.0;
-      x_plus_prev = 0.0;
-      y_plus_prev = 0.0;
+      intersect_plus.x = 0.0;
+      intersect_plus.y = 0.0;
+      intersect_prev.x = 0.0;
+      intersect_prev.y = 0.0;
+      closest_p.x = 0;
+      closest_p.y = 0;
+      closest_p.distance = 0;
+      p.x = 0;
+      p.y = 0;
+      p.distance = 0;
+      par_dist = 0.0;
       starting_distance = sqrt(pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0));
 
       // Get the first intersect from the centre of cell (i,j)
-      intersects = get_intersects(-coord->dx[i] / 2.0, coord->dx[i] / 2.0, -coord->dy[i] / 2.0, coord->dy[i] / 2.0, x_plus, y_plus, b.x[i], b.y[i]);
+      intersects = get_intersects(-coord->dx[i] / 2.0, coord->dx[i] / 2.0, -coord->dy[i] / 2.0, coord->dy[i] / 2.0, intersect_plus, b.x[i], b.y[i]);
 
       // Specify plus/minus direction (choice is arbitrary)
-      x_plus_prev = x_plus;
-      y_plus_prev = y_plus;
-      if (intersects[1][0] > 0.0)
+      intersect_prev = intersect_plus;
+      if (intersects[1].x > 0.0)
       {
-        x_plus = intersects[1][0];
-        y_plus = intersects[1][1];
+        intersect_plus = intersects[1];
       }
       else
       {
-        x_plus = intersects[0][0];
-        y_plus = intersects[0][1];
+        intersect_plus = intersects[0];
       }
 
+      // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+      par_dist += sqrt(pow(intersect_plus.x - intersect_prev.x, 2.0) + pow(intersect_plus.y - intersect_prev.y, 2.0)) * sqrt(pow(b.z(i.x() + i_plus, i.y() + j_plus, i.z()), 2) / (pow(b.x(i.x() + i_plus, i.y() + j_plus, i.z()), 2) + pow(b.y(i.x() + i_plus, i.y() + j_plus, i.z()), 2)) + 1.0);
+
       // Determine which cell to move to next
-      cell_increment = increment_cell(i_plus, j_plus, x_plus, y_plus, coord->dx[i], coord->dy[i]);
+      cell_increment = increment_cell(i_plus, j_plus, intersect_plus, coord->dx[i], coord->dy[i]);
       i_plus += cell_increment[0];
       j_plus += cell_increment[1];
 
       // Find the impact parameter in this adjacent cell
-      p = closest_point(x_plus, y_plus, i_plus * coord->dx[i], j_plus * coord->dy[i], b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
-      if (p[2] < starting_distance)
+      cell_centre.x = i_plus * coord->dx[i];
+      cell_centre.y = j_plus * coord->dy[i];
+      p = closest_point(intersect_plus, cell_centre, b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+
+      // Update the closest point to a cell centre found so far
+      if (p.distance < starting_distance)
       {
-        closest_p = p;
+        closest_p.x = p.x;
+        closest_p.y = p.y;
+        closest_p.distance = p.distance;
+        par_dist_closest = par_dist + sqrt(pow(closest_p.x - x_plus, 2.0) + pow(closest_p.y - y_plus, 2.0)) * sqrt(pow(b.z(i.x() + i_plus, i.y() + j_plus, i.z()), 2) / (pow(b.x(i.x() + i_plus, i.y() + j_plus, i.z()), 2) + pow(b.y(i.x() + i_plus, i.y() + j_plus, i.z()), 2)) + 1.0);
       }
 
       // Continue to trace field lines in the plus-direction
@@ -417,42 +525,57 @@ private:
       {
 
         // Find intercepts in the new cell
-        x_plus_prev = x_plus;
-        y_plus_prev = y_plus;
-        intersects = get_intersects((-coord->dx[i] / 2.0) + i_plus * coord->dx[i],
+        intersect_prev = intersect_plus;
+        // intersects = get_intersects((-coord->dx[i] / 2.0) + i_plus * coord->dx[i],
+        //                             (coord->dx[i] / 2.0) + i_plus * coord->dx[i],
+        //                             (-coord->dy[i] / 2.0) + j_plus * coord->dy[i],
+        //                             (coord->dy[i] / 2.0) + j_plus * coord->dy[i],
+        //                             x_plus_prev,
+        //                             y_plus_prev,
+        //                             b.x(i.x() + i_plus, i.y() + j_plus, i.z()),
+        //                             b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+        intersect_plus = get_next_intersect((-coord->dx[i] / 2.0) + i_plus * coord->dx[i],
                                     (coord->dx[i] / 2.0) + i_plus * coord->dx[i],
                                     (-coord->dy[i] / 2.0) + j_plus * coord->dy[i],
                                     (coord->dy[i] / 2.0) + j_plus * coord->dy[i],
-                                    x_plus_prev,
-                                    y_plus_prev,
+                                            intersect_prev,
                                     b.x(i.x() + i_plus, i.y() + j_plus, i.z()),
                                     b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
 
-        // Determine which intersect borders an adjacent cell
-        d0 = sqrt(pow(x_plus_prev - intersects[0][0], 2) + pow(y_plus_prev - intersects[0][1], 2));
-        d1 = sqrt(pow(x_plus_prev - intersects[1][0], 2) + pow(y_plus_prev - intersects[1][1], 2));
-        if (d0 > d1)
-        {
-          x_plus = intersects[0][0];
-          y_plus = intersects[0][1];
-        }
-        else
-        {
-          x_plus = intersects[1][0];
-          y_plus = intersects[1][1];
-        }
+        // // Determine which intersect borders an adjacent cell
+        // d0 = sqrt(pow(x_plus_prev - intersects[0][0], 2) + pow(y_plus_prev - intersects[0][1], 2));
+        // d1 = sqrt(pow(x_plus_prev - intersects[1][0], 2) + pow(y_plus_prev - intersects[1][1], 2));
+        // if (d0 > d1)
+        // {
+        //   x_plus = intersects[0][0];
+        //   y_plus = intersects[0][1];
+        // }
+        // else
+        // {
+        //   x_plus = intersects[1][0];
+        //   y_plus = intersects[1][1];
+        // }
+
+        // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+        par_dist += sqrt(pow(intersect_plus.x - intersect_prev.x, 2.0) + pow(intersect_plus.y - intersect_prev.y, 2.0)) * sqrt(pow(b.z(i.x() + i_plus, i.y() + j_plus, i.z()), 2) / (pow(b.x(i.x() + i_plus, i.y() + j_plus, i.z()), 2) + pow(b.y(i.x() + i_plus, i.y() + j_plus, i.z()), 2)) + 1.0);
 
         // Get subsequent intersects in plus direction
-        cell_increment = increment_cell(i_plus, j_plus, x_plus, y_plus, coord->dx[i], coord->dy[i]);
+        cell_increment = increment_cell(i_plus, j_plus, intersect_plus, coord->dx[i], coord->dy[i]);
         i_plus += cell_increment[0];
         j_plus += cell_increment[1];
 
         // Find the impact parameter in this adjacent cell
-        p = closest_point(x_plus, y_plus, i_plus * coord->dx[i], j_plus * coord->dy[i], b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
-        result[i] = p[2];
-        if (p[2] < closest_p[2])
+        cell_centre.x = i_plus * coord->dx[i];
+        cell_centre.y = j_plus * coord->dy[i];
+        p = closest_point(intersect_plus, cell_centre, b.x(i.x() + i_plus, i.y() + j_plus, i.z()), b.y(i.x() + i_plus, i.y() + j_plus, i.z()));
+
+        // Update the closest point to a cell centre found so far
+        if (p.distance < closest_p.distance)
         {
-          closest_p = p;
+          closest_p.x = p.x;
+          closest_p.y = p.y;
+          closest_p.distance = p.distance;
+          par_dist_closest = par_dist + sqrt(pow(closest_p.x - intersect_plus.x, 2.0) + pow(closest_p.y - intersect_plus.y, 2.0)) * sqrt(pow(b.z(i.x() + i_plus, i.y() + j_plus, i.z()), 2) / (pow(b.x(i.x() + i_plus, i.y() + j_plus, i.z()), 2) + pow(b.y(i.x() + i_plus, i.y() + j_plus, i.z()), 2)) + 1.0);
         }
 
         // Cease tracing
@@ -472,7 +595,15 @@ private:
         n_steps++;
       }
 
-      result[i] = closest_p[1] / coord->dy[i];
+      // Interpolate u_plus from the closest point identified
+      // ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+      n_x = static_cast<int>(floor(closest_p.x / coord->dx[i]));
+      n_y = static_cast<int>(floor(closest_p.y / coord->dy[i]));
+      f_x = (closest_p.x - n_x * coord->dx[i]) / coord->dx[i];
+      f_y = (closest_p.y - n_y * coord->dy[i]) / coord->dy[i];
+      u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+      result[i] = u_plus;
+      // result[i] = closest_p.y / coord->dy[i];
     }
 
     return result;
