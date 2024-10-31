@@ -398,7 +398,7 @@ private:
       // Move one cell to the right
       result.i++;
     }
-    else if (abs(((P_next.x / dx) - 0.5) - (static_cast<float>(i_prev) - 1)) < tol)
+    else if (abs(((P_next.x / dx) - 0.5) - (static_cast<float>(i_prev) - 1.0)) < tol)
     {
       // Move one cell to the left
       result.i--;
@@ -408,7 +408,7 @@ private:
       // Move one cell upwards
       result.j++;
     }
-    else if (abs(((P_next.y / dy) - 0.5) - (static_cast<float>(j_prev) - 1)) < tol)
+    else if (abs(((P_next.y / dy) - 0.5) - (static_cast<float>(j_prev) - 1.0)) < tol)
     {
       // Move one cell downwards
       result.j--;
@@ -533,11 +533,11 @@ private:
         }
 
         // Cease tracing
-      if (i_inc >= max_i_inc)
+      if (abs(i_inc) >= max_i_inc)
         {
           continue_tracing = false;
         }
-      if (j_inc >= max_j_inc)
+      if (abs(j_inc) >= max_j_inc)
         {
           continue_tracing = false;
         }
@@ -600,10 +600,10 @@ private:
     Coordinates *coord = mesh->getCoordinates();
     InterpolationPoint interp_p_plus, interp_p_minus;
     int n_steps, n_x, n_y;
-    float f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T;
-    int max_i_inc = 2;
-    int max_j_inc = 2;
-    int max_steps = 2;
+    float f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
+    int max_i_inc = 3;
+    int max_j_inc = 3;
+    int max_steps = 8;
 
     x_plus = 0.0;
     y_plus = 0.0;
@@ -642,6 +642,10 @@ private:
       q_minus[i] = -K_par * (u_minus - u[i]) / parallel_distances_minus[i];
     }
 
+    // // // Naive method
+    // result = 2.0 * (q_plus - q_minus) / (parallel_distances_plus + parallel_distances_minus);
+
+    // Support operator method
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
       n_x = static_cast<int>(floor(x_plus[i] / coord->dx[i]));
@@ -649,60 +653,22 @@ private:
       f_x = (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
       q_plus_T = (1.0 - f_y) * ((1 - f_x) * q_plus(i.x() - n_x, i.y() - n_y, i.z()) + f_x * q_plus(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * q_plus(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * q_plus(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+      div_q_plus = (parallel_distances_plus[i] / (0.5 * (parallel_distances_plus[i] + parallel_distances_minus[i]))) * ((q_plus_T - q_plus[i]) / parallel_distances_plus[i]);
 
       n_x = static_cast<int>(floor(x_minus[i] / coord->dx[i]));
       n_y = static_cast<int>(floor(y_minus[i] / coord->dy[i]));
       f_x = (x_minus[i] - n_x * coord->dx[i]) / coord->dx[i];
       f_y = (y_minus[i] - n_y * coord->dy[i]) / coord->dy[i];
       q_minus_T = (1.0 - f_y) * ((1 - f_x) * q_minus(i.x() - n_x, i.y() - n_y, i.z()) + f_x * q_minus(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * q_minus(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * q_minus(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+      div_q_minus = -(parallel_distances_minus[i] / (0.5 * (parallel_distances_plus[i] + parallel_distances_minus[i]))) * ((q_minus_T - q_minus[i]) / parallel_distances_minus[i]);
 
-      result[i] = -0.5 * (((q_plus_T - q_plus[i]) / parallel_distances_plus[i]) - ((q_minus_T - q_minus[i]) / parallel_distances_minus[i]));
-      // result[i] = -0.5 * (((q_plus_T - q_plus[i])) - ((q_minus_T - q_minus[i])));
+      result[i] = -0.5 * (div_q_plus + div_q_minus);
       // result[i] = -(((q_plus_T - q_plus[i]) / parallel_distances_plus[i]));
       // result[i] = (((q_minus_T - q_minus[i]) / parallel_distances_minus[i]));
       // result[i] = q_minus[i];
     }
 
     return result;
-
-    // Naive method
-
-    // Field3D result;
-    //// Field3D x_plus, y_plus, parallel_distances_plus;
-    // Coordinates *coord = mesh->getCoordinates();
-    // InterpolationPoint interp_p_plus, interp_p_minus;
-    // int n_steps, n_x, n_y;
-    // float f_x, f_y, u_plus, u_plus_T, u_minus, u_minus_T, q_plus, q_minus;
-    // int max_i_inc = 2;
-    // int max_j_inc = 2;
-    // int max_steps = 2;
-
-    // result.allocate();
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //   interp_p_plus = trace_field_lines(i, b, coord->dx[i], coord->dy[i], max_i_inc, max_j_inc, max_steps, true);
-    //   interp_p_minus = trace_field_lines(i, b, coord->dx[i], coord->dy[i], max_i_inc, max_j_inc, max_steps, false);
-
-    //   // Interpolate u_plus from the closest point identified
-    //   n_x = static_cast<int>(floor(interp_p_plus.x / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(interp_p_plus.y / coord->dy[i]));
-    //   f_x = (interp_p_plus.x - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (interp_p_plus.y - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-
-    //   // Interpolate u_plus from the closest point identified
-    //   n_x = static_cast<int>(floor(interp_p_minus.x / coord->dx[i]));
-    //   n_y = static_cast<int>(floor(interp_p_minus.y / coord->dy[i]));
-    //   f_x = (interp_p_minus.x - n_x * coord->dx[i]) / coord->dx[i];
-    //   f_y = (interp_p_minus.y - n_y * coord->dy[i]) / coord->dy[i];
-    //   u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-
-    //   q_plus = K_par * (u_plus - u[i]) / interp_p_plus.parallel_distance;
-    //   q_minus = -K_par * (u_minus - u[i]) / interp_p_minus.parallel_distance;
-
-    //   result[i] = (q_plus - q_minus) / (interp_p_plus.parallel_distance + interp_p_minus.parallel_distance);
-    // }
-    // return result;
   }
 
   // Field3D x_par_p(const Vector3D &b)
