@@ -6,7 +6,7 @@
 
 # settings used by the core code
 
-nout = 50    # number of time-steps
+nout = 10    # number of time-steps
 timestep = 1.0e-1 # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 4                  
@@ -67,45 +67,9 @@ type = cvode
 
 #invertable_pctype = hypre
 
-##################################################
-# general settings for the model
-
-#[phiSolver]
-#[laplacexy]
-#include_y_derivs = true
-#pctype = hypre  # Preconditioner
-#finite_volume = false
-
-#type = petsc  # Needed if Boussinesq = false
-#pctype = bjacobi  # Preconditioning type
-
-#fourth_order = true  # 4th order or 2nd order
-
-#inner_boundary_flags = 0
-#outer_boundary_flags = 0
-
-# 0  = Zero value
-# 10 = Zero gradient AC inner & outer
-# 15 = Zero gradient AC and DC
-# 768 = Zero laplace inner & outer
-
-#[phiSolver:precon]  # Preconditioner (if pctype=user)
-#filter = 0.0     # Must not filter solution
-#flags = 49152  # set_rhs i.e. identity matrix in boundaries
-
-# [petsc]
-# options_view = true
-# options_left = true
-
-# [invertableOperator:petsc]
-# invertable_pc_type = hypre
-
 [model]
 
 # Parameters
-chi_diff = 0.0e0         # Isotropic Thermal diffusivity [m^2 s^-1]
-chi_par = 1.0e6        # Parallel Thermal diffusivity [m^2 s^-1]
-chi_perp = 0.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
 D_m = 0.0e-2          # Magnetic diffusivity [m^2 s^-1]
 mu = 0.0e-3            # Kinematic viscosity [m^2 s^-1]
 R_0 = 0.85           # Major radius [m]
@@ -122,10 +86,21 @@ evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_advection = true            # Include advection terms
-use_sk9_anis_diffop = false   # Use SK9 stencil for the anisotropic heat flow operator (assumes constant & uniform B field, no Temperature dependence on parallel conduction)
 fixed_T_down = true            # Use a constant value for P on downstream boundaries
-T_dependent_q_par = false        # Use Spitzer-Harm form of parallel conductivity
-use_symmetric_div_q_stencil = false       # Use a symmetric stencil for the div_q term
+#TODO: Add temperature dependence conduction models
+
+# Select parallel thermal conduction model (first method set to true will be used)
+chi_par = 1.0e5        # Parallel Thermal diffusivity [m^2 s^-1]
+use_classic_div_q_par = false     
+use_gunter_div_q_par = false       
+use_modified_stegmeir_div_q_par = true       
+use_linetrace_div_q_par = false     
+
+# Select perpendicular thermal conduction model (first method set to true will be used)
+chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
+use_classic_div_q_perp = true     
+use_gunter_div_q_perp = false
+#TODO: Implement Stegmeir div_q_perp?       
 
 [all]
 

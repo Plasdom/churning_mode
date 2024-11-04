@@ -1,30 +1,29 @@
 #include "header.hxx"
 
-// Skewed 9-point stencil for anisotropic diffusion (A,B & C currently assumed to not vary with f, and b field direction assumed constant)
-Field3D Churn::Anis_Diff_SK9(const Field3D &f, const Field3D &A, const Field3D &B, const Field3D &C)
+Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
-    TRACE("Anis_Diff");
+    TRACE("div_q_par_classic");
 
     Field3D result;
-    BoutReal r;
 
-    Coordinates *coord = mesh->getCoordinates();
+    result = K_par * (DDX(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
-    result.allocate();
-    for (auto i : result)
-    {
-        r = coord->dx[i] / coord->dy[i];
-        result[i] =
-            ((B[i] * pow(r, 2.0) - C[i] * r) * f[i.yp()] + C[i] * r * f[i.yp().xp()] + (A[i] - C[i] * r) * f[i.xm()] + (-2.0 * A[i] - 2.0 * B[i] * pow(r, 2.0) + 2.0 * C[i] * r) * f[i] + (A[i] - C[i] * r) * f[i.xp()] + C[i] * r * f[i.xm().ym()] + (B[i] * pow(r, 2.0) - C[i] * r) * f[i.ym()]) / (coord->dy[i] * coord->dx[i]);
-    }
+    return result;
+}
+Field3D Churn::div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+{
+    TRACE("div_q_par_classic");
+
+    Field3D result;
+
+    result = K_perp * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")));
 
     return result;
 }
 
-// Symettric stencil for div_q term (assumes K_par, K_perp constant in space)
-Field3D Churn::div_q_symmetric(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b)
+Field3D Churn::div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
-    TRACE("div_q_symmetric");
+    TRACE("div_q_par_gunter");
 
     Field3D result;
     Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
@@ -52,14 +51,51 @@ Field3D Churn::div_q_symmetric(const Field3D &T, const BoutReal &K_par, const Bo
 
     q_parx_corners = K_par * bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
     q_pary_corners = K_par * by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
-    q_perpx_corners = K_perp * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
-    q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
 
     result.allocate();
     for (auto i : result)
     {
         result[i] = (1.0 / (2.0 * coord->dx[i])) * (q_parx_corners[i.xp().yp()] + q_parx_corners[i.xp()] - q_parx_corners[i.yp()] - q_parx_corners[i]);
         result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_pary_corners[i.xp().yp()] + q_pary_corners[i.yp()] - q_pary_corners[i.xp()] - q_pary_corners[i]);
+    }
+
+    return result;
+}
+
+Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+{
+    TRACE("div_q_perp_gunter");
+
+    Field3D result;
+    Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    // TODO: Check below is valid when dx!=dy
+    bx_corners.allocate();
+    by_corners.allocate();
+    for (auto i : result)
+    {
+        bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
+        by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
+    }
+
+    // Find temperature gradients on cell corners
+    DTDX_corners.allocate();
+    DTDY_corners.allocate();
+    for (auto i : DTDX_corners)
+    {
+
+        DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
+        DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
+    }
+
+    q_perpx_corners = K_perp * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+    q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+
+    result.allocate();
+    for (auto i : result)
+    {
         result[i] += (1.0 / (2.0 * coord->dx[i])) * (q_perpx_corners[i.xp().yp()] + q_perpx_corners[i.xp()] - q_perpx_corners[i.yp()] - q_perpx_corners[i]);
         result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_perpy_corners[i.xp().yp()] + q_perpy_corners[i.yp()] - q_perpy_corners[i.xp()] - q_perpy_corners[i]);
     }
@@ -407,9 +443,9 @@ ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const
     return result;
 }
 
-Field3D Churn::Q_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
+Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
 {
-    TRACE("Q_linetrace");
+    TRACE("div_q_par_linetrace");
 
     Field3D result;
     Field3D x_plus, y_plus, x_minus, y_minus, parallel_distances_plus, parallel_distances_minus, q_plus, q_minus;
@@ -733,9 +769,9 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D Churn::stegmeir_div_q(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b)
+Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
-    TRACE("stegmeir_div_q");
+    TRACE("div_q_par_modified_stegmeir");
 
     Field3D result;
     Field3D ds;

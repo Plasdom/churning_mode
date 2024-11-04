@@ -55,7 +55,6 @@ private:
     // Evolving variables
     Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
     Vector3D B;
-    Field3D theta_m, phi_m;
 
     // Auxilliary variables
     Field3D phi;
@@ -102,15 +101,18 @@ private:
     BoutReal P_grad_0; ///< Vertical pressure gradient normalisation
 
     // Switches
-    bool evolve_pressure;             ///< Evolve plasma pressure
-    bool include_mag_restoring_term;  ///< Include the poloidal magnetic field restoring term in the vorticity equation
-    bool include_churn_drive_term;    ///< Include the churn driving term in the vorticity equation
-    bool invert_laplace;              ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
-    bool include_advection;           ///< Use advection terms
-    bool use_sk9_anis_diffop;         ///< Use the SK9 stencil for anisotropic heat flow operator
-    bool fixed_T_down;                ///< Use a constant value for P on downstream boundaries
-    bool T_dependent_q_par;           ///< Use Spitzer-Harm form of parallel conductivity
-    bool use_symmetric_div_q_stencil; ///< Use a symmetric stencil for the div_q term
+    bool evolve_pressure;            ///< Evolve plasma pressure
+    bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
+    bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
+    bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
+    bool include_advection;          ///< Use advection terms
+    bool fixed_T_down;               ///< Use a constant value for P on downstream boundaries
+    bool use_classic_div_q_par;
+    bool use_gunter_div_q_par;
+    bool use_modified_stegmeir_div_q_par;
+    bool use_linetrace_div_q_par;
+    bool use_classic_div_q_perp;
+    bool use_gunter_div_q_perp;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -118,19 +120,21 @@ private:
     const int nits_inv_extra = 0;
 
     // Methods related to difference heat conduction models
-    Field3D Anis_Diff_SK9(const Field3D &f, const Field3D &A, const Field3D &B, const Field3D &C);
-    Field3D div_q_symmetric(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b);
+    Field3D div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
+    Field3D div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     std::vector<CellIntersect> get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
     CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by);
     Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const float &dx, const float &dy);
     InterpolationPoint trace_field_lines(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_x_inc, const int &max_y_inc, const int &max_steps, const bool &plus);
     ClosestPoint get_closest_p(const CellIntersect &P, const Point &P0, const float &bx, const float &by);
-    Field3D Q_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus_T(const Field3D &u, const Vector3D &b);
     Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
-    Field3D stegmeir_div_q(const Field3D &T, const BoutReal &K_par, const BoutReal &K_perp, const Vector3D &b);
+    Field3D div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
 
     // Y boundary iterators
     // RangeIterator itl;

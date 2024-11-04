@@ -37,14 +37,6 @@ int Churn::rhs(BoutReal UNUSED(t))
     B.x = -DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B.y = DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B_mag = abs(B);
-    if (use_sk9_anis_diffop)
-    {
-        BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
-        {
-            theta_m[i] = atan2(sqrt(pow(B.x[i], 2.0) + pow(B.y[i], 2.0)), B.z[i]);
-            phi_m[i] = atan2(B.y[i], B.x[i]);
-        }
-    }
 
     // mesh->communicate(B);
 
@@ -70,43 +62,45 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             ddt(P) = 0;
         }
-        if (chi_diff > 0.0)
-        {
-            ddt(P) += (chi_diff / D_0) * (D2DX2(P) + D2DY2(P));
-        }
-        else if ((chi_par > 0.0) || (chi_perp > 0.0))
+        if (chi_par > 0.0)
         {
             // TODO: Add T-dependent q_par
-            if (use_symmetric_div_q_stencil)
-            {
-                ddt(P) += div_q_symmetric(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
-            }
-            else if (use_sk9_anis_diffop)
-            {
-                ddt(P) += (chi_par / D_0) * Anis_Diff_SK9(P,
-                                                          pow(sin(theta_m), 2.0) * pow(cos(phi_m), 2.0),
-                                                          pow(sin(theta_m), 2.0) * pow(sin(phi_m), 2.0),
-                                                          pow(sin(theta_m), 2.0) * cos(phi_m) * sin(phi_m));
-                ddt(P) += (chi_perp / D_0) * Anis_Diff_SK9(P,
-                                                           pow(cos(theta_m), 2.0) * pow(cos(phi_m), 2.0) + pow(sin(phi_m), 2.0),
-                                                           pow(cos(theta_m), 2.0) * pow(sin(phi_m), 2.0) + pow(cos(phi_m), 2.0),
-                                                           (-sin(phi_m) * cos(phi_m) * (pow(cos(theta_m), 2.0) + 1.0)));
-            }
-            else
-            {
-                // ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-                ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
-                // div_q = (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-                div_q = stegmeir_div_q(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
-                ddt(P) += div_q;
-                // div_q = Q_plus(T, chi_par / D_0, B / B_mag);
-                // div_q = Q_minus(T, chi_par / D_0, B / B_mag);
 
-                // div_q = Q_linetrace(T, chi_par / D_0, B / B_mag);
-                // ddt(P) += div_q;
+            if (use_classic_div_q_par)
+            {
+                ddt(P) += div_q_par_classic(T, chi_par / D_0, B / B_mag);
             }
+            else if (use_gunter_div_q_par)
+            {
+                ddt(P) += div_q_par_gunter(T, chi_par / D_0, B / B_mag);
+            }
+            else if (use_modified_stegmeir_div_q_par)
+            {
+                ddt(P) += div_q_par_modified_stegmeir(T, chi_par / D_0, B / B_mag);
+            }
+            else if (use_linetrace_div_q_par)
+            {
+                ddt(P) += div_q_par_linetrace(T, chi_par / D_0, B / B_mag);
+            }
+
             // Calculate q for output
+            // TODO: This should match the method used in div_q calculation
             q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+        }
+        if (chi_perp > 0.0)
+        {
+
+            if (use_classic_div_q_perp)
+            {
+                ddt(P) += div_q_perp_classic(T, chi_perp / D_0, B / B_mag);
+            }
+            else if (use_gunter_div_q_perp)
+            {
+                ddt(P) += div_q_perp_gunter(T, chi_perp / D_0, B / B_mag);
+            }
+
+            // Calculate q for output
+            // TODO: This should match the method used in div_q calculation
             q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
         }
     }

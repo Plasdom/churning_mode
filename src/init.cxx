@@ -38,18 +38,27 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_advection = options["include_advection"]
                             .doc("Include advection terms or not")
                             .withDefault(true);
-    use_sk9_anis_diffop = options["use_sk9_anis_diffop"]
-                              .doc("Use SK9 stencil for the anisotropic heat flow operator")
-                              .withDefault(false);
     fixed_T_down = options["fixed_T_down"]
                        .doc("Use a constant value for P on downstream boundaries")
                        .withDefault(false);
-    T_dependent_q_par = options["T_dependent_q_par"]
-                            .doc("Use Spitzer-Harm form of parallel conductivity")
-                            .withDefault(false);
-    use_symmetric_div_q_stencil = options["use_symmetric_div_q_stencil"]
-                                      .doc("Use a symmetric stencil for the div_q term")
-                                      .withDefault(true);
+    use_classic_div_q_par = options["use_classic_div_q_par"]
+                                .doc("Use a classic stencil for the parallel div_q term")
+                                .withDefault(false);
+    use_classic_div_q_perp = options["use_classic_div_q_perp"]
+                                 .doc("Use a classic stencil for the perpendicular div_q term")
+                                 .withDefault(false);
+    use_gunter_div_q_par = options["use_gunter_div_q_par"]
+                               .doc("Use the Gunter stencil for the parallel div_q term")
+                               .withDefault(false);
+    use_gunter_div_q_perp = options["use_gunter_div_q_perp"]
+                                .doc("Use the Gunter stencil for the perpendicular div_q term")
+                                .withDefault(false);
+    use_modified_stegmeir_div_q_par = options["use_modified_stegmeir_div_q_par"]
+                                          .doc("Use a modified version of the Stegmeir stencil for the parallel div_q term")
+                                          .withDefault(false);
+    use_linetrace_div_q_par = options["use_linetrace_div_q_par"]
+                                  .doc("Use a fielline tracing algorithm for the parallel div_q term")
+                                  .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -104,14 +113,14 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     if (chi_par > 0.0)
     {
-        if (T_dependent_q_par)
-        {
-            SAVE_REPEAT(q_par, tau_e, lambda_ei)
-        }
-        else
-        {
-            SAVE_REPEAT(q_par)
-        }
+        // if (T_dependent_q_par)
+        // {
+        //     SAVE_REPEAT(q_par, tau_e, lambda_ei)
+        // }
+        // else
+        // {
+        //     SAVE_REPEAT(q_par)
+        // }
     }
     if (chi_perp > 0.0)
     {
@@ -188,11 +197,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B.x = 0.0;
     B.y = 0.0;
     B.z = B_t0 / B_pmid;
-    if (use_sk9_anis_diffop)
-    {
-        phi_m = 0.0;
-        theta_m = 0.0;
-    }
 
     // Initialise heat flow
     q_par = 0.0;
