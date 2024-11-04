@@ -1,6 +1,6 @@
 ## Build
 ```
-cmake . -B build -Dbout++_DIR=/path/to/bout/build/directory
+cmake . -B build -Dbout++_DIR=/Users/power8/Documents/01_code/04_bout/build-bout
 ```
 then 
 ```

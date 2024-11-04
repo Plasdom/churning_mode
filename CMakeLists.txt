@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 project(churn LANGUAGES CXX)
+set(bout++_DIR, "/Users/power8/Documents/01_code/04_bout/build-bout")
 find_package(bout++ REQUIRED)
 add_executable(churn churn.cxx)
 target_link_libraries(churn PRIVATE bout++::bout++)

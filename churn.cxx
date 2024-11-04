@@ -434,7 +434,7 @@ private:
     // Initialise the next intersection
     next_intersect.x = 0.0;
     next_intersect.y = 0.0;
-      par_dist = 0.0;
+    par_dist = 0.0;
     p_closest.x = 0.0;
     p_closest.y = 0.0;
     p_closest.distance = 1.0e10;
@@ -442,10 +442,10 @@ private:
     p.y = 0.0;
     p.distance = 0.0;
 
-      // Get the first intersect from the centre of cell (i,j)
+    // Get the first intersect from the centre of cell (i,j)
     intersects = get_intersects(-dx / 2.0, dx / 2.0, -dy / 2.0, dy / 2.0, next_intersect, b.x[i], b.y[i]);
 
-      // Specify plus/minus direction (choice is arbitrary)
+    // Specify plus/minus direction (choice is arbitrary)
     // TODO: Check the logic of selcting next intersect here. What if intersects.size != 2?
     prev_intersect = next_intersect;
     if (plus == true)
@@ -469,7 +469,7 @@ private:
       {
         next_intersect = intersects[0];
       }
-      }
+    }
     // if (plus == true)
     // {
     //   next_intersect = intersects[0];
@@ -479,28 +479,28 @@ private:
     //   next_intersect = intersects[1];
     // }
 
-      // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+    // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
     par_dist += sqrt(pow(next_intersect.x - 0.0, 2.0) + pow(next_intersect.y - 0.0, 2.0)) * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
 
-      // Determine which cell to move to next
+    // Determine which cell to move to next
     i_prev = i;
     i_next = increment_cell(i, i_prev, next_intersect, dx, dy);
 
-      // Find the impact parameter in this adjacent cell
+    // Find the impact parameter in this adjacent cell
     cell_centre.x = (i_next.x() - i.x()) * dx;
     cell_centre.y = (i_next.y() - i.y()) * dy;
     p = get_closest_p(next_intersect, cell_centre, b.x[i_next], b.y[i_next]);
 
-      // Update the closest point to a cell centre found so far
-      p_closest = p;
+    // Update the closest point to a cell centre found so far
+    p_closest = p;
     par_dist_closest = par_dist + sqrt(pow(p_closest.x - next_intersect.x, 2.0) + pow(p_closest.y - next_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
 
-      // Continue to trace field lines in the plus-direction
-      n_steps = 1;
-      while (continue_tracing == true)
-      {
+    // Continue to trace field lines in the plus-direction
+    n_steps = 1;
+    while (continue_tracing == true)
+    {
 
-        // Find intercepts in the new cell
+      // Find intercepts in the new cell
       prev_intersect = next_intersect;
       next_intersect = get_next_intersect((-dx / 2.0) + (i_next.x() - i_prev.x()) * dx,
                                           (dx / 2.0) + (i_next.x() - i_prev.x()) * dx,
@@ -510,41 +510,41 @@ private:
                                           b.x[i_next],
                                           b.y[i_next]);
 
-        // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+      // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
       par_dist += sqrt(pow(next_intersect.x - prev_intersect.x, 2.0) + pow(next_intersect.y - prev_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
 
-        // Get subsequent intersects in plus direction
+      // Get subsequent intersects in plus direction
       i_prev = i_next;
       i_next = increment_cell(i, i_prev, next_intersect, dx, dy);
 
-        // Find the impact parameter in this adjacent cell
+      // Find the impact parameter in this adjacent cell
       cell_centre.x = (i_next.x() - i.x()) * dx;
       cell_centre.y = (i_next.y() - i.y()) * dy;
       p = get_closest_p(next_intersect, cell_centre, b.x[i_next], b.y[i_next]);
 
-        // Update the closest point to a cell centre found so far
+      // Update the closest point to a cell centre found so far
       if (p.distance < p_closest.distance)
-        {
+      {
         p_closest = p;
         par_dist_closest = par_dist + sqrt(pow(p_closest.x - next_intersect.x, 2.0) + pow(p_closest.y - next_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
-        }
+      }
 
       n_steps++;
 
-        // Cease tracing
+      // Cease tracing
       if (abs(i_next.x() - i.x()) >= max_x_inc)
-        {
-          continue_tracing = false;
-        }
-      if (abs(i_next.y() - i.y()) >= max_y_inc)
-        {
-          continue_tracing = false;
-        }
-      if (n_steps >= max_steps)
-        {
-          continue_tracing = false;
-        }
+      {
+        continue_tracing = false;
       }
+      if (abs(i_next.y() - i.y()) >= max_y_inc)
+      {
+        continue_tracing = false;
+      }
+      if (n_steps >= max_steps)
+      {
+        continue_tracing = false;
+      }
+    }
 
     result.x = p_closest.x;
     result.y = p_closest.y;
@@ -686,89 +686,6 @@ private:
 
     return result;
   }
-
-  // Field3D x_par_p(const Vector3D &b)
-  // {
-  //   // Find the intercept between the local magnetic field line and adjacent cell face in x
-  //   TRACE("x_par_p");
-  //   Field3D result;
-  //   Coordinates *coord = mesh->getCoordinates();
-
-  //   result = coord->dy * b.x / abs(b.y);
-  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-  //   {
-  //     result[i] = std::min(static_cast<float>(coord->dx[i]), result[i]);
-  //   }
-  //   return result;
-  // }
-
-  // float x_par_m(const Vector3D &b)
-  // {
-  //   // Find the intercept between the local magnetic field line (tracing backwards) and adjacent cell face in x
-  //   TRACE("x_par_m");
-  //   Field3D result;
-  //   result = -x_par_p(b);
-  //   return result;
-  // }
-
-  // float y_par_p(const Vector3D &b)
-  // {
-  //   // Find the intercept between the local magnetic field line and adjacent cell face in y
-  //   TRACE("y_par_p");
-  //   Field3D result;
-  //   Coordinates *coord = mesh->getCoordinates();
-  //   result = coord->dx * b.y / abs(b.x);
-  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-  //   {
-  //     result[i] = std::min(static_cast<float>(coord->dy[i]), result[i]);
-  //   }
-  //   return result;
-  // }
-
-  // float y_par_m(const Vector3D &b)
-  // {
-  //   // Find the intercept between the local magnetic field line (tracing backwards) and adjacent cell face in y
-  //   TRACE("y_par_m");
-  //   Field3D result;
-  //   result = -y_par_p(b);
-  //   return result;
-  // }
-
-  // Field3D four_point_interp(const Field3D &x_off, const Field3D &y_off, const Field3D &u)
-  // {
-  //   // Find the value of a field at the grid points offset by (x_off, y_off) via 4-point linear interpolation from surrounding points
-  //   TRACE("u_par_p");
-
-  //   Field3D result;
-  //   int n_x, n_y;
-  //   float f_x, f_y;
-  //   Coordinates *coord = mesh->getCoordinates();
-
-  //   BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-  //   {
-  //     n_x = static_cast<int>(floor(x_off[i] / coord->dx[i]));
-  //     n_y = static_cast<int>(floor(y_off[i] / coord->dy[i]));
-  //     if (x_plus[i] >= 0.0)
-  //     {
-  //       f_x = (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
-  //     }
-  //     else
-  //     {
-  //       f_x = 1.0 - (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
-  //     }
-  //     if (y_plus[i] >= 0.0)
-  //     {
-  //       f_y = (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
-  //     }
-  //     else
-  //     {
-  //       f_y = 1.0 - (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
-  //     }
-  //     result[i] = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-  //   }
-
-  //   return result;
-  // }
 
   Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
   {
@@ -1252,10 +1169,13 @@ protected:
       SAVE_REPEAT(q_perp)
     }
 
+    SAVE_REPEAT(div_q)
+
     // Set downstream pressure boundaries
+    // TODO: Find out why this is needed instead of just setting bndry_xin=dirichlet, etc
     if (fixed_T_down)
     {
-
+      // X boundaries
       if (mesh->firstX())
       {
         for (int ix = 0; ix < ngcx_tot; ix++)
@@ -1265,6 +1185,7 @@ protected:
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
               P(ix, iy, iz) = T_down / T_sepx;
+              // P(ix, iy, iz) = 0.0;
             }
           }
         }
@@ -1278,6 +1199,7 @@ protected:
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
               P(ix, iy, iz) = T_down / T_sepx;
+              // P(ix, iy, iz) = 0.0;
             }
           }
         }
@@ -1291,9 +1213,21 @@ protected:
           for (int iz = 0; iz < mesh->LocalNz; iz++)
           {
             P(itl.ind, iy, iz) = T_down / T_sepx;
+            // P(itl.ind, iy, iz) = 0.0;
           }
         }
       }
+      // for (itu.first(); !itu.isDone(); itu++)
+      // {
+      //   for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+      //   {
+      //     for (int iz = 0; iz < mesh->LocalNz; iz++)
+      //     {
+      //       // P(itu.ind, iy, iz) = T_down / T_sepx;
+      //       P(itl.ind, iy, iz) = 0.0;
+      //     }
+      //   }
+      // }
     }
 
     // Initialise unit vector in z direction
@@ -1318,6 +1252,7 @@ protected:
     kappa_perp = 0.0;
     lambda_ei = 0.0;
     tau_e = 0.0;
+    div_q = 0.0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);
@@ -1436,10 +1371,14 @@ protected:
           // ddt(P) += (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
           // ddt(P) += (chi_perp / D_0) * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2));
           // div_q = (chi_par / D_0) * (DDX(B.x * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(B.y * (B.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + B.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")) / pow(B_mag, 2);
-          ddt(P) += stegmeir_div_q(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
-          div_q = stegmeir_div_q(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
+          // ddt(P) += stegmeir_div_q(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
+          // div_q = stegmeir_div_q(T, chi_par / D_0, chi_perp / D_0, B / B_mag);
           // div_q = Q_plus(T, chi_par / D_0, B / B_mag);
           // div_q = Q_minus(T, chi_par / D_0, B / B_mag);
+
+          div_q = Q_linetrace(T, chi_par / D_0, B / B_mag);
+          ddt(P) += div_q;
+          // div_q = Q_linetrace(T, chi_par / D_0, B / B_mag);
         }
         // Calculate q for output
         q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);

@@ -450,3 +450,6 @@ def predicted_tau(ds):
         / np.sqrt(2 * 1.602e-19 * ds.metadata["T_sepx"] / ds.metadata["m_i"])
     )
     return tau
+
+def l2_err_t0(ds: xr.Dataset, var: str= "P"):
+    err = ds[var] - ds[var].isel(t=0)
