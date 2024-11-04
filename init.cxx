@@ -1,0 +1,226 @@
+#include "header.hxx"
+
+int Churn::init(bool restarting) // TODO: Use the restart flag
+{
+
+    /******************Reading options *****************/
+
+    auto &globalOptions = Options::root();
+    auto &options = globalOptions["model"];
+
+    // Load system parameters
+    chi_diff = options["chi_diff"].doc("Thermal diffusivity").withDefault(0.0);
+    chi_par = options["chi_par"].doc("Parallel thermal conductivity").withDefault(0.0);
+    chi_perp = options["chi_perp"].doc("Perpendicular thermal conductivity").withDefault(0.0);
+    D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(0.0);
+    mu = options["mu"].doc("Kinematic viscosity").withDefault(0.0);
+    R_0 = options["R_0"].doc("Major radius [m]").withDefault(1.5);
+    a_mid = options["a_mid"].doc("Minor radius at outer midplane [m]").withDefault(0.6);
+    n_sepx = options["n_sepx"].doc("Electron density at separatrix [m^-3]").withDefault(1.0e19);
+    T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100.0);
+    B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2.0);
+    B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
+    T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
+
+    // Model option switches
+    evolve_pressure = options["evolve_pressure"]
+                          .doc("Evolve plasma pressure")
+                          .withDefault(true);
+    include_mag_restoring_term = options["include_mag_restoring_term"]
+                                     .doc("Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})")
+                                     .withDefault(true);
+    include_churn_drive_term = options["include_churn_drive_term"]
+                                   .doc("Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)")
+                                   .withDefault(true);
+    invert_laplace = options["invert_laplace"]
+                         .doc("Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)")
+                         .withDefault(true);
+    include_advection = options["include_advection"]
+                            .doc("Include advection terms or not")
+                            .withDefault(true);
+    use_sk9_anis_diffop = options["use_sk9_anis_diffop"]
+                              .doc("Use SK9 stencil for the anisotropic heat flow operator")
+                              .withDefault(false);
+    fixed_T_down = options["fixed_T_down"]
+                       .doc("Use a constant value for P on downstream boundaries")
+                       .withDefault(false);
+    T_dependent_q_par = options["T_dependent_q_par"]
+                            .doc("Use Spitzer-Harm form of parallel conductivity")
+                            .withDefault(false);
+    use_symmetric_div_q_stencil = options["use_symmetric_div_q_stencil"]
+                                      .doc("Use a symmetric stencil for the div_q term")
+                                      .withDefault(true);
+
+    // Constants
+    m_i = options["m_i"].withDefault(2 * 1.667e-27);
+    e = 1.602e-19;
+    m_e = 9.11e-31;
+    mu_0 = 1.256637e-6;
+    eps_0 = 8.854188e-12;
+    pi = 3.14159;
+
+    // Get normalisation and derived parameters
+    c = 1.0;
+    rho = (m_i + m_e) * n_sepx;
+    P_0 = e * n_sepx * T_sepx;
+    C_s0 = sqrt(P_0 / rho);
+    t_0 = a_mid / C_s0;
+    D_0 = a_mid * C_s0;
+    psi_0 = B_pmid * R_0 * a_mid;
+    phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
+    epsilon = a_mid / R_0;
+    // beta_p = 1.0e-7 * 8.0 * pi * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
+    beta_p = 2.0 * mu_0 * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
+    P_grad_0 = P_0 / a_mid;
+
+    // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
+    Options &phi_init_options = Options::root()["phi"];
+    if (invert_laplace)
+    {
+        // TODO: Get LaplaceXY working as it is quicker
+        //  phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
+        phi = 0.0; // Starting guess for first solve (if iterative)
+        phi_init_options.setConditionallyUsed();
+        mm.A = 0.0;
+        mm.D = 1.0;
+        mm.ngcx_tot = ngcx_tot;
+        mm.ngcy_tot = ngcy_tot;
+        mm.nx_tot = nx_tot;
+        mm.ny_tot = ny_tot;
+        mm.nz_tot = nz_tot;
+        mySolver.setOperatorFunction(mm);
+        mySolver.setup();
+
+        SOLVE_FOR(P, psi, omega);
+        SAVE_REPEAT(u, phi, B);
+    }
+    else
+    {
+        phi.setBoundary("phi");
+
+        SOLVE_FOR(P, psi, omega, phi);
+        SAVE_REPEAT(u, B);
+    }
+
+    if (chi_par > 0.0)
+    {
+        if (T_dependent_q_par)
+        {
+            SAVE_REPEAT(q_par, tau_e, lambda_ei)
+        }
+        else
+        {
+            SAVE_REPEAT(q_par)
+        }
+    }
+    if (chi_perp > 0.0)
+    {
+        SAVE_REPEAT(q_perp)
+    }
+
+    SAVE_REPEAT(div_q)
+
+    // Set downstream pressure boundaries
+    // TODO: Find out why this is needed instead of just setting bndry_xin=dirichlet, etc
+    if (fixed_T_down)
+    {
+        // X boundaries
+        if (mesh->firstX())
+        {
+            for (int ix = 0; ix < ngcx_tot; ix++)
+            {
+                for (int iy = 0; iy < mesh->LocalNy; iy++)
+                {
+                    for (int iz = 0; iz < mesh->LocalNz; iz++)
+                    {
+                        P(ix, iy, iz) = T_down / T_sepx;
+                        // P(ix, iy, iz) = 0.0;
+                    }
+                }
+            }
+        }
+        if (mesh->lastX())
+        {
+            for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+            {
+                for (int iy = 0; iy < mesh->LocalNy; iy++)
+                {
+                    for (int iz = 0; iz < mesh->LocalNz; iz++)
+                    {
+                        P(ix, iy, iz) = T_down / T_sepx;
+                        // P(ix, iy, iz) = 0.0;
+                    }
+                }
+            }
+        }
+        // Y boundaries
+        for (itl.first(); !itl.isDone(); itl++)
+        {
+            // it.ind contains the x index
+            for (int iy = 0; iy < ngcy_tot; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    P(itl.ind, iy, iz) = T_down / T_sepx;
+                    // P(itl.ind, iy, iz) = 0.0;
+                }
+            }
+        }
+        // for (itu.first(); !itu.isDone(); itu++)
+        // {
+        //   for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        //   {
+        //     for (int iz = 0; iz < mesh->LocalNz; iz++)
+        //     {
+        //       // P(itu.ind, iy, iz) = T_down / T_sepx;
+        //       P(itl.ind, iy, iz) = 0.0;
+        //     }
+        //   }
+        // }
+    }
+
+    // Initialise unit vector in z direction
+    e_z.x = 0.0;
+    e_z.y = 0.0;
+    e_z.z = 1.0;
+
+    // Initialise poloidal B field
+    B.x = 0.0;
+    B.y = 0.0;
+    B.z = B_t0 / B_pmid;
+    if (use_sk9_anis_diffop)
+    {
+        phi_m = 0.0;
+        theta_m = 0.0;
+    }
+
+    // Initialise heat flow
+    q_par = 0.0;
+    q_perp = 0.0;
+    kappa_par = 0.0;
+    kappa_perp = 0.0;
+    lambda_ei = 0.0;
+    tau_e = 0.0;
+    div_q = 0.0;
+
+    // Output constants, input options and derived parameters
+    SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);
+    SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
+    SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
+    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_par);
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    // generate coordinate system
+    // coord->Bxy = 1.0; // TODO: Use B_t here?
+    coord->g11 = 1.0;
+    coord->g22 = 1.0;
+    coord->g33 = 1.0;
+    coord->g12 = 0.0;
+    coord->g13 = 0.0;
+    coord->g23 = 0.0;
+
+    return 0;
+}
+
+BOUTMAIN(Churn)
