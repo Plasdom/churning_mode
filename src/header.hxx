@@ -6,29 +6,38 @@
 #include <bout/invertable_operator.hxx>
 #include <bout/interpolation.hxx>
 
-class Point
+struct Point
 {
-public:
     float x;
     float y;
 };
 
-class ClosestPoint : public Point
+struct ClosestPoint
 {
-public:
+    float x;
+    float y;
     float distance;
 };
 
-class InterpolationPoint : public ClosestPoint
+struct InterpolationPoint
 {
-public:
+    float x;
+    float y;
+    float distance;
     float parallel_distance;
 };
 
-class CellIntersect : public Point
+struct CellIntersect
 {
-public:
+    float x;
+    float y;
     int face; // 0 = west, 1 = north, 2 = east, 3 = south;
+};
+
+struct TwoIntersects
+{
+    CellIntersect first;
+    CellIntersect second;
 };
 
 struct customLaplaceInverter
@@ -124,12 +133,13 @@ private:
     Field3D div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
-    std::vector<CellIntersect> get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
+    TwoIntersects get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
     CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by);
     Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const float &dx, const float &dy);
     InterpolationPoint trace_field_lines(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_x_inc, const int &max_y_inc, const int &max_steps, const bool &plus);
     ClosestPoint get_closest_p(const CellIntersect &P, const Point &P0, const float &bx, const float &by);
     Field3D div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus_T(const Field3D &u, const Vector3D &b);
     Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);

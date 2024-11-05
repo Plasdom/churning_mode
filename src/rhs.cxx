@@ -80,7 +80,9 @@ int Churn::rhs(BoutReal UNUSED(t))
             }
             else if (use_linetrace_div_q_par)
             {
-                ddt(P) += div_q_par_linetrace(T, chi_par / D_0, B / B_mag);
+                // ddt(P) += div_q_par_linetrace(T, chi_par / D_0, B / B_mag);
+                div_q = div_q_par_linetrace2(T, chi_par / D_0, B / B_mag);
+                ddt(P) += div_q;
             }
 
             // Calculate q for output
