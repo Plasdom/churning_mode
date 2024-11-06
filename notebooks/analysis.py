@@ -451,5 +451,158 @@ def predicted_tau(ds):
     )
     return tau
 
-def l2_err_t0(ds: xr.Dataset, var: str= "P"):
+
+def l2_err_t0(ds: xr.Dataset, var: str = "P"):
     err = ds[var] - ds[var].isel(t=0)
+
+
+def animate_q_par_targets(
+    ds: xr.Dataset,
+    plot_every: int = 1,
+    savepath: str | None = None,
+):
+    prefactor = (
+        1e-6
+        * ds.metadata["n_sepx"]
+        * ds.metadata["D_0"]
+        * ds.metadata["e"]
+        * ds.metadata["T_sepx"]
+        / ds.metadata["a_mid"]
+    )
+    nx = len(ds.x)
+    y1 = range(int(nx / 4), int(3 * nx / 4))
+    x2 = range(int(nx / 2))
+    x3 = range(int(nx / 2), nx)
+    y4 = range(int(nx / 4), int(3 * nx / 4))
+    # q1 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=0, y=y1)
+    # q2 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x2)
+    # q3 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x3)
+    # q4 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=-1, y=y4)
+    q1 = -prefactor * ds["q_par_x"].isel(x=0, y=y1)
+    q2 = -prefactor * ds["q_par_y"].isel(y=0, x=x2)
+    q3 = -prefactor * ds["q_par_y"].isel(y=0, x=x3)
+    q4 = prefactor * ds["q_par_x"].isel(x=-1, y=y4)
+
+    fig, ax = plt.subplots(nrows=4, ncols=1, sharex=True)
+
+    max_timestep = None
+    min_timestep = None
+    if max_timestep is None:
+        max_timestep = len(ds.t)
+    if min_timestep is None:
+        min_timestep = 0
+    ds = ds.isel(t=range(min_timestep, max_timestep))
+    fig.subplots_adjust(hspace=0.0)
+    # fig.tight_layout(h_pad=0)
+
+    max_q1 = q1.values.max()
+    max_q2 = q2.values.max()
+    max_q3 = q3.values.max()
+    max_q4 = q4.values.max()
+
+    def animate(i):
+
+        ax[0].clear()
+        l = ax[0].plot(
+            range(len(y1)),
+            q1.isel(t=plot_every * i),
+            linestyle="-",
+            color="black",
+            label="Leg 1 (W)",
+        )
+
+        ax[1].clear()
+        l = ax[1].plot(
+            range(len(x2)),
+            q2.isel(t=plot_every * i),
+            linestyle="-",
+            color="black",
+            label="Leg 2 (SE)",
+        )
+
+        ax[2].clear()
+        l = ax[2].plot(
+            range(len(x3)),
+            q3.isel(t=plot_every * i),
+            linestyle="-",
+            color="black",
+            label="Leg 3 (SE)",
+        )
+
+        ax[3].clear()
+        l = ax[3].plot(
+            range(len(y4)),
+            q4.isel(t=plot_every * i),
+            linestyle="-",
+            color="black",
+            label="Leg 4 (E)",
+        )
+        timestamp = ds.t.values[plot_every * i] - ds.t.values[0]
+        ax[0].set_title("t={:.2f}$t_0$".format(timestamp))
+        ax[0].legend(loc="upper right")
+        ax[1].legend(loc="upper right")
+        ax[2].legend(loc="upper right")
+        ax[3].legend(loc="upper right")
+
+        ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-3}$]")
+        ax[-1].set_xlabel("x")
+        ax[0].set_ylim(0, max_q1)
+        ax[1].set_ylim(0, max_q2)
+        ax[2].set_ylim(0, max_q3)
+        ax[3].set_ylim(0, max_q4)
+
+        return l
+
+    anim = animation.FuncAnimation(fig, animate, frames=int(len(ds.t) / plot_every))
+    if savepath is not None:
+        anim.save(savepath, fps=24)
+
+    return anim
+
+
+def q_par_target_proportions(ds: xr.Dataset, normalise: bool = True):
+    prefactor = (
+        1e-6
+        * ds.metadata["n_sepx"]
+        * ds.metadata["D_0"]
+        * ds.metadata["e"]
+        * ds.metadata["T_sepx"]
+        / ds.metadata["a_mid"]
+    )
+    nx = len(ds.x)
+    y1 = range(int(nx / 4), int(3 * nx / 4))
+    x2 = range(int(nx / 2))
+    x3 = range(int(nx / 2), nx)
+    y4 = range(int(nx / 4), int(3 * nx / 4))
+    # q1 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=0, y=y1)
+    # q2 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x2)
+    # q3 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x3)
+    # q4 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=-1, y=y4)
+    q1 = -prefactor * ds["q_par_x"].isel(x=0, y=y1)
+    q2 = -prefactor * ds["q_par_y"].isel(y=0, x=x2)
+    q3 = -prefactor * ds["q_par_y"].isel(y=0, x=x3)
+    q4 = prefactor * ds["q_par_x"].isel(x=-1, y=y4)
+
+    q1 = q1.integrate(coord="y")
+    q2 = q2.integrate(coord="x")
+    q3 = q3.integrate(coord="x")
+    q4 = q4.integrate(coord="y")
+
+    q_tot = q1 + q2 + q3 + q4
+
+    fix, ax = plt.subplots(1)
+    if normalise:
+        ax.stackplot(
+            ds.t - ds.t[0],
+            [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
+            labels=["1", "2", "3", "4"],
+        )
+        ax.set_ylabel(r"$Q^{p}_{\parallel} / Q^{tot}_{\parallel}$")
+
+    else:
+        ax.stackplot(ds.t - ds.t[0], [q1, q2, q3, q4], labels=["1", "2", "3", "4"])
+        ax.set_ylabel(r"$Q^{p}_{\parallel}$ [MWm$^{-2}$]")
+
+    ax.legend(loc="upper left")
+    ax.set_xlabel("$t$ [$t_0$]")
+    ax.grid()

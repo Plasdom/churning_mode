@@ -119,7 +119,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         // }
         // else
         // {
-        //     SAVE_REPEAT(q_par)
+        SAVE_REPEAT(q_par)
         // }
     }
     if (chi_perp > 0.0)
