@@ -91,19 +91,33 @@ int Churn::rhs(BoutReal UNUSED(t))
         }
         if (chi_perp > 0.0)
         {
-
+            kappa_perp = chi_perp / D_0;
             if (use_classic_div_q_perp)
             {
-                ddt(P) += div_q_perp_classic(T, chi_perp / D_0, B / B_mag);
+                ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += div_q_perp_gunter(T, chi_perp / D_0, B / B_mag);
+                ddt(P) += div_q_perp_gunter(T, kappa_perp, B / B_mag);
             }
 
             // Calculate q for output
             // TODO: This should match the method used in div_q calculation
-            q_perp = -(chi_perp / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+            q_perp = -kappa_perp * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+        }
+        if (max(chi_perp_eff) > 0.0)
+        {
+            if (use_classic_div_q_perp)
+            {
+                ddt(P) += div_q_perp_classic(T, chi_perp_eff / D_0, B / B_mag);
+            }
+            else if (use_gunter_div_q_perp)
+            {
+                ddt(P) += div_q_perp_gunter(T, chi_perp_eff / D_0, B / B_mag);
+            }
+
+            // Calculate q for output
+            q_perp += -(chi_perp_eff / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
         }
     }
 

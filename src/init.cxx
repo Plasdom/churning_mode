@@ -21,6 +21,12 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2.0);
     B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
     T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
+    D_add = options["D_add"].doc("Peak of additional perpendicular diffusion coefficient [m^2/s]").withDefault(0.0);
+    x_1 = options["x_1"].doc("x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
+    x_2 = options["x_2"].doc("x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
+    y_1 = options["y_1"].doc("y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
+    y_2 = options["y_2"].doc("y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
+    r_star = options["r_star"].doc("Radius of the additional mixing zone [a_mid]").withDefault(0.1);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -67,6 +73,16 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     mu_0 = 1.256637e-6;
     eps_0 = 8.854188e-12;
     pi = 3.14159;
+
+    // chi_perp_eff
+    chi_perp_eff = 0.0;
+    for (auto i : chi_perp_eff)
+    {
+        float x = mesh->GlobalX(i.x()) - 0.5;
+        float y = mesh->GlobalY(i.y()) - 0.5;
+        chi_perp_eff[i] = D_add * exp(-pow(((x - x_1) / r_star), 2.0) - pow(((y - y_1) / r_star), 2.0));
+        chi_perp_eff[i] += D_add * exp(-pow(((x - x_2) / r_star), 2.0) - pow(((y - y_2) / r_star), 2.0));
+    }
 
     // Get normalisation and derived parameters
     c = 1.0;
@@ -122,7 +138,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_REPEAT(q_par)
         // }
     }
-    if (chi_perp > 0.0)
+    if ((chi_perp + max(chi_perp_eff)) > 0.0)
     {
         SAVE_REPEAT(q_perp)
     }
@@ -211,7 +227,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
-    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_par);
+    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_perp_eff, chi_par);
 
     Coordinates *coord = mesh->getCoordinates();
 

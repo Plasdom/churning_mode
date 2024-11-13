@@ -100,7 +100,14 @@ use_linetrace_div_q_par = false
 chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
 use_classic_div_q_perp = true     
 use_gunter_div_q_perp = false
-#TODO: Implement Stegmeir div_q_perp?       
+
+# Configure additional chi_perp umbrella to simulate churning mode
+D_add = 1e2 # Peak of additional perpendicular diffusion coefficient [m^2/s]
+x_1 = 0 # x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+x_2 = 0 # x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+y_1 = 0 # y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+y_2 = 0 # y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+r_star = 0.2 # radius of the additional mixing zone [a_mid]
 
 [all]
 
@@ -189,6 +196,28 @@ function = where(theta-pi/3,
 #                                                                  e^(-abs(initial_psi)/lambda_q)
 #                                                 )
 #                                          )
+
+# P=1 in core, P=e^-psi/lambda_SOL elsewhere (SF minus configuration)
+lambda_q = 0.0005
+nx = 128+8
+ny = 128
+domain_size = 0.30
+dx = domain_size /(nx-8)
+dy = domain_size /ny
+Lx = dx * (nx-8) 
+Ly = dy * ny
+x_c = (x - 0.5) * Lx
+y_c = (y/(2*pi) - 0.5) * Ly
+e = 2.71828
+r = sqrt(x_c^2 + y_c^2)
+theta = atan(y_c, x_c)
+sf_a = 1
+sf_b = 0.3
+sf_eps = -0.00
+nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
+psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord})
+initial_psi = [x_coord = x_c, y_coord = y_c](psi)
+function = [r_arg = r, theta_arg = theta](where(-initial_psi,1,e^(-abs(initial_psi)/lambda_q)))
 
 
 [psi]

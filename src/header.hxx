@@ -75,6 +75,7 @@ private:
     Field3D kappa_par, kappa_perp;
     Field3D B_mag, T, lambda_ei, tau_e;
     Field3D div_q;
+    Field3D chi_perp_eff;
 
     // Input Parameters
     BoutReal chi_diff; ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -89,6 +90,12 @@ private:
     BoutReal B_t0;     ///< Toroidal field strength [T]
     BoutReal B_pmid;   ///< Poloidal field strength [T]
     BoutReal T_down;   ///< Fixed downstream temperature [eV]
+    BoutReal D_add;    ///< Peak of additional perpendicular diffusion coefficient [m^2/s]
+    BoutReal x_1;      ///< x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal x_2;      ///< x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal y_1;      ///< y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal y_2;      ///< y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal r_star;   ///< Radius of the additional mixing zone [a_mid]
 
     // Other parameters
     BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
@@ -130,9 +137,9 @@ private:
 
     // Methods related to difference heat conduction models
     Field3D div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
-    Field3D div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
+    Field3D div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
     Field3D div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
-    Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
+    Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
     TwoIntersects get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
     CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by);
     Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const float &dx, const float &dy);

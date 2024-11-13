@@ -11,7 +11,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const 
     return result;
 }
 
-Field3D Churn::div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
 {
     TRACE("div_q_par_classic");
 
@@ -63,7 +63,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const V
     return result;
 }
 
-Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
 {
     TRACE("div_q_perp_gunter");
 
@@ -90,7 +90,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const
         DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
         DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
     }
-
+    // TODO: Should K_perp be calculated on corners here too?
     q_perpx_corners = K_perp * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
     q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
 
