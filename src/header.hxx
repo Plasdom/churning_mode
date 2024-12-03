@@ -78,24 +78,26 @@ private:
     Field3D chi_perp_eff;
 
     // Input Parameters
-    BoutReal chi_diff; ///< Isotropic thermal diffusivity [m^2 s^-1]
-    BoutReal chi_par;  ///< Parallel thermal diffusivity [m^2 s^-1]
-    BoutReal chi_perp; ///< Perpendicular thermal diffusivity [m^2 s^-1]
-    BoutReal D_m;      ///< Magnetic diffusivity [m^2 s^-1]
-    BoutReal mu;       ///< Vorticity diffusivity [m^2 s^-1]
-    BoutReal R_0;      ///< Major radius [m]
-    BoutReal a_mid;    ///< Minor radius at midplane [m]
-    BoutReal n_sepx;   ///< Electron density at separatrix [m^-3]
-    BoutReal T_sepx;   ///< Plasma temperature at separatrix [eV]
-    BoutReal B_t0;     ///< Toroidal field strength [T]
-    BoutReal B_pmid;   ///< Poloidal field strength [T]
-    BoutReal T_down;   ///< Fixed downstream temperature [eV]
-    BoutReal D_add;    ///< Peak of additional perpendicular diffusion coefficient [m^2/s]
-    BoutReal x_1;      ///< x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
-    BoutReal x_2;      ///< x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
-    BoutReal y_1;      ///< y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
-    BoutReal y_2;      ///< y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
-    BoutReal r_star;   ///< Radius of the additional mixing zone [a_mid]
+    BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
+    BoutReal chi_par;        ///< Parallel thermal diffusivity [m^2 s^-1]
+    BoutReal chi_perp;       ///< Perpendicular thermal diffusivity [m^2 s^-1]
+    BoutReal D_m;            ///< Magnetic diffusivity [m^2 s^-1]
+    BoutReal mu;             ///< Vorticity diffusivity [m^2 s^-1]
+    BoutReal R_0;            ///< Major radius [m]
+    BoutReal a_mid;          ///< Minor radius at midplane [m]
+    BoutReal n_sepx;         ///< Electron density at separatrix [m^-3]
+    BoutReal T_sepx;         ///< Plasma temperature at separatrix [eV]
+    BoutReal B_t0;           ///< Toroidal field strength [T]
+    BoutReal B_pmid;         ///< Poloidal field strength [T]
+    BoutReal T_down;         ///< Fixed downstream temperature [eV]
+    BoutReal D_add;          ///< Peak of additional perpendicular diffusion coefficient [m^2/s]
+    BoutReal x_1;            ///< x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal x_2;            ///< x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal y_1;            ///< y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal y_2;            ///< y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
+    BoutReal r_star;         ///< Radius of the additional mixing zone [a_mid]
+    BoutReal P_core;         ///< Pressure at core boundary [P_0]
+    BoutReal lambda_SOL_rho; ///< SOL width parameter in units of normalised flux coordinate
 
     // Other parameters
     BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
@@ -123,6 +125,7 @@ private:
     bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
     bool include_advection;          ///< Use advection terms
     bool fixed_T_down;               ///< Use a constant value for P on downstream boundaries
+    bool fixed_P_core;               ///< Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)
     bool use_classic_div_q_par;
     bool use_gunter_div_q_par;
     bool use_modified_stegmeir_div_q_par;

@@ -27,6 +27,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     y_1 = options["y_1"].doc("y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
     y_2 = options["y_2"].doc("y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
     r_star = options["r_star"].doc("Radius of the additional mixing zone [a_mid]").withDefault(0.1);
+    lambda_SOL_rho = options["lambda_SOL_rho"].doc("SOL width parameter in units of normalised flux coordinate").withDefault(3.0);
+    P_core = options["P_core"].doc("Pressure at core boundary [P_0]").withDefault(1.0);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -47,6 +49,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     fixed_T_down = options["fixed_T_down"]
                        .doc("Use a constant value for P on downstream boundaries")
                        .withDefault(false);
+    fixed_P_core = options["fixed_P_core"]
+                       .doc("Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)")
+                       .withDefault(true);
     use_classic_div_q_par = options["use_classic_div_q_par"]
                                 .doc("Use a classic stencil for the parallel div_q term")
                                 .withDefault(false);
@@ -198,10 +203,31 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         //     for (int iz = 0; iz < mesh->LocalNz; iz++)
         //     {
         //       // P(itu.ind, iy, iz) = T_down / T_sepx;
-        //       P(itl.ind, iy, iz) = 0.0;
+        //       P(itu.ind, iy, iz) = 0.0;
         //     }
         //   }
         // }
+    }
+    if (fixed_P_core)
+    {
+        for (itu.first(); !itu.isDone(); itu++)
+        {
+            // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    if (psi(itu.ind, iy, iz) >= 0.0)
+                    {
+                        P(itu.ind, iy, iz) = P_core;
+                    }
+                    else
+                    {
+                        P(itu.ind, iy, iz) = P_core * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
+                    }
+                }
+            }
+        }
     }
 
     // Initialise unit vector in z direction

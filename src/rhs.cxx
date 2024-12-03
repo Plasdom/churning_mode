@@ -2,6 +2,28 @@
 
 int Churn::rhs(BoutReal UNUSED(t))
 {
+    // Reset the upstream P boundary
+    if (fixed_P_core)
+    {
+        for (itu.first(); !itu.isDone(); itu++)
+        {
+            // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    if (psi(itu.ind, iy, iz) >= 0.0)
+                    {
+                        P(itu.ind, iy, iz) = P_core;
+                    }
+                    else
+                    {
+                        P(itu.ind, iy, iz) = P_core * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
+                    }
+                }
+            }
+        }
+    }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
@@ -107,6 +129,7 @@ int Churn::rhs(BoutReal UNUSED(t))
         }
         if (max(chi_perp_eff) > 0.0)
         {
+            // TODO: I think this should be simple diffusive rather than perp diffusive?
             if (use_classic_div_q_perp)
             {
                 ddt(P) += div_q_perp_classic(T, chi_perp_eff / D_0, B / B_mag);
