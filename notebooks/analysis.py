@@ -40,6 +40,46 @@ def read_boutdata(filepath: str, remove_xgc: bool = True) -> xr.Dataset:
         ngc = 4
         ds = ds.isel(x=range(ngc, len(ds["x"]) - ngc))
 
+    # Calculate conductive, convective and total heat fluxes
+    ds["q_conv_x"] = (
+        (
+            2.5 * ds.metadata["P_0"] * ds["P"]
+            + 0.5
+            * ds.metadata["rho"]
+            * ds.metadata["C_s0"] ** 2
+            * (ds["u_x"] ** 2 + ds["u_y"] ** 2)
+        )
+        * ds.metadata["C_s0"]
+        * ds["u_x"]
+    )
+    ds["q_conv_y"] = (
+        (
+            2.5 * ds.metadata["P_0"] * ds["P"]
+            + 0.5
+            * ds.metadata["rho"]
+            * ds.metadata["C_s0"] ** 2
+            * (ds["u_x"] ** 2 + ds["u_y"] ** 2)
+        )
+        * ds.metadata["C_s0"]
+        * ds["u_y"]
+    )
+    ds["q_cond_x"] = (
+        ds.metadata["n_sepx"]
+        * ds.metadata["D_0"]
+        * ds.metadata["e"]
+        * ds.metadata["T_sepx"]
+        / ds.metadata["a_mid"]
+    ) * (ds["q_par_x"] + ds["q_perp_x"])
+    ds["q_cond_y"] = (
+        ds.metadata["n_sepx"]
+        * ds.metadata["D_0"]
+        * ds.metadata["e"]
+        * ds.metadata["T_sepx"]
+        / ds.metadata["a_mid"]
+    ) * (ds["q_par_y"] + ds["q_perp_y"])
+    ds["q_tot_x"] = ds["q_cond_x"] + ds["q_conv_x"]
+    ds["q_tot_y"] = ds["q_cond_y"] + ds["q_conv_y"]
+
     return ds
 
 
@@ -76,6 +116,9 @@ def contour_overlay(
     var: str = "P",
     timestamps: list[int] = [0, -1],
     colorbar: bool = False,
+    fill: bool = False,
+    num_levels: int = 50,
+    savepath: str | None = None,
 ):
     """Plot overlaid contours at several timestamps
 
@@ -83,27 +126,47 @@ def contour_overlay(
     :param ds: Bout dataset
     :param var: Variable to plot, defaults to "P"
     :param timestamps: List of integer timestamps to overlay, defaults to [0, -1]
+    :param savepath: Where to save figure
     """
-    linestyles = ["--", "--", ".-"]
+    linestyles = ["-", "--", ".-"]
     fig, ax = plt.subplots(1)
     vmin = ds[var][0].min()
     vmax = ds[var][0].max()
-    levels = np.sort(list(np.linspace(vmin, vmax, 20)))
+    levels = np.sort(list(np.linspace(vmin, vmax, num_levels)))
     if var == "psi":
-        levels = np.sort(np.array(list(levels) + [0]))
-    for i, t in enumerate(timestamps):
-        c = ax.contour(
-            ds["x"],
-            ds["y"],
-            ds[var][t].values.T,
-            linestyle=linestyles[i],
-            levels=levels,
+        levels = np.sort(
+            np.array(
+                list(-np.linspace(0, (-vmin) ** (1 / 2), int(num_levels / 2)) ** (2))
+                + list(np.linspace(0, vmax ** (1 / 2), int(num_levels / 2)) ** (2))[1:]
+            )
         )
+    for i, t in enumerate(timestamps):
+        if fill:
+            c = ax.contourf(
+                ds["x"],
+                ds["y"],
+                ds[var][t].values.T,
+                linestyles=linestyles[i],
+                levels=levels,
+                cmap="inferno",
+            )
+        else:
+            c = ax.contour(
+                ds["x"],
+                ds["y"],
+                ds[var][t].values.T,
+                linestyles=linestyles[i],
+                levels=levels,
+                cmap="inferno",
+            )
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_title(var)
     if colorbar:
         fig.colorbar(c)
+
+    if savepath is not None:
+        fig.savefig(savepath)
 
     return ax
 
@@ -118,6 +181,7 @@ def animate_contour_list(
     min_timestep: int | None = None,
     max_timestep: int | None = None,
     trim_cells: int | None = None,
+    num_levels: int = 50,
 ):
     """Animate a list of variables using axes.contourf
 
@@ -128,6 +192,7 @@ def animate_contour_list(
     :param min_timestep: Minimin timestep to plot
     :param max_timestep: Maximum timestep to plot
     :param trim_cells: Number of cells to trim from edges in plot
+    :param num_levels: Number of levels in contour plots
     :return: Animation
     """
 
@@ -173,10 +238,16 @@ def animate_contour_list(
         vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
         vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
         if v == "psi":
-            levels[v] = np.sort(list(np.linspace(vmin, vmax, 50)))
-            levels[v] = np.sort(np.array(list(levels[v]) + [0]))
+            # levels[v] = np.sort(list(np.linspace(vmin, vmax, num_levels)))
+            # levels[v] = np.sort(np.array(list(levels[v]) + [0]))
+            levels[v] = np.sort(
+                np.array(
+                    list(-np.linspace(0, (-vmin) ** (1 / 2), 25) ** (2))
+                    + list(np.linspace(0, vmax ** (1 / 2), 25) ** (2))[1:]
+                )
+            )
         else:
-            levels[v] = np.sort(list(np.linspace(vmin, vmax, 100)))
+            levels[v] = np.sort(list(np.linspace(vmin, vmax, 2 * num_levels)))
 
     def animate(i):
         for j, v in enumerate(vars):
@@ -228,7 +299,10 @@ def animate_vector(
     vec_var: str,
     scalar: str = "P",
     savepath: str | None = None,
+    lw_prefactor: float | None = None,
+    density: float = 0.25,
     plot_every: int = 1,
+    **mpl_kwargs,
 ):
     """Animate vector field
 
@@ -236,6 +310,7 @@ def animate_vector(
     :param vec_var: Vector variable
     :param scalar: Scalar variable to plot underneath, defaults to "P"
     :param savepath: Filepath to save gif, defaults to None
+    :param mpl_kwargs: Keyword arguments to matplotlib streamlines function
     :return: Animation
     """
 
@@ -250,13 +325,21 @@ def animate_vector(
     ax = plt.axes(xlim=(0, X.max()), ylim=(0, Y.max()))
     # ls = LightSource(azdeg=110, altdeg=10)
 
+    xmin = np.min(ds.x)
+    xmax = np.max(ds.x)
+    ymin = np.min(ds.y)
+    ymax = np.max(ds.y)
+
     # animation function
     def animate(i):
         ax.clear()
         cont = ax.pcolormesh(X, Y, scalar.isel(t=i).values.T, cmap="inferno")
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
-        lw = 2 * vec_mag.isel(t=i).values.T / vec_mag.isel(t=i).values.max()
+        if lw_prefactor is None:
+            lw = vec_mag.isel(t=i).values.T / vec_mag.isel(t=0).values.max()
+        else:
+            lw = lw_prefactor * vec_mag.isel(t=i).values.T
         cont = ax.streamplot(
             X,
             Y,
@@ -265,8 +348,8 @@ def animate_vector(
             color="red",
             linewidth=lw,
             integration_direction="both",
-            broken_streamlines=False,
-            density=0.25,
+            density=density,
+            **mpl_kwargs,
         )
         # cont = ax.quiver(X, Y, vec_x.isel(t=i).values.T, vec_y.isel(t=i).values.T, color="black")
         if i == 0:
@@ -275,12 +358,14 @@ def animate_vector(
             ax.set_title(plot_every * i)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
 
         return cont
 
     anim = animation.FuncAnimation(fig, animate, frames=int(len(ds.t) / plot_every))
     if savepath is not None:
-        anim.save(savepath, fps=24)
+        anim.save(savepath, fps=10)
 
     return anim
 
@@ -289,8 +374,11 @@ def plot_vector(
     ds: xr.Dataset,
     vec_var: str,
     scalar: str = "P",
-    savepath: str | None = None,
     t: int = 1,
+    density: float = 0.4,
+    lw_prefactor: float | None = None,
+    savepath: str | None = None,
+    **kwargs,
 ):
     """Plot vector field at a single timestamp
 
@@ -298,6 +386,7 @@ def plot_vector(
     :param vec_var: Vector variable
     :param scalar: Scalar variable to plot underneath, defaults to "P"
     :param t: Timestamp
+    :param savepath: Where to save figure
     :return: Animation
     """
 
@@ -315,7 +404,12 @@ def plot_vector(
     cont = ax.pcolormesh(X, Y, scalar.isel(t=t).values.T, cmap="inferno")
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
-    lw = 2 * vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()
+    if lw_prefactor is None:
+        # lw = 10 * vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()
+        lw = 3 * np.sqrt(vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max())
+    else:
+        lw = lw_prefactor * vec_mag.isel(t=t).values.T
+        # lw = lw_prefactor * np.sqrt(vec_mag.isel(t=t).values.T)
     cont = ax.streamplot(
         X,
         Y,
@@ -324,13 +418,23 @@ def plot_vector(
         color="red",
         linewidth=lw,
         integration_direction="both",
-        broken_streamlines=False,
-        density=0.4,
+        density=density,
+        **kwargs,
     )
+
+    xmin = np.min(ds.x)
+    xmax = np.max(ds.x)
+    ymin = np.min(ds.y)
+    ymax = np.max(ds.y)
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    plt.show()
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_title(vec_var)
+
+    if savepath is not None:
+        fig.savefig(savepath)
 
 
 def integrate_dxdy(ds: xr.Dataset, var: str):
@@ -456,32 +560,43 @@ def l2_err_t0(ds: xr.Dataset, var: str = "P"):
     err = ds[var] - ds[var].isel(t=0)
 
 
-def animate_q_par_targets(
+def animate_q_targets(
     ds: xr.Dataset,
     plot_every: int = 1,
+    normalise: bool = False,
     savepath: str | None = None,
 ):
-    prefactor = (
-        1e-6
-        * ds.metadata["n_sepx"]
-        * ds.metadata["D_0"]
-        * ds.metadata["e"]
-        * ds.metadata["T_sepx"]
-        / ds.metadata["a_mid"]
-    )
+    """Animate q_tot to each diverotr leg (assuming snowflake config)
+
+    :param ds: Xarray dataset from BOUT++
+    :param plot_every: Plot every x timesteps, defaults to 1
+    :param normalise: Whether to normalise to Q_tot at t=0, defaults to False
+    :param savepath: where to save animation, defaults to None
+    :return: Animation
+    """
     nx = len(ds.x)
+    x0 = range(len(ds.x))
     y1 = range(int(nx / 4), int(3 * nx / 4))
-    x2 = range(int(nx / 2))
-    x3 = range(int(nx / 2), nx)
+    x2 = range(int(nx / 2), nx)
+    x3 = range(int(nx / 2))
     y4 = range(int(nx / 4), int(3 * nx / 4))
-    # q1 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=0, y=y1)
-    # q2 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x2)
-    # q3 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x3)
-    # q4 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=-1, y=y4)
-    q1 = -prefactor * ds["q_par_x"].isel(x=0, y=y1)
-    q2 = -prefactor * ds["q_par_y"].isel(y=0, x=x2)
-    q3 = -prefactor * ds["q_par_y"].isel(y=0, x=x3)
-    q4 = prefactor * ds["q_par_x"].isel(x=-1, y=y4)
+    qin, q1, q2, q3, q4 = get_q_legs(ds)
+
+    Q1 = q1.integrate(coord="y")
+    Q2 = q2.integrate(coord="x")
+    Q3 = q3.integrate(coord="x")
+    Q4 = q4.integrate(coord="y")
+
+    if normalise:
+        q1 = (q1 / Q1).values
+        q2 = (q2 / Q2).values
+        q3 = (q3 / Q3).values
+        q4 = (q4 / Q4).values
+    else:
+        q1 = q1.values
+        q2 = q2.values
+        q3 = q3.values
+        q4 = q4.values
 
     fig, ax = plt.subplots(nrows=4, ncols=1, sharex=True)
 
@@ -495,48 +610,77 @@ def animate_q_par_targets(
     fig.subplots_adjust(hspace=0.0)
     # fig.tight_layout(h_pad=0)
 
-    max_q1 = q1.values.max()
-    max_q2 = q2.values.max()
-    max_q3 = q3.values.max()
-    max_q4 = q4.values.max()
+    max_q1 = q1.max()
+    max_q2 = q2.max()
+    max_q3 = q3.max()
+    max_q4 = q4.max()
 
     def animate(i):
 
         ax[0].clear()
         l = ax[0].plot(
             range(len(y1)),
-            q1.isel(t=plot_every * i),
+            q1[plot_every * i, :],
             linestyle="-",
             color="black",
-            label="Leg 1 (W)",
+            label="Leg 1 (E)",
+        )
+        l = ax[0].plot(
+            range(len(y1)),
+            q1[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
         )
 
         ax[1].clear()
         l = ax[1].plot(
             range(len(x2)),
-            q2.isel(t=plot_every * i),
+            q2[plot_every * i, :],
             linestyle="-",
             color="black",
             label="Leg 2 (SE)",
+        )
+        l = ax[1].plot(
+            range(len(x2)),
+            q2[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
         )
 
         ax[2].clear()
         l = ax[2].plot(
             range(len(x3)),
-            q3.isel(t=plot_every * i),
+            q3[plot_every * i, :],
             linestyle="-",
             color="black",
-            label="Leg 3 (SE)",
+            label="Leg 3 (SW)",
+        )
+        l = ax[2].plot(
+            range(len(x3)),
+            q3[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
         )
 
         ax[3].clear()
         l = ax[3].plot(
             range(len(y4)),
-            q4.isel(t=plot_every * i),
+            q4[plot_every * i, :],
             linestyle="-",
             color="black",
-            label="Leg 4 (E)",
+            label="Leg 4 (W)",
         )
+        l = ax[3].plot(
+            range(len(y4)),
+            q4[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+
         timestamp = ds.t.values[plot_every * i] - ds.t.values[0]
         ax[0].set_title("t={:.2f}$t_0$".format(timestamp))
         ax[0].legend(loc="upper right")
@@ -544,7 +688,10 @@ def animate_q_par_targets(
         ax[2].legend(loc="upper right")
         ax[3].legend(loc="upper right")
 
-        ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-3}$]")
+        if normalise:
+            ax[1].set_ylabel(r"$q_{\parallel} / \int q_{\parallel}ds$ [MWm$^{-3}$]")
+        else:
+            ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-3}$]")
         ax[-1].set_xlabel("x")
         ax[0].set_ylim(0, max_q1)
         ax[1].set_ylim(0, max_q2)
@@ -560,7 +707,74 @@ def animate_q_par_targets(
     return anim
 
 
-def q_par_target_proportions(ds: xr.Dataset, normalise: bool = True):
+def q_target_proportions(
+    ds: xr.Dataset, normalise: bool = True, savepath: str | None = None
+):
+    """Plot total heat flow to each divertor leg (assuming snowflake config)
+
+    :param ds: Xarray dataset
+    :param normalise: whether to normalise heat flow to Q_tot, defaults to True
+    :param savepath: where to save figure
+    """
+    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    qin = qin.integrate(coord="x")
+    q1 = q1.integrate(coord="y")
+    q2 = q2.integrate(coord="x")
+    q3 = q3.integrate(coord="x")
+    q4 = q4.integrate(coord="y")
+
+    q_tot = q1 + q2 + q3 + q4
+
+    fig, ax = plt.subplots(1)
+    if normalise:
+        ax.stackplot(
+            (ds.t - ds.t[0]) * ds.metadata["t_0"],
+            [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
+            labels=["1", "2", "3", "4"],
+        )
+        ax.set_ylabel(r"$P_{l} / P_{tot}$")
+
+    else:
+        ax.stackplot(
+            (ds.t - ds.t[0]) * ds.metadata["t_0"],
+            [q1, q2, q3, q4],
+            labels=["1", "2", "3", "4"],
+        )
+        # ax.plot(ds.t - ds.t[0], -qin)
+        ax.set_ylabel(r"$P_{l}$ [MWm$^{-2}$]")
+
+    ax.legend(loc="upper left")
+    ax.set_xlabel("$t$ [s]")
+    ax.grid()
+    fig.tight_layout()
+
+    print(
+        "At first timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
+            100 * q1[0] / q_tot[0],
+            100 * q2[0] / q_tot[0],
+            100 * q3[0] / q_tot[0],
+            100 * q4[0] / q_tot[0],
+        )
+    )
+    print(
+        "At last timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
+            100 * q1[-1] / q_tot[-1],
+            100 * q2[-1] / q_tot[-1],
+            100 * q3[-1] / q_tot[-1],
+            100 * q4[-1] / q_tot[-1],
+        )
+    )
+
+    if savepath is not None:
+        fig.savefig(savepath)
+
+
+def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
+    """Get the heat flux into each divertor leg, assuming snowflake configuration
+
+    :param ds: Dataset output from BOUT++ simulation
+    :return: qin, q1, q2, q3, q4
+    """
     prefactor = (
         1e-6
         * ds.metadata["n_sepx"]
@@ -570,39 +784,33 @@ def q_par_target_proportions(ds: xr.Dataset, normalise: bool = True):
         / ds.metadata["a_mid"]
     )
     nx = len(ds.x)
+    x0 = range(len(ds.x))
     y1 = range(int(nx / 4), int(3 * nx / 4))
-    x2 = range(int(nx / 2))
-    x3 = range(int(nx / 2), nx)
+    x2 = range(int(nx / 2), nx)
+    x3 = range(int(nx / 2))
     y4 = range(int(nx / 4), int(3 * nx / 4))
-    # q1 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=0, y=y1)
-    # q2 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x2)
-    # q3 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(y=0, x=x3)
-    # q4 = prefactor * np.sqrt(ds["q_par_x"] ** 2 + ds["q_par_y"] ** 2).isel(x=-1, y=y4)
-    q1 = -prefactor * ds["q_par_x"].isel(x=0, y=y1)
-    q2 = -prefactor * ds["q_par_y"].isel(y=0, x=x2)
-    q3 = -prefactor * ds["q_par_y"].isel(y=0, x=x3)
-    q4 = prefactor * ds["q_par_x"].isel(x=-1, y=y4)
+    qin = -prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=-1, x=x0)
+    q1 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
+    q2 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
+    q3 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
+    q4 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
 
-    q1 = q1.integrate(coord="y")
-    q2 = q2.integrate(coord="x")
-    q3 = q3.integrate(coord="x")
-    q4 = q4.integrate(coord="y")
+    # Calculate heat flux normal to boundaries
+    B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
+    q1 = q1 * ds["B_x"].isel(x=-1, y=y1) / B_mag.isel(x=-1, y=y1)
+    q2 = q2 * ds["B_y"].isel(y=0, x=x2) / B_mag.isel(y=0, x=x2)
+    q3 = -q3 * ds["B_y"].isel(y=0, x=x3) / B_mag.isel(y=0, x=x3)
+    q4 = q4 * ds["B_x"].isel(x=0, y=y4) / B_mag.isel(x=0, y=y4)
 
-    q_tot = q1 + q2 + q3 + q4
+    return qin, q1, q2, q3, q4
 
-    fix, ax = plt.subplots(1)
-    if normalise:
-        ax.stackplot(
-            ds.t - ds.t[0],
-            [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
-            labels=["1", "2", "3", "4"],
-        )
-        ax.set_ylabel(r"$Q^{p}_{\parallel} / Q^{tot}_{\parallel}$")
 
-    else:
-        ax.stackplot(ds.t - ds.t[0], [q1, q2, q3, q4], labels=["1", "2", "3", "4"])
-        ax.set_ylabel(r"$Q^{p}_{\parallel}$ [MWm$^{-2}$]")
+def get_Q_legs(ds: xr.Dataset):
+    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    Qin = qin.integrate(coord="x") * ds.metadata["a_mid"]
+    Q1 = q1.integrate(coord="y") * ds.metadata["a_mid"]
+    Q2 = q2.integrate(coord="x") * ds.metadata["a_mid"]
+    Q3 = q3.integrate(coord="x") * ds.metadata["a_mid"]
+    Q4 = q4.integrate(coord="y") * ds.metadata["a_mid"]
 
-    ax.legend(loc="upper left")
-    ax.set_xlabel("$t$ [$t_0$]")
-    ax.grid()
+    return Qin, Q1, Q2, Q3, Q4
