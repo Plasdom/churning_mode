@@ -334,15 +334,15 @@ scale = [x_coord = 0, y_coord = 1](1/initial_psi)
 # scale = [x_coord = 0, y_coord = 1](1/initial_psi)
 
 # # Arbitrary snowflake (centred on primary null)
-# D = 0.4
-# theta = 1.8
+# D = 0.4                     # Separation between nulls
+# theta = 1.8                 # Angle of line connecting nulls (measured anticlockwise from x-axis)
 # initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
 # function = [x_coord = x_c, y_coord = y_c](initial_psi)
 # scale = [x_coord = 0, y_coord = 2.0](1/initial_psi)
 
 # Arbitrary snowflake (centred on midpoint between nulls)
-D = 0.4
-theta = 1.8
+D = 0.4                     # Separation between nulls
+theta = 1.8                 # Angle of line connecting nulls (measured anticlockwise from x-axis)
 initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
 x_offset = x_c + 0.5*D*cos(theta)
 y_offset = y_c - 0.5*D*sin(theta)
