@@ -254,6 +254,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
     SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_perp_eff, chi_par);
+    SAVE_ONCE(x_c, y_c);
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -265,6 +266,17 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     coord->g12 = 0.0;
     coord->g13 = 0.0;
     coord->g23 = 0.0;
+
+    // BoutReal x_0, y_0;
+    // x_0 = (mesh->GlobalNx / 2) * coord->dx(0, 0, 0);
+    // y_0 = (mesh->GlobalNy / 2) * coord->dy(0, 0, 0);
+    x_c.allocate();
+    y_c.allocate();
+    for (auto i : x_c)
+    {
+        x_c[i] = mesh->getGlobalXIndex(i.x()) * coord->dx[i] - (mesh->GlobalNx / 2) * coord->dx[i];
+        y_c[i] = mesh->getGlobalYIndex(i.y()) * coord->dy[i] - (mesh->GlobalNy / 2) * coord->dy[i];
+    }
 
     return 0;
 }

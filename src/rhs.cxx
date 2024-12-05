@@ -56,8 +56,8 @@ int Churn::rhs(BoutReal UNUSED(t))
     // mesh->communicate(u);
 
     // // Calculate B
-    B.x = -DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    B.y = DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B_mag = abs(B);
 
     // mesh->communicate(B);

@@ -76,6 +76,7 @@ private:
     Field3D B_mag, T, lambda_ei, tau_e;
     Field3D div_q;
     Field3D chi_perp_eff;
+    Field3D x_c, y_c;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
