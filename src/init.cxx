@@ -235,11 +235,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     e_z.y = 0.0;
     e_z.z = 1.0;
 
-    // Initialise poloidal B field
-    B.x = 0.0;
-    B.y = 0.0;
-    B.z = B_t0 / B_pmid;
-
     // Initialise heat flow
     q_par = 0.0;
     q_perp = 0.0;
@@ -277,6 +272,11 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         x_c[i] = mesh->getGlobalXIndex(i.x()) * coord->dx[i] - (mesh->GlobalNx / 2) * coord->dx[i];
         y_c[i] = mesh->getGlobalYIndex(i.y()) * coord->dy[i] - (mesh->GlobalNy / 2) * coord->dy[i];
     }
+
+    // Initialise B field
+    B.x = 0.0;
+    B.y = 0.0;
+    B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
 
     return 0;
 }
