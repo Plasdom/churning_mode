@@ -338,6 +338,10 @@ scale = [x_coord = 0, y_coord = 1](1/initial_psi)
 # theta = 1.8                 # Angle of line connecting nulls (measured anticlockwise from x-axis)
 # initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
 # function = [x_coord = x_c, y_coord = y_c](initial_psi)
+# B_x = -3*cos(theta)*{x_coord}/D^2 - 3*sin(theta)*{y_coord}/D^2 + 3*{x_coord}^2/D^3 - 3*{y_coord}^2/D^3
+# B_y = -3*sin(theta)*({x_coord}/D^2) + 3*({y_coord}/D^2)*cos(theta) - 6*{x_coord}*{y_coord}/D^3
+# B_p = sqrt(B_x^2 + B_y^2)
+# scale = [x_coord = 1, y_coord = sqrt(3)](1/B_p)
 # scale = [x_coord = 0, y_coord = 2.0](1/initial_psi)
 
 # Arbitrary snowflake (centred on midpoint between nulls)
@@ -347,7 +351,10 @@ initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*co
 x_offset = x_c + 0.5*D*cos(theta)
 y_offset = y_c - 0.5*D*sin(theta)
 function = [x_coord = x_offset, y_coord = y_offset](initial_psi)
-scale = [x_coord = 0, y_coord = 2.0](1/initial_psi)
+B_x = -3*cos(theta)*{x_coord}/D^2 - 3*sin(theta)*{y_coord}/D^2 + 3*{x_coord}^2/D^3 - 3*{y_coord}^2/D^3
+B_y = -3*sin(theta)*({x_coord}/D^2) + 3*({y_coord}/D^2)*cos(theta) - 6*{x_coord}*{y_coord}/D^3
+B_p = sqrt(B_x^2 + B_y^2)
+scale = [x_coord = 1, y_coord = sqrt(3)](1/B_p)
 
 [omega]
 function = 0 # Normalised
