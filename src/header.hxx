@@ -91,7 +91,7 @@ private:
     BoutReal B_t0;           ///< Toroidal field strength [T]
     BoutReal B_pmid;         ///< Poloidal field strength [T]
     BoutReal T_down;         ///< Fixed downstream temperature [eV]
-    BoutReal D_add;          ///< Peak of additional perpendicular diffusion coefficient [m^2/s]
+    BoutReal D_x;            ///< Peak of additional perpendicular diffusion coefficient [m^2/s]
     BoutReal x_1;            ///< x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
     BoutReal x_2;            ///< x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
     BoutReal y_1;            ///< y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]

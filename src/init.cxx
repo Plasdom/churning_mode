@@ -21,7 +21,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2.0);
     B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
     T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
-    D_add = options["D_add"].doc("Peak of additional perpendicular diffusion coefficient [m^2/s]").withDefault(0.0);
+    D_x = options["D_x"].doc("Peak of additional perpendicular diffusion coefficient [m^2/s]").withDefault(0.0);
     x_1 = options["x_1"].doc("x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
     x_2 = options["x_2"].doc("x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
     y_1 = options["y_1"].doc("y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
@@ -79,16 +79,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     eps_0 = 8.854188e-12;
     pi = 3.14159;
 
-    // chi_perp_eff
-    chi_perp_eff = 0.0;
-    for (auto i : chi_perp_eff)
-    {
-        float x = mesh->GlobalX(i.x()) - 0.5;
-        float y = mesh->GlobalY(i.y()) - 0.5;
-        chi_perp_eff[i] = D_add * exp(-pow(((x - x_1) / r_star), 2.0) - pow(((y - y_1) / r_star), 2.0));
-        chi_perp_eff[i] += D_add * exp(-pow(((x - x_2) / r_star), 2.0) - pow(((y - y_2) / r_star), 2.0));
-    }
-
     // Get normalisation and derived parameters
     c = 1.0;
     rho = (m_i + m_e) * n_sepx;
@@ -143,7 +133,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_REPEAT(q_par)
         // }
     }
-    if ((chi_perp + max(chi_perp_eff)) > 0.0)
+    if ((chi_perp + D_x) > 0.0)
     {
         SAVE_REPEAT(q_perp)
     }
@@ -272,6 +262,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         x_c[i] = mesh->getGlobalXIndex(i.x()) * coord->dx[i] - (mesh->GlobalNx / 2) * coord->dx[i];
         y_c[i] = mesh->getGlobalYIndex(i.y()) * coord->dy[i] - (mesh->GlobalNy / 2) * coord->dy[i];
     }
+
+    // chi_perp_eff
+    chi_perp_eff = D_x * exp(-pow(((x_c - x_1) / r_star), 2.0) - pow(((y_c - y_1) / r_star), 2.0));
+    chi_perp_eff += D_x * exp(-pow(((x_c - x_2) / r_star), 2.0) - pow(((y_c - y_2) / r_star), 2.0));
 
     // Initialise B field
     B.x = 0.0;
