@@ -6,6 +6,7 @@ from xbout import open_boutdataset
 from pathlib import Path
 from matplotlib import animation
 from matplotlib.colors import LightSource
+import os
 
 mu_0 = 1.256637e-6
 
@@ -81,6 +82,9 @@ def read_boutdata(
         * ds.metadata["C_s0"]
         * ds["u_y"]
     )
+    if hasattr(ds, "q_perp_x") is False:
+        ds["q_perp_x"] = 0.0
+        ds["q_perp_y"] = 0.0
     ds["q_cond_x"] = (
         ds.metadata["n_sepx"]
         * ds.metadata["D_0"]
@@ -344,6 +348,7 @@ def animate_vector(
     lw_prefactor: float | None = None,
     density: float = 0.25,
     plot_every: int = 1,
+    fps: int = 10,
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -407,7 +412,7 @@ def animate_vector(
 
     anim = animation.FuncAnimation(fig, animate, frames=int(len(ds.t) / plot_every))
     if savepath is not None:
-        anim.save(savepath, fps=10)
+        anim.save(savepath, fps=fps)
 
     return anim
 
@@ -640,7 +645,7 @@ def animate_q_targets(
         q3 = q3.values
         q4 = q4.values
 
-    fig, ax = plt.subplots(nrows=4, ncols=1, sharex=True)
+    fig, ax = plt.subplots(nrows=4, ncols=1, sharex=False)
 
     max_timestep = None
     min_timestep = None
@@ -865,12 +870,15 @@ def find_nearest(array, value):
     return idx
 
 
-def find_nulls(ds: xr.Dataset, num: int = 2, timestamp: int = 0) -> list:
+def find_nulls(
+    ds: xr.Dataset, num: int = 2, timestamp: int = 0, cmap: str = "inferno"
+) -> list:
     """Use magnetic pressure minimums to identify location of null points
 
     :param ds: xarray dataset output from BOUT++
     :param num: number of nulls (1 or 2)
     :param timestamp: which timestamp in which to find nulls
+    :param cmap: colourmap to use for underlying pressure profile
     :return: [x1, x2, y1, y2]
     """
     ds["P_b"] = (
@@ -915,7 +923,7 @@ def find_nulls(ds: xr.Dataset, num: int = 2, timestamp: int = 0) -> list:
 
     psi1 = ds["psi"].isel(x=i1, y=j1, t=timestamp).values
     psi2 = ds["psi"].isel(x=i2, y=j2, t=timestamp).values
-    ax.pcolormesh(ds.x, ds.y, ds["P"].isel(t=timestamp).values.T, cmap="inferno")
+    ax.pcolormesh(ds.x, ds.y, ds["P"].isel(t=timestamp).values.T, cmap=cmap)
     ax.contour(
         ds.x,
         ds.y,
@@ -926,4 +934,168 @@ def find_nulls(ds: xr.Dataset, num: int = 2, timestamp: int = 0) -> list:
     )
     ax.scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
 
+    print("")
+    print(r"psi_1 = {:.5f} ".format(psi1))
+    print(r"psi_2 = {:.5f} ".format(psi2))
+
     return [x1, x2, y1, y2]
+
+
+def plot_power_deposition_vs_d_sep(
+    rundirs: list[str],
+    rundir_labels: list[str],
+    sepdirs: list[str],
+    seps: list[float],
+    timestamp: int = -1,
+    avg_window: int = 50,
+    tgrid_rundir: str = None,
+    xlim: list[float] | None = None,
+    p1_ylim: list[float] | None = None,
+    p2_ylim: list[float] | None = None,
+    p3_ylim: list[float] | None = None,
+    p4_ylim: list[float] | None = None,
+    p1_ylog: bool = False,
+    p2_ylog: bool = False,
+    p3_ylog: bool = False,
+    p4_ylog: bool = False,
+    rundir_colours: list[str] | None = None,
+    plot_p1: bool = True,
+    plot_p2: bool = True,
+    plot_p3: bool = True,
+    plot_p4: bool = True,
+) -> None:
+    if tgrid_rundir is None:
+        tgrid_rundir = os.path.join(rundirs[0], sepdirs[0])
+    tgrid = read_boutdata(
+        tgrid_rundir,
+        remove_xgc=True,
+    ).t
+
+    markers = ["x", "+", "*", "o", "v", "^"]
+
+    P1s = np.zeros((len(rundirs), len(sepdirs)))
+    P2s = np.zeros((len(rundirs), len(sepdirs)))
+    P3s = np.zeros((len(rundirs), len(sepdirs)))
+    P4s = np.zeros((len(rundirs), len(sepdirs)))
+    for i, rundir in enumerate(rundirs):
+        for j, sigma in enumerate(sepdirs):
+            ds = read_boutdata(os.path.join(rundir, sigma), remove_xgc=True)
+            ds.interp(t=tgrid)
+            ds_avg = ds.rolling(t=avg_window, min_periods=1).mean()
+
+            _, Q1, Q2, Q3, Q4 = get_Q_legs(ds_avg)
+            Q_tot = Q1 + Q2 + Q3 + Q4
+            P1s[i, j] = (Q1 / Q_tot).isel(t=timestamp)
+            P2s[i, j] = (Q2 / Q_tot).isel(t=timestamp)
+            P3s[i, j] = (Q3 / Q_tot).isel(t=timestamp)
+            P4s[i, j] = (Q4 / Q_tot).isel(t=timestamp)
+
+    if rundir_colours is None:
+        alphas = np.linspace(1.0, 0.25, len(rundirs))
+        rundir_colours = ["red"] * len(rundirs)
+    else:
+        alphas = np.ones(len(rundirs))
+
+    num_ax = plot_p1 + plot_p2 + plot_p3 + plot_p4
+    fig, ax = plt.subplots(num_ax, sharex=True)
+
+    ax_j = 0
+    if plot_p4:
+        for i in range(len(rundirs)):
+            ax[ax_j].plot(
+                seps,
+                P4s[i, :],
+                color=rundir_colours[i],
+                linestyle="--",
+                marker=markers[i],
+                alpha=alphas[i],
+            )
+        if p4_ylog:
+            ax[ax_j].set_yscale("log")
+        ax[ax_j].set_ylabel("$P_4$")
+        ax[ax_j].grid()
+        if p4_ylim is not None:
+            ax[ax_j].set_ylim(p4_ylim)
+        ax_j += 1
+
+    if plot_p3:
+        for i in range(len(rundirs)):
+            ax[ax_j].plot(
+                seps,
+                P3s[i, :],
+                color=rundir_colours[i],
+                linestyle="--",
+                marker=markers[i],
+                alpha=alphas[i],
+            )
+        if p3_ylog:
+            ax[ax_j].set_yscale("log")
+        ax[ax_j].set_ylabel("$P_3$")
+        ax[ax_j].grid()
+        if p3_ylim is not None:
+            ax[ax_j].set_ylim(p3_ylim)
+        ax_j += 1
+
+    if plot_p2:
+        for i in range(len(rundirs)):
+            ax[ax_j].plot(
+                seps,
+                P2s[i, :],
+                color=rundir_colours[i],
+                linestyle="--",
+                marker=markers[i],
+                alpha=alphas[i],
+            )
+        if p2_ylog:
+            ax[ax_j].set_yscale("log")
+        ax[ax_j].set_ylabel("$P_2$")
+        ax[ax_j].grid()
+        if p2_ylim is not None:
+            ax[ax_j].set_ylim(p2_ylim)
+        ax_j += 1
+
+    if plot_p1:
+        for i in range(len(rundirs)):
+            ax[ax_j].plot(
+                seps,
+                P1s[i, :],
+                color=rundir_colours[i],
+                linestyle="--",
+                marker=markers[i],
+                alpha=alphas[i],
+            )
+        if p1_ylog:
+            ax[ax_j].set_yscale("log")
+        ax[ax_j].set_ylabel("$P_1$")
+        ax[ax_j].grid()
+        if p1_ylim is not None:
+            ax[ax_j].set_ylim(p1_ylim)
+        ax_j += 1
+
+    for i in range(len(rundirs)):
+        ax[0].plot(
+            [],
+            [],
+            color=rundir_colours[i],
+            marker=markers[i],
+            linestyle="--",
+            alpha=alphas[i],
+            label=rundir_labels[i],
+        )
+    ax[0].legend(loc="upper right")
+
+    ax[-1].set_xlabel("Inter-null separation [cm]")
+    if xlim is not None:
+        ax[-1].set_xlim(xlim)
+
+
+def grid_limited_d_sol(target_d_sol: float = 10.0, dx: float = 0.9) -> float:
+    """Get the domain length [cm] in y-axis, measured from primary x point to the upstream/core boundary,
+    required to give the provided target SOL width at nulls points, assuming only flux expansion contributes
+
+    :param target_d_sol: target value of SOL width at null points, defaults to 10.0
+    :param dx: x grid width, defaults to 0.9 [cm]
+    :return : L_y, in same units as inputs
+    """
+    L_y = (target_d_sol / (dx ** (1 / 3))) ** (3 / 2)
+    return L_y
