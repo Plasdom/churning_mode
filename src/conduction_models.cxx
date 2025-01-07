@@ -950,6 +950,57 @@ Field3D Churn::Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b
     return result;
 }
 
+Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
+{
+    TRACE("Q_plus");
+
+    Field3D result;
+    BoutReal f_x, f_y;
+    float y_plus, x_plus, ds_p, ds, u_plus, K_par_plus;
+    int n_x, n_y;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+    for (auto i : result)
+    {
+
+        x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+        x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+        y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+        y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+        if (b.x[i] >= 0)
+        {
+            n_x = 0;
+        }
+        else
+        {
+            n_x = -1;
+            x_plus = -x_plus;
+        }
+        if (b.y[i] >= 0)
+        {
+            n_y = 0;
+        }
+        else
+        {
+            n_y = -1;
+            y_plus = -y_plus;
+        }
+        ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+
+        ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+        f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
+        f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
+        u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
+        // result[i] = K_par[i] * (u_plu - u[i]) / ds;
+    }
+
+    return result;
+}
+
 Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b)
 {
     TRACE("Q_plus_T");
@@ -1064,6 +1115,57 @@ Field3D Churn::Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &
     return result;
 }
 
+Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
+{
+    TRACE("Q_minus");
+
+    Field3D result;
+    BoutReal f_x, f_y;
+    float y_minus, x_minus, ds_p, ds, u_minus, K_par_minus;
+    int n_x, n_y;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+    for (auto i : result)
+    {
+
+        x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+        x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+        y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+        y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+        if (b.x[i] >= 0)
+        {
+            n_x = 0;
+        }
+        else
+        {
+            n_x = -1;
+            x_minus = -x_minus;
+        }
+        if (b.y[i] >= 0)
+        {
+            n_y = 0;
+        }
+        else
+        {
+            n_y = -1;
+            y_minus = -y_minus;
+        }
+        ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
+
+        ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+        f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
+        f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
+        u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
+        // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
+    }
+
+    return result;
+}
+
 Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
 {
     TRACE("Q_minus_T");
@@ -1128,8 +1230,6 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_p
     Field3D ds;
     BoutReal dz;
 
-    Coordinates *coord = mesh->getCoordinates();
-
     // TODO: Size of the box should probably be changed from dx,dy to dx/2, dy/2 in order to not rely on slowly changing b field
 
     // // Naive
@@ -1144,6 +1244,58 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_p
 
     // Support method
     result = -0.5 * (Q_plus_T(Q_plus(T, K_par, b), b) + Q_minus_T(Q_minus(T, K_par, b), b));
+
+    return result;
+}
+
+Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b)
+{
+    TRACE("div_q_par_modified_stegmeir");
+
+    Field3D result;
+    Field3D ds;
+    BoutReal dz;
+
+    // Support method
+    result = -0.5 * (Q_plus_T(Q_plus(T, K_par, b), b) + Q_minus_T(Q_minus(T, K_par, b), b));
+
+    return result;
+}
+
+Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev)
+{
+    TRACE("spitzer_harm_conductivity");
+
+    Field3D result;
+    BoutReal T_capped, tau_e, lambda_ei;
+
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    {
+        // Limit T used in parallel conduction to T_limit
+        if (T[i] * T_sepx / 2.0 >= Te_limit_ev)
+        {
+            T_capped = T[i];
+        }
+        else
+        {
+            T_capped = Te_limit_ev * 2.0 / T_sepx;
+        }
+
+        // Find collision Coulomb log and collision time
+        if (T_sepx * T_capped / 2.0 > 10.0)
+        {
+            lambda_ei = 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T_capped / 2.0, -1.0));
+        }
+        else
+        {
+            lambda_ei = 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T_capped / 2.0, -1.5));
+        }
+        tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+
+        // Calculate Spitzer-Harm parallel thermal conductivity
+        result[i] = (3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0;
+    }
 
     return result;
 }

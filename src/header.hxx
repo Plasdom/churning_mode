@@ -73,7 +73,7 @@ private:
     // Heat flow variables
     Vector3D q_par, q_perp;
     Field3D kappa_par, kappa_perp;
-    Field3D B_mag, T, lambda_ei, tau_e;
+    Field3D B_mag, T;
     Field3D div_q;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
@@ -101,23 +101,24 @@ private:
     BoutReal lambda_SOL_rho; ///< SOL width parameter in units of normalised flux coordinate
 
     // Other parameters
-    BoutReal mu_0;     ///< Vacuum permeability [N A^-2]
-    BoutReal e;        ///< Electric charge [C]
-    BoutReal m_e;      ///< Electron mass [kg]
-    BoutReal eps_0;    ///< Vacuum permittivity [F m^-1]
-    BoutReal m_i;      ///< Ion mass [kg]
-    BoutReal pi;       ///< Pi
-    BoutReal rho;      ///< Plasma mass density [kg m^-3]
-    BoutReal P_0;      ///< Pressure normalisation [Pa]
-    BoutReal C_s0;     ///< Plasma sound speed at P_0, rho [m s^-1]
-    BoutReal t_0;      ///< Time normalisation [s]
-    BoutReal D_0;      ///< Diffusivity normalisation [m^2 s^-1]
-    BoutReal psi_0;    ///< Poloidal flux normalisation [T m^2]
-    BoutReal phi_0;    ///< Phi normalisation
-    BoutReal c;        ///< Reference fluid velocity [m s^-1]
-    BoutReal epsilon;  ///< Inverse aspect ratio [-]
-    BoutReal beta_p;   ///< Poloidal beta [-]
-    BoutReal P_grad_0; ///< Vertical pressure gradient normalisation
+    BoutReal mu_0;        ///< Vacuum permeability [N A^-2]
+    BoutReal e;           ///< Electric charge [C]
+    BoutReal m_e;         ///< Electron mass [kg]
+    BoutReal eps_0;       ///< Vacuum permittivity [F m^-1]
+    BoutReal m_i;         ///< Ion mass [kg]
+    BoutReal pi;          ///< Pi
+    BoutReal rho;         ///< Plasma mass density [kg m^-3]
+    BoutReal P_0;         ///< Pressure normalisation [Pa]
+    BoutReal C_s0;        ///< Plasma sound speed at P_0, rho [m s^-1]
+    BoutReal t_0;         ///< Time normalisation [s]
+    BoutReal D_0;         ///< Diffusivity normalisation [m^2 s^-1]
+    BoutReal psi_0;       ///< Poloidal flux normalisation [T m^2]
+    BoutReal phi_0;       ///< Phi normalisation
+    BoutReal c;           ///< Reference fluid velocity [m s^-1]
+    BoutReal epsilon;     ///< Inverse aspect ratio [-]
+    BoutReal beta_p;      ///< Poloidal beta [-]
+    BoutReal P_grad_0;    ///< Vertical pressure gradient normalisation
+    BoutReal boltzmann_k; ///< Boltzmann's constant
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure
@@ -133,6 +134,7 @@ private:
     bool use_linetrace_div_q_par;
     bool use_classic_div_q_perp;
     bool use_gunter_div_q_perp;
+    bool T_dependent_q_par;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -152,10 +154,14 @@ private:
     Field3D div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
+    Field3D Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b);
     Field3D Q_plus_T(const Field3D &u, const Vector3D &b);
     Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
+    Field3D Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b);
     Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b);
+    Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev = 1.0);
 
     // Y boundary iterators
     // RangeIterator itl;

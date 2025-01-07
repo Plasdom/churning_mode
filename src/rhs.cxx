@@ -84,34 +84,47 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             ddt(P) = 0;
         }
-        if (chi_par > 0.0)
+        if (use_classic_div_q_par || use_gunter_div_q_par || use_modified_stegmeir_div_q_par || use_linetrace_div_q_par)
         {
-            // TODO: Add T-dependent q_par
+            // Calculate parallel conductivity
+            if (T_dependent_q_par)
+            {
+                kappa_par = spitzer_harm_conductivity(T);
+            }
+            else
+            {
+                kappa_par = chi_par / D_0;
+            }
 
+            // Calculate div_q_par term using specified method
             if (use_classic_div_q_par)
             {
-                ddt(P) += div_q_par_classic(T, chi_par / D_0, B / B_mag);
+                // TODO: Implement spatially varying kappa_par
+                //  ddt(P) += div_q_par_classic(T, kappa_par, B / B_mag);
             }
             else if (use_gunter_div_q_par)
             {
-                ddt(P) += div_q_par_gunter(T, chi_par / D_0, B / B_mag);
+                // TODO: Implement spatially varying kappa_par
+                // ddt(P) += div_q_par_gunter(T, kappa_par, B / B_mag);
             }
             else if (use_modified_stegmeir_div_q_par)
             {
-                ddt(P) += div_q_par_modified_stegmeir(T, chi_par / D_0, B / B_mag);
+                ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
+                q_par = 0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
             }
             else if (use_linetrace_div_q_par)
             {
-                // ddt(P) += div_q_par_linetrace(T, chi_par / D_0, B / B_mag);
-                div_q = div_q_par_linetrace2(T, chi_par / D_0, B / B_mag);
-                ddt(P) += div_q;
+                // TODO: Implement spatially varying kappa_par
+                // ddt(P) += div_q_par_linetrace(T, kappa_par, B / B_mag);
+                // div_q = div_q_par_linetrace2(T, kappa_par, B / B_mag);
+                // ddt(P) += div_q;
             }
 
-            // Calculate q for output
-            // TODO: This should match the method used in div_q calculation
-            q_par = -(chi_par / D_0) * B * (B * Grad(T)) / pow(B_mag, 2);
+            // // Calculate q for output
+            // // TODO: This should match the method used in div_q calculation
+            // q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
         }
-        if (chi_perp > 0.0)
+        if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {
             kappa_perp = chi_perp / D_0;
             if (use_classic_div_q_perp)
@@ -127,7 +140,7 @@ int Churn::rhs(BoutReal UNUSED(t))
             // TODO: This should match the method used in div_q calculation
             q_perp = -kappa_perp * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
         }
-        if (max(chi_perp_eff) > 0.0)
+        if (D_x > 0.0)
         {
             // TODO: I think this should be simple diffusive rather than perp diffusive?
             if (use_classic_div_q_perp)

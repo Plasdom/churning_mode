@@ -70,6 +70,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     use_linetrace_div_q_par = options["use_linetrace_div_q_par"]
                                   .doc("Use a fielline tracing algorithm for the parallel div_q term")
                                   .withDefault(false);
+    T_dependent_q_par = options["T_dependent_q_par"]
+                            .doc("Use Spitzer-Harm parallel thermal conductivity (implemented for modified_stegmeir_div_q_par only)")
+                            .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -78,6 +81,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     mu_0 = 1.256637e-6;
     eps_0 = 8.854188e-12;
     pi = 3.14159;
+    boltzmann_k = 1.380649e-23;
 
     // Get normalisation and derived parameters
     c = 1.0;
@@ -124,10 +128,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     if (chi_par > 0.0)
     {
-        // if (T_dependent_q_par)
-        // {
-        //     SAVE_REPEAT(q_par, tau_e, lambda_ei)
-        // }
+        if (T_dependent_q_par)
+        {
+            SAVE_REPEAT(kappa_par)
+        }
         // else
         // {
         SAVE_REPEAT(q_par)
@@ -230,8 +234,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     q_perp = 0.0;
     kappa_par = 0.0;
     kappa_perp = 0.0;
-    lambda_ei = 0.0;
-    tau_e = 0.0;
     div_q = 0.0;
 
     // Output constants, input options and derived parameters
