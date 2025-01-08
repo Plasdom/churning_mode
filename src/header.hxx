@@ -143,8 +143,12 @@ private:
 
     // Methods related to difference heat conduction models
     Field3D div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b);
+    Field3D div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
     Field3D div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
+    Field3D div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b);
+    Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
     TwoIntersects get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
     CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by);

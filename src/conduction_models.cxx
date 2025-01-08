@@ -2,6 +2,7 @@
 
 Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
+    // Classic stencil for parallel heat flux divergence term (spatially constant conductivity)
     TRACE("div_q_par_classic");
 
     Field3D result;
@@ -11,9 +12,22 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const 
     return result;
 }
 
-Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
+Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b)
 {
+    // Classic stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_classic");
+
+    Field3D result;
+
+    result = DDX(K_par * b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(K_par * b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL");
+
+    return result;
+}
+
+Field3D Churn::div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+{
+    // Classic stencil for perpendicular heat flux divergence term (spatially constant conductivity)
+    TRACE("div_q_perp_classic");
 
     Field3D result;
 
@@ -22,8 +36,21 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     return result;
 }
 
+Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
+{
+    // Classic stencil for perpendicular heat flux divergence term (spatially varying conductivity)
+    TRACE("div_q_par_classic");
+
+    Field3D result;
+
+    result = DDX(K_perp * b.x * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(K_perp * b.y * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))), CELL_CENTER, "DEFAULT", "RGN_ALL");
+
+    return result;
+}
+
 Field3D Churn::div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
+    // Gunter stencil for parallel heat flux divergence term (spatially constant conductivity)
     TRACE("div_q_par_gunter");
 
     Field3D result;
@@ -63,12 +90,57 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const V
     return result;
 }
 
-Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
+Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b)
 {
+    // Gunter stencil for parallel heat flux divergence term (spatially varying conductivity)
+    TRACE("div_q_par_gunter");
+
+    Field3D result;
+    Field3D bx_corners, by_corners, K_par_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    // TODO: Check below is valid when dx!=dy
+    bx_corners.allocate();
+    by_corners.allocate();
+    K_par_corners.allocate();
+    for (auto i : result)
+    {
+        bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
+        by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
+        K_par_corners[i] = 0.25 * (K_par[i.xm()] + K_par[i.xm().ym()] + K_par[i.ym()] + K_par[i]);
+    }
+
+    // Find temperature gradients on cell corners
+    DTDX_corners.allocate();
+    DTDY_corners.allocate();
+    for (auto i : DTDX_corners)
+    {
+
+        DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
+        DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
+    }
+
+    q_parx_corners = K_par_corners * bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
+    q_pary_corners = K_par_corners * by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
+
+    result.allocate();
+    for (auto i : result)
+    {
+        result[i] = (1.0 / (2.0 * coord->dx[i])) * (q_parx_corners[i.xp().yp()] + q_parx_corners[i.xp()] - q_parx_corners[i.yp()] - q_parx_corners[i]);
+        result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_pary_corners[i.xp().yp()] + q_pary_corners[i.yp()] - q_pary_corners[i.xp()] - q_pary_corners[i]);
+    }
+
+    return result;
+}
+
+Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
+{
+    // Gunter stencil for perpendicular heat flux divergence term (spatially constant conductivity)
     TRACE("div_q_perp_gunter");
 
     Field3D result;
-    Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+    Field3D bx_corners, by_corners, K_perp_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -93,6 +165,50 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
     // TODO: Should K_perp be calculated on corners here too?
     q_perpx_corners = K_perp * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
     q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+
+    result.allocate();
+    for (auto i : result)
+    {
+        result[i] += (1.0 / (2.0 * coord->dx[i])) * (q_perpx_corners[i.xp().yp()] + q_perpx_corners[i.xp()] - q_perpx_corners[i.yp()] - q_perpx_corners[i]);
+        result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_perpy_corners[i.xp().yp()] + q_perpy_corners[i.yp()] - q_perpy_corners[i.xp()] - q_perpy_corners[i]);
+    }
+
+    return result;
+}
+
+Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
+{
+    // Gunter stencil for perpendicular heat flux divergence term (spatially varying conductivity)
+    TRACE("div_q_perp_gunter");
+
+    Field3D result;
+    Field3D bx_corners, by_corners, K_perp_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    // TODO: Check below is valid when dx!=dy
+    bx_corners.allocate();
+    by_corners.allocate();
+    K_perp_corners.allocate();
+    for (auto i : result)
+    {
+        bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
+        by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
+        K_perp_corners[i] = 0.25 * (K_perp[i.xm()] + K_perp[i.xm().ym()] + K_perp[i.ym()] + K_perp[i]);
+    }
+
+    // Find temperature gradients on cell corners
+    DTDX_corners.allocate();
+    DTDY_corners.allocate();
+    for (auto i : DTDX_corners)
+    {
+
+        DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
+        DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
+    }
+    // TODO: Should K_perp be calculated on corners here too?
+    q_perpx_corners = K_perp_corners * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+    q_perpy_corners = K_perp_corners * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
 
     result.allocate();
     for (auto i : result)
@@ -1224,6 +1340,7 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
 
 Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
 {
+    // Modified Stegmeir stencil for parallel heat flux divergence term (spatially constant conductivity)
     TRACE("div_q_par_modified_stegmeir");
 
     Field3D result;
@@ -1250,6 +1367,7 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_p
 
 Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b)
 {
+    // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
 
     Field3D result;
@@ -1264,6 +1382,7 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
 
 Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev)
 {
+    // Calculate the Spitzer-Harm thermal conductivity for electrons on the input temperature field
     TRACE("spitzer_harm_conductivity");
 
     Field3D result;

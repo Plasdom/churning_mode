@@ -100,12 +100,14 @@ int Churn::rhs(BoutReal UNUSED(t))
             if (use_classic_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                //  ddt(P) += div_q_par_classic(T, kappa_par, B / B_mag);
+                ddt(P) += div_q_par_classic(T, kappa_par, B / B_mag);
+                q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
             }
             else if (use_gunter_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                // ddt(P) += div_q_par_gunter(T, kappa_par, B / B_mag);
+                ddt(P) += div_q_par_gunter(T, kappa_par, B / B_mag);
+                q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_modified_stegmeir_div_q_par)
             {
@@ -126,14 +128,14 @@ int Churn::rhs(BoutReal UNUSED(t))
         }
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {
-            kappa_perp = chi_perp / D_0;
+            // kappa_perp = chi_perp / D_0;
             if (use_classic_div_q_perp)
             {
-                ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
+                ddt(P) += div_q_perp_classic(T, chi_perp / D_0, B / B_mag);
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += div_q_perp_gunter(T, kappa_perp, B / B_mag);
+                ddt(P) += div_q_perp_gunter(T, chi_perp / D_0, B / B_mag);
             }
 
             // Calculate q for output
