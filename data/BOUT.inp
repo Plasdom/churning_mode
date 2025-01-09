@@ -101,7 +101,7 @@ use_classic_div_q_par = false
 use_gunter_div_q_par = false       
 use_modified_stegmeir_div_q_par = true       
 use_linetrace_div_q_par = false     
-T_dependent_q_par = true     
+T_dependent_q_par = false     
 
 # Select perpendicular thermal conduction model (first method set to true will be used)
 chi_perp = 1.0e-1         # Perpendicular Thermal diffusivity [m^2 s^-1]
