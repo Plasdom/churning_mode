@@ -130,19 +130,17 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     {
         if (T_dependent_q_par)
         {
-            SAVE_REPEAT(kappa_par)
+            SAVE_REPEAT(kappa_par);
         }
-        // else
-        // {
-        SAVE_REPEAT(q_par)
-        // }
+        SAVE_REPEAT(q_par);
     }
     if ((chi_perp + D_x) > 0.0)
     {
-        SAVE_REPEAT(q_perp)
+        SAVE_ONCE(kappa_perp);
+        SAVE_REPEAT(q_perp);
     }
 
-    SAVE_REPEAT(div_q)
+    // SAVE_REPEAT(div_q);
 
     // Set downstream pressure boundaries
     // TODO: Find out why this is needed instead of just setting bndry_xin=dirichlet, etc
@@ -268,6 +266,18 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     // chi_perp_eff
     chi_perp_eff = D_x * exp(-pow(((x_c - x_1) / r_star), 2.0) - pow(((y_c - y_1) / r_star), 2.0));
     chi_perp_eff += D_x * exp(-pow(((x_c - x_2) / r_star), 2.0) - pow(((y_c - y_2) / r_star), 2.0));
+
+    // Initialise perpendicular conductivity
+    kappa_perp = (chi_perp / D_0);
+    if (D_x > 0.0)
+    {
+        kappa_perp += (chi_perp_eff / D_0);
+    }
+
+    if (T_dependent_q_par == false)
+    {
+        kappa_par = chi_par / D_0;
+    }
 
     // Initialise B field
     B.x = 0.0;

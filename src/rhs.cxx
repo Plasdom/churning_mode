@@ -46,7 +46,7 @@ int Churn::rhs(BoutReal UNUSED(t))
     else
     {
         mesh->communicate(P, psi, omega, phi);
-        ddt(phi) = (D2DX2(phi) + D2DY2(phi)) - omega;
+        ddt(phi) = (D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega;
     }
     mesh->communicate(phi);
 
@@ -91,10 +91,6 @@ int Churn::rhs(BoutReal UNUSED(t))
             {
                 kappa_par = spitzer_harm_conductivity(T);
             }
-            else
-            {
-                kappa_par = chi_par / D_0;
-            }
 
             // Calculate div_q_par term using specified method
             if (use_classic_div_q_par)
@@ -128,34 +124,18 @@ int Churn::rhs(BoutReal UNUSED(t))
         }
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {
-            // kappa_perp = chi_perp / D_0;
             if (use_classic_div_q_perp)
             {
-                ddt(P) += div_q_perp_classic(T, chi_perp / D_0, B / B_mag);
+                ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += div_q_perp_gunter(T, chi_perp / D_0, B / B_mag);
+                ddt(P) += div_q_perp_gunter(T, kappa_perp, B / B_mag);
             }
 
             // Calculate q for output
             // TODO: This should match the method used in div_q calculation
             q_perp = -kappa_perp * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
-        }
-        if (D_x > 0.0)
-        {
-            // TODO: I think this should be simple diffusive rather than perp diffusive?
-            if (use_classic_div_q_perp)
-            {
-                ddt(P) += div_q_perp_classic(T, chi_perp_eff / D_0, B / B_mag);
-            }
-            else if (use_gunter_div_q_perp)
-            {
-                ddt(P) += div_q_perp_gunter(T, chi_perp_eff / D_0, B / B_mag);
-            }
-
-            // Calculate q for output
-            q_perp += -(chi_perp_eff / D_0) * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
         }
     }
 
@@ -204,11 +184,12 @@ int Churn::rhs(BoutReal UNUSED(t))
     }
     if (include_mag_restoring_term)
     {
-        // Basic approach
-        ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
+        // // Basic approach
+        // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"), CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
         // Using 3rd derivative stencils
         // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * (D3D2XDY(psi) + D3DY3(psi)) - DDY(psi) * (D3D2YDX(psi) + D3DX3(psi)));
+        ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
 
         // Using a rotated Laplacian stencil
         // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * DDY(rotated_laplacexy(psi)) - DDY(psi) * DDX(rotated_laplacexy(psi)));

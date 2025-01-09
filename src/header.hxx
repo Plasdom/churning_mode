@@ -179,6 +179,8 @@ private:
     Field3D D3D2YDX(const Field3D &f);
     Field3D D3D2XDY(const Field3D &f);
     Field3D rotated_laplacexy(const Field3D &f);
+    Field3D D2DX2_DIFF(const Field3D &f, const Field3D &A);
+    Field3D D2DY2_DIFF(const Field3D &f, const Field3D &A);
 
 protected:
     int init(bool restarting) override;

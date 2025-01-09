@@ -7,7 +7,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const 
 
     Field3D result;
 
-    result = K_par * (DDX(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL"));
+    result = K_par * (D2DX2_DIFF(T, pow(b.x, 2.0)) + D2DY2_DIFF(T, pow(b.y, 2.0)) + DDX(b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")));
 
     return result;
 }
@@ -19,7 +19,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
 
     Field3D result;
 
-    result = DDX(K_par * b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(K_par * b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL");
+    result = D2DX2_DIFF(T, K_par * pow(b.x, 2.0)) + D2DY2_DIFF(T, K_par * pow(b.y, 2.0)) + DDX(K_par * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(K_par * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
     return result;
 }
@@ -31,8 +31,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, cons
 
     Field3D result;
 
-    result = K_perp * (D2DX2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - (DDX(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")), CELL_CENTER, "DEFAULT", "RGN_ALL")));
-
+    result = K_perp * (D2DX2(T) + D2DY2(T) - D2DX2_DIFF(T, pow(b.x, 2.0)) - D2DY2_DIFF(T, pow(b.y, 2.0)) - DDX(b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")));
     return result;
 }
 
@@ -43,7 +42,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
 
     Field3D result;
 
-    result = DDX(K_perp * b.x * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - b.x * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))), CELL_CENTER, "DEFAULT", "RGN_ALL") + DDY(K_perp * b.y * (DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") - b.y * (b.x * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL") + b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL"))), CELL_CENTER, "DEFAULT", "RGN_ALL");
+    result = D2DX2_DIFF(T, K_perp * (1.0 - pow(b.x, 2.0))) + D2DY2_DIFF(T, K_perp * (1.0 - pow(b.y, 2.0))) - DDX(K_perp * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(K_perp * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
     return result;
 }
@@ -162,8 +161,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const
         DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
         DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
     }
-    // TODO: Should K_perp be calculated on corners here too?
-    q_perpx_corners = K_perp * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+    q_perpx_corners = K_perp * (DTDX_corners - bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
     q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
 
     result.allocate();
@@ -206,8 +204,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
         DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
         DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
     }
-    // TODO: Should K_perp be calculated on corners here too?
-    q_perpx_corners = K_perp_corners * (DTDX_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
+    q_perpx_corners = K_perp_corners * (DTDX_corners - bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
     q_perpy_corners = K_perp_corners * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
 
     result.allocate();
