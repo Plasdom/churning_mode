@@ -139,7 +139,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const
     TRACE("div_q_perp_gunter");
 
     Field3D result;
-    Field3D bx_corners, by_corners, K_perp_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+    Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_perpx_corners, q_perpy_corners;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -180,7 +180,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
     TRACE("div_q_perp_gunter");
 
     Field3D result;
-    Field3D bx_corners, by_corners, K_perp_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
+    Field3D bx_corners, by_corners, K_perp_corners, DTDX_corners, DTDY_corners, q_perpx_corners, q_perpy_corners;
 
     Coordinates *coord = mesh->getCoordinates();
 
