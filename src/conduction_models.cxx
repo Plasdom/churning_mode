@@ -217,16 +217,16 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
     return result;
 }
 
-TwoIntersects Churn::get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by)
+TwoIntersects Churn::get_intersects(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &P, const double &bx, const double &by)
 {
     // Find the intersection points between a line with gradient given by by/bx, where (Px,Py) is a point on the line, and the box bounded by xlo, xhi, ylo, yhi
     // TODO: Check edge cases when intersection is on a corner
     TRACE("intersects_plus");
 
-    // std::vector<std::vector<float>> result = {{0.0, 1.0}, {2.0, 3.0}};
+    // std::vector<std::vector<double>> result = {{0.0, 1.0}, {2.0, 3.0}};
     TwoIntersects result;
     CellIntersect intersect;
-    float m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+    double m, c, y_xlo, y_xhi, x_ylo, x_yhi;
 
     // Find line equation for b
     if (bx == 0.0)
@@ -281,14 +281,14 @@ TwoIntersects Churn::get_intersects(const float &xlo, const float &xhi, const fl
     return result;
 }
 
-CellIntersect Churn::get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by)
+CellIntersect Churn::get_next_intersect(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &prev_intersect, const double &bx, const double &by)
 {
     // Find the intersection points between a line with gradient given by by/bx, where (Px,Py) is a point on the line, and the box bounded by xlo, xhi, ylo, yhi
     TRACE("get_next_intersect");
 
-    // std::vector<std::vector<float>> result = {{0.0, 1.0}, {2.0, 3.0}};
+    // std::vector<std::vector<double>> result = {{0.0, 1.0}, {2.0, 3.0}};
     CellIntersect result;
-    float m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+    double m, c, y_xlo, y_xhi, x_ylo, x_yhi;
 
     // Find line equation for b
     if (bx == 0.0)
@@ -344,18 +344,18 @@ CellIntersect Churn::get_next_intersect(const float &xlo, const float &xhi, cons
     return result;
 }
 
-Ind3D Churn::increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const float &dx, const float &dy)
+Ind3D Churn::increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const double &dx, const double &dy)
 {
     // Determine which cell to move to next
     TRACE("increment_cell");
 
     Ind3D i_next;
-    float tol = 1.0e-6;
+    double tol = 1.0e-6;
     int x_inc, y_inc;
 
     i_next = i_prev;
-    x_inc = static_cast<float>(i_prev.x() - i.x());
-    y_inc = static_cast<float>(i_prev.y() - i.y());
+    x_inc = static_cast<double>(i_prev.x() - i.x());
+    y_inc = static_cast<double>(i_prev.y() - i.y());
 
     if (abs(((P_next.x / dx) - 0.5) - x_inc) < tol)
     {
@@ -391,7 +391,7 @@ InterpolationPoint Churn::trace_field_lines(const Ind3D &i, const Vector3D &b, c
     InterpolationPoint result;
     CellIntersect next_intersect, prev_intersect;
     TwoIntersects intersects;
-    float par_dist, par_dist_closest;
+    double par_dist, par_dist_closest;
     Ind3D i_next, i_prev;
     Point cell_centre;
     ClosestPoint p, p_closest;
@@ -507,14 +507,14 @@ InterpolationPoint Churn::trace_field_lines(const Ind3D &i, const Vector3D &b, c
     return result;
 }
 
-ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const float &bx, const float &by)
+ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const double &bx, const double &by)
 {
     // Find the closest point on the line following the magnetic field, extending from an cell face intersection point (Px,Py), to a point at (x0, y0), e.g. a cell centre. Output is a vector with three elements (x, y, distance)
     TRACE("get_closest_p");
 
     ClosestPoint result;
-    float distance, x_closest, y_closest;
-    float A, B, C;
+    double distance, x_closest, y_closest;
+    double A, B, C;
 
     // Find line equation
     B = 1.0;
@@ -550,7 +550,7 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, cons
     Coordinates *coord = mesh->getCoordinates();
     InterpolationPoint interp_p_plus, interp_p_minus;
     int n_steps, n_x, n_y;
-    float f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
+    double f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
     int max_x_inc = 3;
     int max_y_inc = 3;
     int max_steps = 12;
@@ -645,17 +645,17 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
 
     Ind3D i_offset;
     int n_steps, n_x, n_y;
-    float f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
+    double f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
     Coordinates *coord = mesh->getCoordinates();
     Field3D result;
     bool continue_tracing;
     Ind3D i_prev, i_plus, i_minus;
     TwoIntersects intersects;
     CellIntersect intersect, intersect_plus, intersect_minus, prev_intersect;
-    float m, c, y_xlo, y_xhi, x_ylo, x_yhi, xlo, xhi, ylo, yhi, tracebox_width, tracebox_height;
-    float tol = 1.0e-6;
+    double m, c, y_xlo, y_xhi, x_ylo, x_yhi, xlo, xhi, ylo, yhi, tracebox_width, tracebox_height;
+    double tol = 1.0e-6;
     Field3D x_plus, y_plus, x_minus, y_minus, parallel_distances_plus, parallel_distances_minus, q_plus, q_minus;
-    float prev_x, prev_y;
+    double prev_x, prev_y;
     int prev_face;
 
     prev_intersect.x = 0.0;
@@ -755,13 +755,13 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
             i_plus = increment_cell(i, i_prev, intersect_plus, coord->dx[i], coord->dy[i]);
 
             xlo = (i_plus.x() - i_prev.x()) * coord->dx[i] - coord->dx[i] / 2.0;
-            xlo = std::max(static_cast<float>(xlo), static_cast<float>(-coord->dx[i]));
+            xlo = std::max(static_cast<double>(xlo), static_cast<double>(-coord->dx[i]));
             xhi = (i_plus.x() - i_prev.x()) * coord->dx[i] + coord->dx[i] / 2.0;
-            xhi = std::min(static_cast<float>(xhi), static_cast<float>(coord->dx[i]));
+            xhi = std::min(static_cast<double>(xhi), static_cast<double>(coord->dx[i]));
             ylo = (i_plus.y() - i_prev.y()) * coord->dy[i] - coord->dy[i] / 2.0;
-            ylo = std::max(static_cast<float>(ylo), static_cast<float>(-coord->dy[i]));
+            ylo = std::max(static_cast<double>(ylo), static_cast<double>(-coord->dy[i]));
             yhi = (i_plus.y() - i_prev.y()) * coord->dy[i] + coord->dy[i] / 2.0;
-            yhi = std::min(static_cast<float>(yhi), static_cast<float>(coord->dy[i]));
+            yhi = std::min(static_cast<double>(yhi), static_cast<double>(coord->dy[i]));
 
             // Find the next intersect
             prev_intersect = intersect_plus;
@@ -862,13 +862,13 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
             i_minus = increment_cell(i, i_prev, intersect_minus, coord->dx[i], coord->dy[i]);
 
             xlo = (i_minus.x() - i_prev.x()) * coord->dx[i] - coord->dx[i] / 2.0;
-            xlo = std::max(static_cast<float>(xlo), static_cast<float>(-coord->dx[i]));
+            xlo = std::max(static_cast<double>(xlo), static_cast<double>(-coord->dx[i]));
             xhi = (i_minus.x() - i_prev.x()) * coord->dx[i] + coord->dx[i] / 2.0;
-            xhi = std::min(static_cast<float>(xhi), static_cast<float>(coord->dx[i]));
+            xhi = std::min(static_cast<double>(xhi), static_cast<double>(coord->dx[i]));
             ylo = (i_minus.y() - i_prev.y()) * coord->dy[i] - coord->dy[i] / 2.0;
-            ylo = std::max(static_cast<float>(ylo), static_cast<float>(-coord->dy[i]));
+            ylo = std::max(static_cast<double>(ylo), static_cast<double>(-coord->dy[i]));
             yhi = (i_minus.y() - i_prev.y()) * coord->dy[i] + coord->dy[i] / 2.0;
-            yhi = std::min(static_cast<float>(yhi), static_cast<float>(coord->dy[i]));
+            yhi = std::min(static_cast<double>(yhi), static_cast<double>(coord->dy[i]));
 
             // Find the next intersect
             prev_intersect = intersect_minus;
@@ -1012,7 +1012,7 @@ Field3D Churn::Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_plus, x_plus, ds_p, ds, u_plus;
+    double y_plus, x_plus, ds_p, ds, u_plus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1030,9 +1030,9 @@ Field3D Churn::Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b
 
         // Modified Stegmeir b
         x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+        x_plus = std::min(static_cast<double>(coord->dx[i]), x_plus);
         y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+        y_plus = std::min(static_cast<double>(coord->dy[i]), y_plus);
         if (b.x[i] >= 0)
         {
             n_x = 0;
@@ -1069,7 +1069,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_plus, x_plus, ds_p, ds, u_plus, K_par_plus;
+    double y_plus, x_plus, ds_p, ds, u_plus; //, K_par_plus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1079,9 +1079,9 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
     {
 
         x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+        x_plus = std::min(static_cast<double>(coord->dx[i]), x_plus);
         y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+        y_plus = std::min(static_cast<double>(coord->dy[i]), y_plus);
         if (b.x[i] >= 0)
         {
             n_x = 0;
@@ -1106,9 +1106,10 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-        K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
-        // result[i] = K_par[i] * (u_plu - u[i]) / ds;
+        // K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        // result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
+        // result[i] = K_par_plus * (u_plus - u[i]) / ds;
+        result[i] = K_par[i] * (u_plus - u[i]) / ds;
     }
 
     return result;
@@ -1120,7 +1121,7 @@ Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b)
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_plus, x_plus, ds_p, ds, u_plus;
+    double y_plus, x_plus, ds_p, ds, u_plus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1137,9 +1138,9 @@ Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b)
 
         // Modified Stegmeir b
         x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_plus = std::min(static_cast<float>(coord->dx[i]), x_plus);
+        x_plus = std::min(static_cast<double>(coord->dx[i]), x_plus);
         y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_plus = std::min(static_cast<float>(coord->dy[i]), y_plus);
+        y_plus = std::min(static_cast<double>(coord->dy[i]), y_plus);
         if (b.x[i] >= 0)
         {
             n_x = 0;
@@ -1176,7 +1177,7 @@ Field3D Churn::Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_minus, x_minus, ds_p, ds, u_minus;
+    double y_minus, x_minus, ds_p, ds, u_minus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1195,9 +1196,9 @@ Field3D Churn::Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &
 
         // Modified Stegmeir b
         x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+        x_minus = std::min(static_cast<double>(coord->dx[i]), x_minus);
         y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+        y_minus = std::min(static_cast<double>(coord->dy[i]), y_minus);
         if (b.x[i] >= 0)
         {
             n_x = 0;
@@ -1234,7 +1235,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_minus, x_minus, ds_p, ds, u_minus, K_par_minus;
+    double y_minus, x_minus, ds_p, ds, u_minus; // K_par_minus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1244,9 +1245,9 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
     {
 
         x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+        x_minus = std::min(static_cast<double>(coord->dx[i]), x_minus);
         y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+        y_minus = std::min(static_cast<double>(coord->dy[i]), y_minus);
         if (b.x[i] >= 0)
         {
             n_x = 0;
@@ -1271,9 +1272,10 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
-        // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
+        // K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        // result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
+        // result[i] = -K_par_minus * (u_minus - u[i]) / ds;
+        result[i] = -K_par[i] * (u_minus - u[i]) / ds;
     }
 
     return result;
@@ -1285,7 +1287,7 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
 
     Field3D result;
     BoutReal f_x, f_y;
-    float y_minus, x_minus, ds_p, ds, u_minus;
+    double y_minus, x_minus, ds_p, ds, u_minus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1302,9 +1304,9 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
 
         // Modified Stegmeir b
         x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_minus = std::min(static_cast<float>(coord->dx[i]), x_minus);
+        x_minus = std::min(static_cast<double>(coord->dx[i]), x_minus);
         y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_minus = std::min(static_cast<float>(coord->dy[i]), y_minus);
+        y_minus = std::min(static_cast<double>(coord->dy[i]), y_minus);
         if (b.x[i] >= 0)
         {
             n_x = 0;

@@ -8,29 +8,29 @@
 
 struct Point
 {
-    float x;
-    float y;
+    double x;
+    double y;
 };
 
 struct ClosestPoint
 {
-    float x;
-    float y;
-    float distance;
+    double x;
+    double y;
+    double distance;
 };
 
 struct InterpolationPoint
 {
-    float x;
-    float y;
-    float distance;
-    float parallel_distance;
+    double x;
+    double y;
+    double distance;
+    double parallel_distance;
 };
 
 struct CellIntersect
 {
-    float x;
-    float y;
+    double x;
+    double y;
     int face; // 0 = west, 1 = north, 2 = east, 3 = south;
 };
 
@@ -150,11 +150,11 @@ private:
     Field3D div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
-    TwoIntersects get_intersects(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &P, const float &bx, const float &by);
-    CellIntersect get_next_intersect(const float &xlo, const float &xhi, const float &ylo, const float &yhi, const CellIntersect &prev_intersect, const float &bx, const float &by);
-    Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const float &dx, const float &dy);
+    TwoIntersects get_intersects(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &P, const double &bx, const double &by);
+    CellIntersect get_next_intersect(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &prev_intersect, const double &bx, const double &by);
+    Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const double &dx, const double &dy);
     InterpolationPoint trace_field_lines(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_x_inc, const int &max_y_inc, const int &max_steps, const bool &plus);
-    ClosestPoint get_closest_p(const CellIntersect &P, const Point &P0, const float &bx, const float &by);
+    ClosestPoint get_closest_p(const CellIntersect &P, const Point &P0, const double &bx, const double &by);
     Field3D div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
