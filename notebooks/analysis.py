@@ -1,4 +1,6 @@
+from tempfile import tempdir
 import time
+from psutil import swap_memory
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -6,6 +8,7 @@ from xbout import open_boutdataset
 from pathlib import Path
 from matplotlib import animation
 from matplotlib.colors import LightSource
+from matplotlib.widgets import Button, Slider
 import os
 
 mu_0 = 1.256637e-6
@@ -50,55 +53,44 @@ def read_boutdata(
     elif units == "cm":
         ds = ds.assign_coords(x=ds.x.values * ds.metadata["a_mid"] * 100)
         ds = ds.assign_coords(y=ds.y.values * ds.metadata["a_mid"] * 100)
+    
+    ds.metadata["grid_units"] = units
 
     # ngc = int((len(ds["x"]) - len(ds["y"]))/2)
     if remove_xgc:
-        ngc = 4
+        ngc = 2
         ds = ds.isel(x=range(ngc, len(ds["x"]) - ngc))
 
         # ds = ds.assign_coords(x=ds.x - ds.x[0])
         # ds = ds.assign_coords(y=ds.y - ds.y[0])
 
     # Calculate conductive, convective and total heat fluxes
+    q_prefactor = (
+        ds.metadata["P_0"]
+        * ds.metadata["C_s0"]
+    )
     ds["q_conv_x"] = (
         (
-            2.5 * ds.metadata["P_0"] * ds["P"]
+            2.5 * ds["P"]
             + 0.5
-            * ds.metadata["rho"]
-            * ds.metadata["C_s0"] ** 2
             * (ds["u_x"] ** 2 + ds["u_y"] ** 2)
         )
-        * ds.metadata["C_s0"]
         * ds["u_x"]
     )
     ds["q_conv_y"] = (
         (
-            2.5 * ds.metadata["P_0"] * ds["P"]
+            2.5 *  ds["P"]
             + 0.5
-            * ds.metadata["rho"]
-            * ds.metadata["C_s0"] ** 2
             * (ds["u_x"] ** 2 + ds["u_y"] ** 2)
         )
-        * ds.metadata["C_s0"]
         * ds["u_y"]
     )
     if hasattr(ds, "q_perp_x") is False:
         ds["q_perp_x"] = 0.0
         ds["q_perp_y"] = 0.0
-    ds["q_cond_x"] = (
-        ds.metadata["n_sepx"]
-        * ds.metadata["D_0"]
-        * ds.metadata["e"]
-        * ds.metadata["T_sepx"]
-        / ds.metadata["a_mid"]
-    ) * (ds["q_par_x"] + ds["q_perp_x"])
-    ds["q_cond_y"] = (
-        ds.metadata["n_sepx"]
-        * ds.metadata["D_0"]
-        * ds.metadata["e"]
-        * ds.metadata["T_sepx"]
-        / ds.metadata["a_mid"]
-    ) * (ds["q_par_y"] + ds["q_perp_y"])
+    
+    ds["q_cond_x"] = (ds["q_par_x"] + ds["q_perp_x"])
+    ds["q_cond_y"] = (ds["q_par_y"] + ds["q_perp_y"])
     ds["q_tot_x"] = ds["q_cond_x"] + ds["q_conv_x"]
     ds["q_tot_y"] = ds["q_cond_y"] + ds["q_conv_y"]
     ds["beta_p"] = (
@@ -149,6 +141,7 @@ def contour_overlay(
     colorbar: bool = False,
     fill: bool = False,
     levels: int | list[float] | np.ndarray = 50,
+    plot_r_cz: bool = False,
     savepath: str | None = None,
 ):
     """Plot overlaid contours at several timestamps
@@ -169,8 +162,8 @@ def contour_overlay(
         alphas = [1.0]
     fig, ax = plt.subplots(1)
     ax.set_aspect("equal")
-    vmin = ds[var].min()
-    vmax = ds[var].max()
+    vmin = ds[var].isel(t=timestamps).min()
+    vmax = ds[var].isel(t=timestamps).max()
     if isinstance(levels, int):
         plot_levels = np.sort(list(np.linspace(vmin, vmax, levels)))
         if var == "psi":
@@ -210,6 +203,14 @@ def contour_overlay(
     ax.set_title(var)
     if colorbar:
         fig.colorbar(c)
+
+    if plot_r_cz:
+        # r_cz = predicted_r_cz(ds)
+        r_cz = 10.0
+        theta_cz = np.linspace(0, 2 * np.pi, 100)
+        x_cz = np.median(ds.x) + r_cz * np.cos(theta_cz)
+        y_cz = np.median(ds.y) + r_cz * np.sin(theta_cz)
+        ax.plot(x_cz, y_cz, linestyle="--", color="red")
 
     if savepath is not None:
         fig.savefig(savepath)
@@ -287,9 +288,13 @@ def animate_contour_list(
             # levels[v] = np.sort(list(np.linspace(vmin, vmax, num_levels)))
             # levels[v] = np.sort(np.array(list(levels[v]) + [0]))
             levels[v] = np.sort(
+                # np.array(
+                #     list(-np.linspace(0, (-vmin) ** (1 / 2), 25) ** (2))
+                #     + list(np.linspace(0, vmax ** (1 / 2), 25) ** (2))[1:]
+                # )
                 np.array(
-                    list(-np.linspace(0, (-vmin) ** (1 / 2), 25) ** (2))
-                    + list(np.linspace(0, vmax ** (1 / 2), 25) ** (2))[1:]
+                    list(-np.linspace(0, -vmin, int(num_levels / 2)))
+                    + list(np.linspace(0, vmax, int(num_levels / 2)))[1:]
                 )
             )
         else:
@@ -324,8 +329,10 @@ def animate_contour_list(
                 ax[j].plot(x_cz, y_cz, linestyle="--", color="red")
             ax[j].set_xlabel("x")
             ax[j].set_ylabel("y")
-            timestamp = ds_plot.t.values[plot_every * i] - ds.t.values[0]
-            ax[j].set_title(v + ", t={:.2f}$t_0$".format(timestamp))
+            timestamp = (
+                ds_plot.t.values[plot_every * i] - ds.t.values[0]
+            ) * ds.metadata["t_0"]
+            ax[j].set_title(v + ", t={:.2f}ms".format(timestamp * 1000))
 
         return cont
 
@@ -422,9 +429,9 @@ def plot_vector(
     vec_var: str,
     scalar: str = "P",
     t: int = 1,
-    density: float = 0.4,
     lw_prefactor: float | None = None,
     savepath: str | None = None,
+    use_seed_points: bool = False,
     **kwargs,
 ):
     """Plot vector field at a single timestamp
@@ -434,6 +441,7 @@ def plot_vector(
     :param scalar: Scalar variable to plot underneath, defaults to "P"
     :param t: Timestamp
     :param savepath: Where to save figure
+    :param use_seed_points: Launch streamlines from top of domain (should be used with broken_streamlines=False, and will generally require some fine tuning)
     :return: Animation
     """
 
@@ -444,11 +452,21 @@ def plot_vector(
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     scalar = ds["P"]
 
+    # Generate seed points
+    num_seed_points = 500
+    if use_seed_points:
+        seed_points = np.array(
+            [
+                np.linspace(ds.x.min() + 1e-6, ds.x.max() - 1e-6, num_seed_points),
+                [ds.y.values.max() - 1e-6 for i in range(num_seed_points)],
+            ]
+        ).T
+
     fig = plt.figure()
     ax = plt.axes()
     # ls = LightSource(azdeg=110, altdeg=10)
 
-    cont = ax.pcolormesh(X, Y, scalar.isel(t=t).values.T, cmap="inferno")
+    cont = ax.contourf(X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500)
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
     if lw_prefactor is None:
@@ -457,17 +475,29 @@ def plot_vector(
     else:
         lw = lw_prefactor * vec_mag.isel(t=t).values.T
         # lw = lw_prefactor * np.sqrt(vec_mag.isel(t=t).values.T)
-    cont = ax.streamplot(
-        X,
-        Y,
-        vec_x.isel(t=t).values.T,
-        vec_y.isel(t=t).values.T,
-        color="red",
-        linewidth=lw,
-        integration_direction="both",
-        density=density,
-        **kwargs,
-    )
+    if use_seed_points:
+        cont = ax.streamplot(
+            X,
+            Y,
+            vec_x.isel(t=t).values.T,
+            vec_y.isel(t=t).values.T,
+            color="red",
+            linewidth=lw,
+            integration_direction="both",
+            start_points=seed_points,
+            **kwargs,
+        )
+    else:
+        cont = ax.streamplot(
+            X,
+            Y,
+            vec_x.isel(t=t).values.T,
+            vec_y.isel(t=t).values.T,
+            color="red",
+            linewidth=lw,
+            integration_direction="both",
+            **kwargs,
+        )
 
     xmin = np.min(ds.x)
     xmax = np.max(ds.x)
@@ -628,11 +658,7 @@ def animate_q_targets(
     x3 = range(int(nx / 2))
     y4 = range(int(ny / 4), int(3 * ny / 4))
     qin, q1, q2, q3, q4 = get_q_legs(ds)
-
-    Q1 = q1.integrate(coord="y")
-    Q2 = q2.integrate(coord="x")
-    Q3 = q3.integrate(coord="x")
-    Q4 = q4.integrate(coord="y")
+    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
 
     if normalise:
         q1 = (q1 / Q1).values
@@ -755,7 +781,10 @@ def animate_q_targets(
 
 
 def q_target_proportions(
-    ds: xr.Dataset, normalise: bool = True, savepath: str | None = None
+    ds: xr.Dataset,
+    normalise: bool = True,
+    savepath: str | None = None,
+    ylim: list | tuple | None = None,
 ):
     """Plot total heat flow to each divertor leg (assuming snowflake config)
 
@@ -777,7 +806,7 @@ def q_target_proportions(
         ax.stackplot(
             (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
             [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
-            labels=["1", "2", "3", "4"],
+            labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
         )
         ax.set_ylabel(r"$P_{l} / P_{tot}$")
 
@@ -785,7 +814,7 @@ def q_target_proportions(
         ax.stackplot(
             (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
             [q1, q2, q3, q4],
-            labels=["1", "2", "3", "4"],
+            labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
         )
         # ax.plot(ds.t - ds.t[0], -qin)
         ax.set_ylabel(r"$P_{l}$ [MWm$^{-2}$]")
@@ -793,6 +822,8 @@ def q_target_proportions(
     ax.legend(loc="upper left")
     ax.set_xlabel("$t$ [ms]")
     ax.grid()
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     print(
@@ -822,13 +853,9 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     :param ds: Dataset output from BOUT++ simulation
     :return: qin, q1, q2, q3, q4
     """
-    prefactor = (
-        1e-6
-        * ds.metadata["n_sepx"]
-        * ds.metadata["D_0"]
-        * ds.metadata["e"]
-        * ds.metadata["T_sepx"]
-        / ds.metadata["a_mid"]
+    q_prefactor = 1e-6 * (
+        ds.metadata["P_0"]
+        * ds.metadata["C_s0"]
     )
     nx = len(ds.x)
     ny = len(ds.y)
@@ -837,14 +864,14 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
     y4 = range(int(ny / 4), int(3 * ny / 4))
-    qin = -prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=-1, x=x0)
-    q1 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
-    q2 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
-    q3 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
-    q4 = prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
+    qin = -q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=-1, x=x0)
+    q1 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
+    q2 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
+    q3 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
+    q4 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
 
     # Calculate heat flux normal to boundaries
-    B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
+    B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] **2)
     q1 = q1 * ds["B_x"].isel(x=-1, y=y1) / B_mag.isel(x=-1, y=y1)
     q2 = q2 * ds["B_y"].isel(y=0, x=x2) / B_mag.isel(y=0, x=x2)
     q3 = -q3 * ds["B_y"].isel(y=0, x=x3) / B_mag.isel(y=0, x=x3)
@@ -855,11 +882,17 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
 
 def get_Q_legs(ds: xr.Dataset):
     qin, q1, q2, q3, q4 = get_q_legs(ds)
-    Qin = qin.integrate(coord="x") * ds.metadata["a_mid"]
-    Q1 = q1.integrate(coord="y") * ds.metadata["a_mid"]
-    Q2 = q2.integrate(coord="x") * ds.metadata["a_mid"]
-    Q3 = q3.integrate(coord="x") * ds.metadata["a_mid"]
-    Q4 = q4.integrate(coord="y") * ds.metadata["a_mid"]
+    if ds.metadata["grid_units"] == "cm":
+        Q_prefactor = 1 / 100.0
+    elif ds.metadata["grid_units"] == "m":
+        Q_prefactor = 1.0
+    elif ds.metadata["grid_units"] == "a_mid":
+        Q_prefactor = ds.metadata["a_mid"]
+    Qin = qin.integrate(coord="x") * Q_prefactor
+    Q1 = q1.integrate(coord="y") * Q_prefactor
+    Q2 = q2.integrate(coord="x") * Q_prefactor
+    Q3 = q3.integrate(coord="x") * Q_prefactor
+    Q4 = q4.integrate(coord="y") * Q_prefactor
 
     return Qin, Q1, Q2, Q3, Q4
 
@@ -870,29 +903,30 @@ def find_nearest(array, value):
     return idx
 
 
-def find_nulls(
-    ds: xr.Dataset, num: int = 2, timestamp: int = 0, cmap: str = "inferno"
+def find_null_coords(
+    ds: xr.Dataset,
+    num: int = 2,
+    timestamp: int = 0,
 ) -> list:
     """Use magnetic pressure minimums to identify location of null points
 
     :param ds: xarray dataset output from BOUT++
     :param num: number of nulls (1 or 2)
     :param timestamp: which timestamp in which to find nulls
-    :param cmap: colourmap to use for underlying pressure profile
-    :return: [x1, x2, y1, y2]
+    :return: x1, x2, y1, y2, psi1, psi2
     """
-    ds["P_b"] = (
-        10
-        * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
-        / (2 * mu_0)
-    )
+    if not hasattr(ds, "P_b"):
+        ds["P_b"] = (
+            10
+            * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
+            / (2 * mu_0)
+        )
     dr = ds["P_b"].isel(t=timestamp)
     firstmin = dr.argmin(dim=["x", "y"], keep_attrs=True)
     i1 = firstmin["x"].values
     j1 = firstmin["y"].values
     x1 = dr.x[i1]
     y1 = dr.y[j1]
-    # print("(x1,y1) = ({:.4f},{:.4f})".format(x1, y1))
     dr[i1, j1] = dr.values.max()
     if num == 2:
         for k in range(100):
@@ -903,7 +937,6 @@ def find_nulls(
             if (abs(i2 - i1) > 1) or (abs(j2 - j1) > 1):
                 x2 = dr.x[i2]
                 y2 = dr.y[j2]
-                # print("(x2,y2) = ({:.4f},{:.4f})".format(x2, y2))
                 break
             else:
                 dr[i2, j2] = dr.values.max()
@@ -911,18 +944,55 @@ def find_nulls(
         x2 = x1
         y2 = y1
 
+    psi1 = ds["psi"].isel(x=i1, y=j1, t=timestamp).values
+    psi2 = ds["psi"].isel(x=i2, y=j2, t=timestamp).values
+
+    # Ensure upper null is always primary
+    if y2 > y1:
+        tmp_x2 = x1
+        tmp_y2 = y1
+        tmp_psi2 = psi1
+
+        x1 = x2
+        y1 = y2
+        psi1 = psi2
+
+        x2 = tmp_x2
+        y2 = tmp_y2
+        psi2 = tmp_psi2
+
+    return x1, x2, y1, y2, psi1, psi2
+
+
+def plot_nulls(
+    ds: xr.Dataset,
+    num: int = 2,
+    timestamp: int = 0,
+    cmap: str = "inferno",
+) -> list:
+    """Use magnetic pressure minimums to identify location of null points and plot
+
+    :param ds: xarray dataset output from BOUT++
+    :param num: number of nulls (1 or 2)
+    :param timestamp: which timestamp in which to find nulls
+    :param cmap: colourmap to use for underlying pressure profile
+    :param print_output: whether to print locations of nulls ofund for pasting into BOUT.inp file
+    :return: [x1, x2, y1, y2]
+    """
+    ds["P_b"] = (
+        10
+        * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
+        / (2 * mu_0)
+    )
+    x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, num=num, timestamp=timestamp)
+
     print(r"x_1 = {:.4f} # x-coordinate of first X-point  [a_mid]".format(x1))
     print(r"y_1 = {:.4f} # y-coordinate of first X-point  [a_mid]".format(y1))
     print(r"x_2 = {:.4f} # x-coordinate of second X-point  [a_mid]".format(x2))
     print(r"y_2 = {:.4f} # y-coordinate of second X-point  [a_mid]".format(y2))
 
     fig, ax = plt.subplots(1)
-    # ax.pcolormesh(
-    #     ds.x, ds.y, np.log(ds["P_b"].isel(t=timestamp)).values.T, cmap="inferno"
-    # )
 
-    psi1 = ds["psi"].isel(x=i1, y=j1, t=timestamp).values
-    psi2 = ds["psi"].isel(x=i2, y=j2, t=timestamp).values
     ax.pcolormesh(ds.x, ds.y, ds["P"].isel(t=timestamp).values.T, cmap=cmap)
     ax.contour(
         ds.x,
@@ -938,7 +1008,112 @@ def find_nulls(
     print(r"psi_1 = {:.5f} ".format(psi1))
     print(r"psi_2 = {:.5f} ".format(psi2))
 
-    return [x1, x2, y1, y2]
+    ax.set_xlabel("x [cm]")
+    ax.set_ylabel("y [cm]")
+
+    return
+
+
+def animate_nulls(
+    ds,
+    plot_every: int = 1,
+    fps: int = 10,
+    savepath: str | None = None,
+    refind_nulls_each_timestep: bool = True,
+):
+    """Animate hte position of both nulls over time
+
+    :param ds: xarray dataset from BOUT++
+    :param plot_every: plot every n timesteps, defaults to 1
+    :param fps: fps of saved animation, defaults to 10
+    :param savepath: savepath of output gif or video, defaults to None
+    :return: animation
+    """
+    ds["P_b"] = (
+        10
+        * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
+        / (2 * mu_0)
+    )
+    ds_plot = ds
+
+    # TODO: Add colorbar
+    # Generate grid for plotting
+    xmin = 0
+    xmax = -1
+    xvals = ds_plot["x"][xmin:xmax]
+    yvals = ds_plot["y"][xmin:xmax]
+    vars = ["P"]
+    fig, ax = plt.subplots(nrows=1, ncols=len(vars))
+    if len(vars) == 1:
+        ax = [ax]
+
+    max_timestep = len(ds_plot.t)
+    min_timestep = 0
+    ds_plot = ds_plot.isel(t=range(min_timestep, max_timestep))
+
+    levels = {}
+    var_arrays = {}
+    num_levels = 200
+    for j, v in enumerate(vars):
+        var_arrays[v] = ds_plot[v].values[:, xmin:xmax, xmin:xmax]
+        ax[j].set_xlim((0, xvals.values.max()))
+        ax[j].set_ylim((0, yvals.values.max()))
+        ax[j].set_aspect("equal")
+        vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
+        vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
+        levels[v] = np.sort(list(np.linspace(vmin, vmax, 2 * num_levels)))
+
+    if not refind_nulls_each_timestep:
+        x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestamp=0)
+    else:
+        psi1 = None
+        psi2 = None
+
+    def animate(i, refind_nulls_each_timestep, psi1=None, psi2=None):
+        if refind_nulls_each_timestep:
+            x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestamp=i * plot_every)
+
+        for j, v in enumerate(vars):
+            ax[j].clear()
+            z = var_arrays[v][plot_every * i].T
+            cont = ax[j].contourf(
+                xvals,
+                yvals,
+                z,
+                vmin=levels[v].min(),
+                vmax=levels[v].max(),
+                levels=levels[v],
+                cmap="inferno",
+            )
+            ax[j].set_xlabel("x")
+            ax[j].set_ylabel("y")
+            timestamp = ds_plot.t.values[plot_every * i] - ds.t.values[0]
+            ax[j].set_title(v + ", t={:.2f}$t_0$".format(timestamp))
+
+            ax[j].contour(
+                ds_plot.x,
+                ds_plot.y,
+                ds_plot["psi"].isel(t=i * plot_every).values.T,
+                levels=np.sort([psi1, psi2]),
+                colors="white",
+                linestyles=["--", "-"],
+                zorder=998,
+            )
+            if refind_nulls_each_timestep:
+                ax[j].scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
+
+        return cont
+
+    anim = animation.FuncAnimation(
+        fig,
+        animate,
+        frames=int(var_arrays[vars[0]].shape[0] / plot_every),
+        fargs=[refind_nulls_each_timestep, psi1, psi2],
+    )
+    if savepath is not None:
+        anim.save(savepath, fps=fps)
+
+    return anim
 
 
 def plot_power_deposition_vs_d_sep(
@@ -946,8 +1121,8 @@ def plot_power_deposition_vs_d_sep(
     rundir_labels: list[str],
     sepdirs: list[str],
     seps: list[float],
-    timestamp: int = -1,
-    avg_window: int = 50,
+    timestamp: list[int] = -1,
+    avg_window: list[int] | int = 50,
     tgrid_rundir: str = None,
     xlim: list[float] | None = None,
     p1_ylim: list[float] | None = None,
@@ -963,6 +1138,7 @@ def plot_power_deposition_vs_d_sep(
     plot_p2: bool = True,
     plot_p3: bool = True,
     plot_p4: bool = True,
+    legend_loc: str = "upper right",
 ) -> None:
     if tgrid_rundir is None:
         tgrid_rundir = os.path.join(rundirs[0], sepdirs[0])
@@ -970,6 +1146,12 @@ def plot_power_deposition_vs_d_sep(
         tgrid_rundir,
         remove_xgc=True,
     ).t
+
+    if isinstance(avg_window, int):
+        avg_window = [avg_window] * len(rundirs)
+
+    if isinstance(timestamp, int):
+        timestamp = [timestamp] * len(rundirs)
 
     markers = ["x", "+", "*", "o", "v", "^"]
 
@@ -981,14 +1163,14 @@ def plot_power_deposition_vs_d_sep(
         for j, sigma in enumerate(sepdirs):
             ds = read_boutdata(os.path.join(rundir, sigma), remove_xgc=True)
             ds.interp(t=tgrid)
-            ds_avg = ds.rolling(t=avg_window, min_periods=1).mean()
+            ds_avg = ds.rolling(t=avg_window[i], min_periods=1).mean()
 
             _, Q1, Q2, Q3, Q4 = get_Q_legs(ds_avg)
             Q_tot = Q1 + Q2 + Q3 + Q4
-            P1s[i, j] = (Q1 / Q_tot).isel(t=timestamp)
-            P2s[i, j] = (Q2 / Q_tot).isel(t=timestamp)
-            P3s[i, j] = (Q3 / Q_tot).isel(t=timestamp)
-            P4s[i, j] = (Q4 / Q_tot).isel(t=timestamp)
+            P1s[i, j] = (Q1 / Q_tot).isel(t=timestamp[i])
+            P2s[i, j] = (Q2 / Q_tot).isel(t=timestamp[i])
+            P3s[i, j] = (Q3 / Q_tot).isel(t=timestamp[i])
+            P4s[i, j] = (Q4 / Q_tot).isel(t=timestamp[i])
 
     if rundir_colours is None:
         alphas = np.linspace(1.0, 0.25, len(rundirs))
@@ -1082,9 +1264,9 @@ def plot_power_deposition_vs_d_sep(
             alpha=alphas[i],
             label=rundir_labels[i],
         )
-    ax[0].legend(loc="upper right")
+    ax[0].legend(loc=legend_loc)
 
-    ax[-1].set_xlabel("Inter-null separation [cm]")
+    ax[-1].set_xlabel("Inter-null distance $d_{xx}$ [cm]")
     if xlim is not None:
         ax[-1].set_xlim(xlim)
 
@@ -1099,3 +1281,195 @@ def grid_limited_d_sol(target_d_sol: float = 10.0, dx: float = 0.9) -> float:
     """
     L_y = (target_d_sol / (dx ** (1 / 3))) ** (3 / 2)
     return L_y
+
+
+def lineslice(
+    ds: xr.Dataset,
+    variable: str,
+    line_coords: np.ndarray,
+    timestamp: int = -1,
+):
+    """Evaluate a simulation variable along a line given by line_coords
+
+    :param ds: Xarray dataset from BOUT++
+    :param variable: Name of variable to evaluate
+    :param line_coords: 2D array of line coordinates [[x1, y1], ..., [xN, yN]]
+    :param timestamp: Integer timestamp to evluate at, defaults to -1
+    :return: 1D numpy array
+    """
+    result = np.zeros(len(line_coords))
+    for i in range(len(line_coords)):
+        x = line_coords[i][0]
+        y = line_coords[i][1]
+        result[i] = ds[variable].interp(x=x, y=y).isel(t=timestamp).values
+    return result
+
+
+def plot_lineslice(
+    ds: xr.Dataset,
+    variable: str,
+    line_coords: np.ndarray,
+    timestamps: int | list[int] = -1,
+):
+
+    # Get parallel coordinate
+    s = np.zeros(len(line_coords))
+    for i in range(1, len(line_coords)):
+        s[i] = s[i - 1] + np.sqrt(
+            (line_coords[i][0] - line_coords[i - 1][0]) ** 2
+            + (line_coords[i][1] - line_coords[i - 1][1]) ** 2
+        )
+
+    if isinstance(timestamps, int):
+        timestamps = [timestamps]
+
+    vals = []
+    for timestamp in timestamps:
+        vals.append(lineslice(ds, variable, line_coords, timestamp))
+
+    fig, ax = plt.subplots(2)
+
+    ax[0].contourf(
+        ds.x, ds.y, ds.isel(t=-1)[variable].values.T, cmap="inferno", levels=200
+    )
+    x = line_coords.T[0]
+    y = line_coords.T[1]
+    ax[0].plot(x, y, color="red", linestyle="--")
+    for i, timestamp in enumerate(timestamps):
+        ax[1].plot(s, vals[i], label=timestamp)
+    ax[1].legend()
+    ax[1].grid()
+    fig.tight_layout()
+
+
+def ddx(ds: xr.Dataset, f: str) -> xr.DataArray:
+    """Calculate x partial deriviative of variable f in dataset ds
+
+    :param ds: xarray dataset from BOUT++
+    :param f: Name of variable in ds
+    :return: df/dx
+    """
+    f = ds[f].values
+    dx = ds["dx"].values
+    dfdx = np.zeros(f.shape)
+    for t in range(dfdx.shape[0]):
+        for ix in range(1, dfdx.shape[1] - 1):
+            dfdx[t, ix, :] = (f[t, ix + 1, :] - f[t, ix - 1, :]) / (2 * dx[ix, :])
+
+    dfdx = xr.DataArray(data=dfdx, dims=["t", "x", "y"])
+    return dfdx
+
+
+def ddy(ds: xr.Dataset, f: str) -> xr.DataArray:
+    """Calculate y partial deriviative of variable f in dataset ds
+
+    :param ds: xarray dataset from BOUT++
+    :param f: Name of variable in ds
+    :return: df/dx
+    """
+    f = ds[f].values
+    dy = ds["dy"].values
+    dfdy = np.zeros(f.shape)
+    for t in range(dfdy.shape[0]):
+        for iy in range(1, dfdy.shape[2] - 1):
+            dfdy[t, :, iy] = (f[t, :, iy + 1] - f[t, :, iy - 1]) / (2 * dy[:, iy])
+
+    dfdy = xr.DataArray(data=dfdy, dims=["t", "x", "y"])
+    return dfdy
+
+
+def explore_flux_surfaces(ds: xr.Dataset, t: int = 0, colorbar: bool = False):
+    """Interactive plot with sliders for two surfaces of constant psi
+
+    :param ds: xarray dataset
+    :param t: timestep to plot, defaults to 0
+    :param colorbar: whether to add colorbar to plot
+    :return: sliders to enable interactivity in notebook
+    """
+    fig, ax = plt.subplots(1)
+    cont = ax.contourf(
+        ds.x, ds.y, ds["P"].isel(t=t).transpose(), cmap="inferno", levels=200
+    )
+    if colorbar:
+        fig.colorbar(cont, label="$P$")
+    _, _, _, _, psi1, psi2 = find_null_coords(ds, timestamp=t)
+    surfs = [
+        ax.contour(
+            ds.x,
+            ds.y,
+            ds["psi"].isel(t=t).transpose(),
+            levels=[psi1],
+            colors="white",
+            zorder=999,
+            linestyles="-",
+        ),
+        ax.contour(
+            ds.x,
+            ds.y,
+            ds["psi"].isel(t=t).transpose(),
+            levels=[psi2],
+            colors="white",
+            zorder=999,
+            linestyles="--",
+        ),
+    ]
+
+    fig.subplots_adjust(left=0.15, bottom=0.3, right=0.85, top=0.92)
+
+    axsurf1 = fig.add_axes([0.15, 0.15, 0.6, 0.03])
+    axsurf2 = fig.add_axes([0.15, 0.05, 0.6, 0.03])
+    psi_rng = ds["psi"].isel(t=t).max().values - ds["psi"].isel(t=t).min().values
+
+    surf1_slider = Slider(
+        ax=axsurf1,
+        label=r"$\psi_1$",
+        valmin=-0.02 * psi_rng,
+        valmax=0.01 * psi_rng,
+        valinit=psi1,
+    )
+    surf2_slider = Slider(
+        ax=axsurf2,
+        label=r"$\psi_2$",
+        valmin=-0.02 * psi_rng,
+        valmax=0.01 * psi_rng,
+        valinit=psi2,
+    )
+
+    def update_surf1(val):
+        surfs[0].remove()
+        surfs[0] = ax.contour(
+            ds.x,
+            ds.y,
+            ds["psi"].isel(t=t).transpose(),
+            levels=[val],
+            colors="white",
+            zorder=999,
+            linestyles="-",
+        )
+        return surfs
+
+    def update_surf2(val):
+        surfs[1].remove()
+        surfs[1] = ax.contour(
+            ds.x,
+            ds.y,
+            ds["psi"].isel(t=t).transpose(),
+            levels=[val],
+            colors="white",
+            zorder=999,
+            linestyles="--",
+        )
+        return surfs
+
+    surf1_slider.on_changed(update_surf1)
+    surf2_slider.on_changed(update_surf2)
+
+    ax.plot([], [], color="white", linestyle="-", label=r"$\psi_1$")
+    ax.plot([], [], color="white", linestyle="--", label=r"$\psi_2$")
+    ax.legend(loc="upper left")
+
+    ax.set_xlabel("x [cm]")
+    ax.set_ylabel("y [cm]")
+
+    # plt.show()
+    return surf1_slider, surf2_slider
