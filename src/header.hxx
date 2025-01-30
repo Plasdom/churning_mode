@@ -77,6 +77,7 @@ private:
     Field3D div_q;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
+    // Field3D debugvar;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -99,6 +100,7 @@ private:
     BoutReal r_star;         ///< Radius of the additional mixing zone [a_mid]
     BoutReal P_core;         ///< Pressure at core boundary [P_0]
     BoutReal lambda_SOL_rho; ///< SOL width parameter in units of normalised flux coordinate
+    BoutReal Q_in;           ///< Inpuw power to top of domain [MW]
 
     // Other parameters
     BoutReal mu_0;        ///< Vacuum permeability [N A^-2]
@@ -119,6 +121,7 @@ private:
     BoutReal beta_p;      ///< Poloidal beta [-]
     BoutReal P_grad_0;    ///< Vertical pressure gradient normalisation
     BoutReal boltzmann_k; ///< Boltzmann's constant
+    BoutReal q_in;        /// Heat flux into domain if fixed_Q_in option is true
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure
@@ -135,6 +138,7 @@ private:
     bool use_classic_div_q_perp;
     bool use_gunter_div_q_perp;
     bool T_dependent_q_par;
+    bool fixed_Q_in;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -168,11 +172,12 @@ private:
     Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev = 1.0);
 
-    // Y boundary iterators
-    // RangeIterator itl;
-    // RangeIterator itu;
+    // Boundary conditions
     RangeIterator itl = mesh->iterateBndryLowerY();
     RangeIterator itu = mesh->iterateBndryUpperY();
+    void fixed_P_core_BC();
+    // Field3D test_par_extrap_P_up_BC();
+    // void par_extrap_P_up_BC();
 
     // Define some extra derivative functions
     Field3D D3DX3(const Field3D &f);

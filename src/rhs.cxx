@@ -2,34 +2,29 @@
 
 int Churn::rhs(BoutReal UNUSED(t))
 {
-    // Reset the upstream P boundary
+    mesh->communicate(P, psi);
+    // // Calculate B
+    B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B_mag = abs(B);
+
+    // Apply upstream P boundary condition
     if (fixed_P_core)
     {
-        for (itu.first(); !itu.isDone(); itu++)
-        {
-            // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-            for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-            {
-                for (int iz = 0; iz < mesh->LocalNz; iz++)
-                {
-                    if (psi(itu.ind, iy, iz) >= 0.0)
-                    {
-                        P(itu.ind, iy, iz) = P_core;
-                    }
-                    else
-                    {
-                        P(itu.ind, iy, iz) = P_core * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
-                    }
-                }
-            }
-        }
+        fixed_P_core_BC();
     }
+    // else if (par_extrap_P_up)
+    // if (par_extrap_P_up)
+    // {
+    //     debugvar = test_par_extrap_P_up_BC();
+    //     // par_extrap_P_up_BC();
+    // }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
     if (invert_laplace)
     {
-        mesh->communicate(P, psi, omega);
+        mesh->communicate(omega);
         phi = mySolver.invert(omega);
         try
         {
@@ -45,22 +40,13 @@ int Churn::rhs(BoutReal UNUSED(t))
     }
     else
     {
-        mesh->communicate(P, psi, omega, phi);
+        mesh->communicate(omega, phi);
         ddt(phi) = (D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega;
     }
     mesh->communicate(phi);
 
     // Calculate velocity
     u = -cross(e_z, Grad(phi));
-
-    // mesh->communicate(u);
-
-    // // Calculate B
-    B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    B_mag = abs(B);
-
-    // mesh->communicate(B);
 
     // Get T
     T = P; // Normalised T = normalised P when rho = const
@@ -108,7 +94,7 @@ int Churn::rhs(BoutReal UNUSED(t))
             else if (use_modified_stegmeir_div_q_par)
             {
                 ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
-                q_par = 0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
+                q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
             }
             else if (use_linetrace_div_q_par)
             {
@@ -136,6 +122,19 @@ int Churn::rhs(BoutReal UNUSED(t))
             // Calculate q for output
             // TODO: This should match the method used in div_q calculation
             q_perp = -kappa_perp * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+        }
+
+        // Boundary q_in
+        for (itu.first(); !itu.isDone(); itu++)
+        {
+            // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+            {
+                if ((mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2)) || (mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2) + 1))
+                {
+                    ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
+                }
+            }
         }
     }
 

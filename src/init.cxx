@@ -29,6 +29,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     r_star = options["r_star"].doc("Radius of the additional mixing zone [a_mid]").withDefault(0.1);
     lambda_SOL_rho = options["lambda_SOL_rho"].doc("SOL width parameter in units of normalised flux coordinate").withDefault(3.0);
     P_core = options["P_core"].doc("Pressure at core boundary [P_0]").withDefault(1.0);
+    Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -73,6 +74,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     T_dependent_q_par = options["T_dependent_q_par"]
                             .doc("Use Spitzer-Harm parallel thermal conductivity (implemented for modified_stegmeir_div_q_par only)")
                             .withDefault(false);
+    fixed_Q_in = options["fixed_Q_in"]
+                     .doc("Fixed input energy at top of domain")
+                     .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -140,7 +144,15 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_REPEAT(q_perp);
     }
 
+    // SAVE_REPEAT(debugvar);
+    // debugvar = 0.0;
     // SAVE_REPEAT(div_q);
+
+    if (fixed_Q_in)
+    {
+        q_in = Q_in / (2.0 * pi * R_0 * 2.0 * mesh->getCoordinates()->dx(0, 0) * a_mid);
+        q_in = 1e6 * q_in / (C_s0 * P_0);
+    }
 
     // Set downstream pressure boundaries
     // TODO: Find out why this is needed instead of just setting bndry_xin=dirichlet, etc

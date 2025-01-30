@@ -1052,11 +1052,21 @@ Field3D Churn::Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b
             y_plus = -y_plus;
         }
         ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
-
         ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                u_plus = u[i];
+            }
+        }
+
         result[i] = K_par * (u_plus - u[i]) / ds;
     }
 
@@ -1101,14 +1111,20 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
             y_plus = -y_plus;
         }
         ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
-
         ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-        // K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-        // result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
-        // result[i] = K_par_plus * (u_plus - u[i]) / ds;
+
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                u_plus = u[i];
+            }
+        }
+
         result[i] = K_par[i] * (u_plus - u[i]) / ds;
     }
 
@@ -1218,11 +1234,20 @@ Field3D Churn::Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &
             y_minus = -y_minus;
         }
         ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
-
         ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                u_minus = u[i];
+            }
+        }
+
         result[i] = -K_par * (u_minus - u[i]) / ds;
     }
 
@@ -1267,14 +1292,20 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
             y_minus = -y_minus;
         }
         ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
-
         ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        // K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        // result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
-        // result[i] = -K_par_minus * (u_minus - u[i]) / ds;
+
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                u_minus = u[i];
+            }
+        }
+
         result[i] = -K_par[i] * (u_minus - u[i]) / ds;
     }
 
