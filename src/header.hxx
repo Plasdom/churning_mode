@@ -146,13 +146,9 @@ private:
     const int nits_inv_extra = 0;
 
     // Methods related to difference heat conduction models
-    Field3D div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b);
-    Field3D div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
-    Field3D div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b);
-    Field3D div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b);
     Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b);
     TwoIntersects get_intersects(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &P, const double &bx, const double &by);
     CellIntersect get_next_intersect(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &prev_intersect, const double &bx, const double &by);
@@ -167,7 +163,6 @@ private:
     Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b);
     Field3D Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b);
     Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
-    Field3D div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev = 1.0);

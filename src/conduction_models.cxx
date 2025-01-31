@@ -1,17 +1,5 @@
 #include "header.hxx"
 
-Field3D Churn::div_q_par_classic(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
-{
-    // Classic stencil for parallel heat flux divergence term (spatially constant conductivity)
-    TRACE("div_q_par_classic");
-
-    Field3D result;
-
-    result = K_par * (D2DX2_DIFF(T, pow(b.x, 2.0)) + D2DY2_DIFF(T, pow(b.y, 2.0)) + DDX(b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-
-    return result;
-}
-
 Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b)
 {
     // Classic stencil for parallel heat flux divergence term (spatially varying conductivity)
@@ -24,17 +12,6 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
     return result;
 }
 
-Field3D Churn::div_q_perp_classic(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
-{
-    // Classic stencil for perpendicular heat flux divergence term (spatially constant conductivity)
-    TRACE("div_q_perp_classic");
-
-    Field3D result;
-
-    result = K_perp * (D2DX2(T) + D2DY2(T) - D2DX2_DIFF(T, pow(b.x, 2.0)) - D2DY2_DIFF(T, pow(b.y, 2.0)) - DDX(b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-    return result;
-}
-
 Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b)
 {
     // Classic stencil for perpendicular heat flux divergence term (spatially varying conductivity)
@@ -43,48 +20,6 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     Field3D result;
 
     result = D2DX2_DIFF(T, K_perp * (1.0 - pow(b.x, 2.0))) + D2DY2_DIFF(T, K_perp * (1.0 - pow(b.y, 2.0))) - DDX(K_perp * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(K_perp * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-
-    return result;
-}
-
-Field3D Churn::div_q_par_gunter(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
-{
-    // Gunter stencil for parallel heat flux divergence term (spatially constant conductivity)
-    TRACE("div_q_par_gunter");
-
-    Field3D result;
-    Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_parx_corners, q_pary_corners, q_perpx_corners, q_perpy_corners;
-
-    Coordinates *coord = mesh->getCoordinates();
-
-    // TODO: Check below is valid when dx!=dy
-    bx_corners.allocate();
-    by_corners.allocate();
-    for (auto i : result)
-    {
-        bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
-        by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
-    }
-
-    // Find temperature gradients on cell corners
-    DTDX_corners.allocate();
-    DTDY_corners.allocate();
-    for (auto i : DTDX_corners)
-    {
-
-        DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
-        DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
-    }
-
-    q_parx_corners = K_par * bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
-    q_pary_corners = K_par * by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
-
-    result.allocate();
-    for (auto i : result)
-    {
-        result[i] = (1.0 / (2.0 * coord->dx[i])) * (q_parx_corners[i.xp().yp()] + q_parx_corners[i.xp()] - q_parx_corners[i.yp()] - q_parx_corners[i]);
-        result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_pary_corners[i.xp().yp()] + q_pary_corners[i.yp()] - q_pary_corners[i.xp()] - q_pary_corners[i]);
-    }
 
     return result;
 }
@@ -128,47 +63,6 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
     {
         result[i] = (1.0 / (2.0 * coord->dx[i])) * (q_parx_corners[i.xp().yp()] + q_parx_corners[i.xp()] - q_parx_corners[i.yp()] - q_parx_corners[i]);
         result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_pary_corners[i.xp().yp()] + q_pary_corners[i.yp()] - q_pary_corners[i.xp()] - q_pary_corners[i]);
-    }
-
-    return result;
-}
-
-Field3D Churn::div_q_perp_gunter(const Field3D &T, const BoutReal &K_perp, const Vector3D &b)
-{
-    // Gunter stencil for perpendicular heat flux divergence term (spatially constant conductivity)
-    TRACE("div_q_perp_gunter");
-
-    Field3D result;
-    Field3D bx_corners, by_corners, DTDX_corners, DTDY_corners, q_perpx_corners, q_perpy_corners;
-
-    Coordinates *coord = mesh->getCoordinates();
-
-    // TODO: Check below is valid when dx!=dy
-    bx_corners.allocate();
-    by_corners.allocate();
-    for (auto i : result)
-    {
-        bx_corners[i] = 0.25 * (b.x[i.xm()] + b.x[i.xm().ym()] + b.x[i.ym()] + b.x[i]);
-        by_corners[i] = 0.25 * (b.y[i.xm()] + b.y[i.xm().ym()] + b.y[i.ym()] + b.y[i]);
-    }
-
-    // Find temperature gradients on cell corners
-    DTDX_corners.allocate();
-    DTDY_corners.allocate();
-    for (auto i : DTDX_corners)
-    {
-
-        DTDX_corners[i] = (1.0 / (2.0 * coord->dx[i])) * ((T[i] + T[i.ym()]) - (T[i.xm()] + T[i.xm().ym()]));
-        DTDY_corners[i] = (1.0 / (2.0 * coord->dy[i])) * ((T[i] + T[i.xm()]) - (T[i.ym()] + T[i.xm().ym()]));
-    }
-    q_perpx_corners = K_perp * (DTDX_corners - bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
-    q_perpy_corners = K_perp * (DTDY_corners - by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners));
-
-    result.allocate();
-    for (auto i : result)
-    {
-        result[i] = (1.0 / (2.0 * coord->dx[i])) * (q_perpx_corners[i.xp().yp()] + q_perpx_corners[i.xp()] - q_perpx_corners[i.yp()] - q_perpx_corners[i]);
-        result[i] += (1.0 / (2.0 * coord->dy[i])) * (q_perpy_corners[i.xp().yp()] + q_perpy_corners[i.yp()] - q_perpy_corners[i.xp()] - q_perpy_corners[i]);
     }
 
     return result;
@@ -1006,73 +900,6 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
     return result;
 }
 
-Field3D Churn::Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
-{
-    TRACE("Q_plus");
-
-    Field3D result;
-    BoutReal f_x, f_y;
-    double y_plus, x_plus, ds_p, ds, u_plus;
-    int n_x, n_y;
-
-    Coordinates *coord = mesh->getCoordinates();
-
-    result = 0.0;
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    for (auto i : result)
-    {
-        // // Modified Stegmeir a
-        // ds_p = sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-        // x_plus = ds_p * cos(atan2(b.y[i], b.x[i]));
-        // y_plus = x_plus * b.y[i] / b.x[i];
-        // n_x = static_cast<int>(floor(x_plus / coord->dx[i]));
-        // n_y = static_cast<int>(floor((y_plus) / coord->dy[i]));
-
-        // Modified Stegmeir b
-        x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_plus = std::min(static_cast<double>(coord->dx[i]), x_plus);
-        y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_plus = std::min(static_cast<double>(coord->dy[i]), y_plus);
-        if (b.x[i] >= 0)
-        {
-            n_x = 0;
-        }
-        else
-        {
-            n_x = -1;
-            x_plus = -x_plus;
-        }
-        if (b.y[i] >= 0)
-        {
-            n_y = 0;
-        }
-        else
-        {
-            n_y = -1;
-            y_plus = -y_plus;
-        }
-        ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
-        ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
-
-        f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
-        f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
-        u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-
-        // Check if extrapolating across boundary
-        if (fixed_Q_in)
-        {
-            if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
-            {
-                u_plus = u[i];
-            }
-        }
-
-        result[i] = K_par * (u_plus - u[i]) / ds;
-    }
-
-    return result;
-}
-
 Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
 {
     TRACE("Q_plus");
@@ -1182,73 +1009,6 @@ Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b)
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
         result[i] = (u_plus - u[i]) / ds;
-    }
-
-    return result;
-}
-
-Field3D Churn::Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
-{
-    TRACE("Q_minus");
-
-    Field3D result;
-    BoutReal f_x, f_y;
-    double y_minus, x_minus, ds_p, ds, u_minus;
-    int n_x, n_y;
-
-    Coordinates *coord = mesh->getCoordinates();
-
-    result = 0.0;
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    for (auto i : result)
-    {
-
-        // // Modified Stegmeir a
-        // ds_p = 0.5 * sqrt(pow(coord->dx[i], 2) + pow(coord->dy[i], 2));
-        // x_minus = ds_p * cos(atan2(b.y[i], b.x[i]));
-        // y_minus = x_minus * b.y[i] / b.x[i];
-        // n_x = static_cast<int>(floor(x_minus / coord->dx[i]));
-        // n_y = static_cast<int>(floor(y_minus / coord->dy[i]));
-
-        // Modified Stegmeir b
-        x_minus = coord->dy[i] * abs(b.x[i] / b.y[i]);
-        x_minus = std::min(static_cast<double>(coord->dx[i]), x_minus);
-        y_minus = coord->dx[i] * abs(b.y[i] / b.x[i]);
-        y_minus = std::min(static_cast<double>(coord->dy[i]), y_minus);
-        if (b.x[i] >= 0)
-        {
-            n_x = 0;
-        }
-        else
-        {
-            n_x = -1;
-            x_minus = -x_minus;
-        }
-        if (b.y[i] >= 0)
-        {
-            n_y = 0;
-        }
-        else
-        {
-            n_y = -1;
-            y_minus = -y_minus;
-        }
-        ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
-        ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
-        f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
-        f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
-        u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-
-        // Check if extrapolating across boundary
-        if (fixed_Q_in)
-        {
-            if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
-            {
-                u_minus = u[i];
-            }
-        }
-
-        result[i] = -K_par * (u_minus - u[i]) / ds;
     }
 
     return result;
@@ -1364,33 +1124,6 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
         result[i] = -(u_minus - u[i]) / ds;
     }
-
-    return result;
-}
-
-Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const BoutReal &K_par, const Vector3D &b)
-{
-    // Modified Stegmeir stencil for parallel heat flux divergence term (spatially constant conductivity)
-    TRACE("div_q_par_modified_stegmeir");
-
-    Field3D result;
-    Field3D ds;
-    BoutReal dz;
-
-    // TODO: Size of the box should probably be changed from dx,dy to dx/2, dy/2 in order to not rely on slowly changing b field
-
-    // // Naive
-    // // ds = sqrt(pow(((coord->dx / coord->dy) * (b.y / b.x)) * coord->dy, 2.0) + pow(coord->dx, 2.0));
-    // dz = (2.0 * pi * R_0 / a_mid) / 500.0;
-    // ds.allocate();
-    // for (auto i : ds)
-    // {
-    //   ds[i] = sqrt(pow(dz * tan(atan2(b.y[i], b.z[i])), 2.0) + pow(dz * tan(atan2(b.x[i], b.z[i])), 2.0) + pow(dz, 2.0));
-    // }
-    // result = (Q_plus(T, K_par, b) - Q_minus(T, K_par, b)) / ds;
-
-    // Support method
-    result = -0.5 * (Q_plus_T(Q_plus(T, K_par, b), b) + Q_minus_T(Q_minus(T, K_par, b), b));
 
     return result;
 }
