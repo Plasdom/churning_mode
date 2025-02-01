@@ -11,8 +11,12 @@ int Churn::rhs(BoutReal UNUSED(t))
     // Apply upstream P boundary condition
     if (fixed_P_core)
     {
-        fixed_P_core_BC();
+        fixed_P_core_BC(P_core);
     }
+    // else if (fixed_Q_in)
+    // {
+    //     dPdy0_BC();
+    // }
     // else if (par_extrap_P_up)
     // if (par_extrap_P_up)
     // {
@@ -95,6 +99,7 @@ int Churn::rhs(BoutReal UNUSED(t))
             {
                 ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
                 q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
+                // q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_linetrace_div_q_par)
             {
@@ -121,21 +126,27 @@ int Churn::rhs(BoutReal UNUSED(t))
 
             // Calculate q for output
             // TODO: This should match the method used in div_q calculation
-            q_perp = -kappa_perp * (Grad(T) - B * (B * Grad(T)) / pow(B_mag, 2));
+            q_perp = -kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
+            // q_perp.x = div_q_perp_classic(T, kappa_perp, B / B_mag);
         }
 
         // Boundary q_in
-        for (itu.first(); !itu.isDone(); itu++)
+        if (fixed_Q_in)
         {
-            // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-            for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-            {
-                if ((mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2)) || (mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2) + 1))
-                {
-                    ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
-                }
-            }
+            fixed_Q_in_BC();
         }
+        // TODO: Put this in BC module
+        // for (itu.first(); !itu.isDone(); itu++)
+        // {
+        //     // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        //     for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        //     {
+        //         if ((mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2)) || (mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2) + 1))
+        //         {
+        //             ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
+        //         }
+        //     }
+        // }
     }
 
     // Psi evolution
@@ -195,80 +206,7 @@ int Churn::rhs(BoutReal UNUSED(t))
     }
 
     // Apply ddt = 0 BCs
-    // X boundaries
-    if (mesh->firstX())
-    {
-        for (int ix = 0; ix < ngcx_tot; ix++)
-        {
-            for (int iy = 0; iy < mesh->LocalNy; iy++)
-            {
-                for (int iz = 0; iz < mesh->LocalNz; iz++)
-                {
-                    ddt(omega)(ix, iy, iz) = 0.0;
-                    ddt(psi)(ix, iy, iz) = 0.0;
-                    ddt(P)(ix, iy, iz) = 0.0;
-                    if (invert_laplace == false)
-                    {
-                        ddt(phi)(ix, iy, iz) = 0.0;
-                    }
-                }
-            }
-        }
-    }
-    if (mesh->lastX())
-    {
-        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
-        {
-            for (int iy = 0; iy < mesh->LocalNy; iy++)
-            {
-                for (int iz = 0; iz < mesh->LocalNz; iz++)
-                {
-                    ddt(omega)(ix, iy, iz) = 0.0;
-                    ddt(psi)(ix, iy, iz) = 0.0;
-                    ddt(P)(ix, iy, iz) = 0.0;
-                    if (invert_laplace == false)
-                    {
-                        ddt(phi)(ix, iy, iz) = 0.0;
-                    }
-                }
-            }
-        }
-    }
-    // Y boundaries
-    for (itl.first(); !itl.isDone(); itl++)
-    {
-        // it.ind contains the x index
-        for (int iy = 0; iy < ngcy_tot; iy++)
-        {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
-            {
-                ddt(omega)(itl.ind, iy, iz) = 0.0;
-                ddt(psi)(itl.ind, iy, iz) = 0.0;
-                ddt(P)(itl.ind, iy, iz) = 0.0;
-                if (invert_laplace == false)
-                {
-                    ddt(phi)(itl.ind, iy, iz) = 0.0;
-                }
-            }
-        }
-    }
-    for (itu.first(); !itu.isDone(); itu++)
-    {
-        // it.ind contains the x index
-        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-        {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
-            {
-                ddt(omega)(itu.ind, iy, iz) = 0.0;
-                ddt(psi)(itu.ind, iy, iz) = 0.0;
-                ddt(P)(itu.ind, iy, iz) = 0.0;
-                if (invert_laplace == false)
-                {
-                    ddt(phi)(itu.ind, iy, iz) = 0.0;
-                }
-            }
-        }
-    }
+    ddt0_BCs();
 
     return 0;
 }

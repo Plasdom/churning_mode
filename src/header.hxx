@@ -170,7 +170,10 @@ private:
     // Boundary conditions
     RangeIterator itl = mesh->iterateBndryLowerY();
     RangeIterator itu = mesh->iterateBndryUpperY();
-    void fixed_P_core_BC();
+    void fixed_P_core_BC(const BoutReal &P_core_set);
+    void fixed_Q_in_BC();
+    void ddt0_BCs();
+    void dPdy0_BC();
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();
 

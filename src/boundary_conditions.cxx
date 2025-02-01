@@ -1,7 +1,8 @@
 #include "header.hxx"
 
-void Churn::fixed_P_core_BC()
+void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
 {
+    // TODO: Call this in init() rather than rhs() and, if not calling, set P to zero in boundary
     TRACE("fixed_P_core_BC");
 
     for (itu.first(); !itu.isDone(); itu++)
@@ -13,17 +14,137 @@ void Churn::fixed_P_core_BC()
             {
                 if (psi(itu.ind, iy, iz) >= 0.0)
                 {
-                    P(itu.ind, iy, iz) = P_core;
+                    P(itu.ind, iy, iz) = P_core_set;
                 }
                 else
                 {
-                    P(itu.ind, iy, iz) = P_core * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
+                    P(itu.ind, iy, iz) = P_core_set * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
                 }
-                // P(itu.ind, iy, iz) = 0.0;
             }
         }
     }
 
+    return;
+}
+
+void Churn::dPdy0_BC()
+{
+    // TODO: Call this in init() rather than rhs() and, if not calling, set P to zero in boundary
+    TRACE("dPdy0_BC");
+
+    int k = 0;
+    for (int i = 0; i < mesh->LocalNx; i++)
+    {
+        if (mesh->lastY(i))
+        {
+            for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
+            {
+                // P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
+                P(i, j, k) = 0.0;
+            }
+        }
+    }
+
+    return;
+}
+
+void Churn::fixed_Q_in_BC()
+{
+    TRACE("fixed_Q_in_BC");
+
+    double num_q_in_cells = 2.0;
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        {
+            if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - num_q_in_cells / 2) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + num_q_in_cells / 2))
+            {
+                ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
+            }
+        }
+    }
+
+    return;
+}
+
+void Churn::ddt0_BCs()
+{
+    TRACE("ddt0_BCs");
+
+    // X boundaries
+    if (mesh->firstX())
+    {
+        for (int ix = 0; ix < ngcx_tot; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    ddt(omega)(ix, iy, iz) = 0.0;
+                    ddt(psi)(ix, iy, iz) = 0.0;
+                    ddt(P)(ix, iy, iz) = 0.0;
+                    if (invert_laplace == false)
+                    {
+                        ddt(phi)(ix, iy, iz) = 0.0;
+                    }
+                }
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    ddt(omega)(ix, iy, iz) = 0.0;
+                    ddt(psi)(ix, iy, iz) = 0.0;
+                    ddt(P)(ix, iy, iz) = 0.0;
+                    if (invert_laplace == false)
+                    {
+                        ddt(phi)(ix, iy, iz) = 0.0;
+                    }
+                }
+            }
+        }
+    }
+    // Y boundaries
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+        // it.ind contains the x index
+        for (int iy = 0; iy < ngcy_tot; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                ddt(omega)(itl.ind, iy, iz) = 0.0;
+                ddt(psi)(itl.ind, iy, iz) = 0.0;
+                ddt(P)(itl.ind, iy, iz) = 0.0;
+                if (invert_laplace == false)
+                {
+                    ddt(phi)(itl.ind, iy, iz) = 0.0;
+                }
+            }
+        }
+    }
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                ddt(omega)(itu.ind, iy, iz) = 0.0;
+                ddt(psi)(itu.ind, iy, iz) = 0.0;
+                ddt(P)(itu.ind, iy, iz) = 0.0;
+                if (invert_laplace == false)
+                {
+                    ddt(phi)(itu.ind, iy, iz) = 0.0;
+                }
+            }
+        }
+    }
     return;
 }
 

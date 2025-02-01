@@ -150,8 +150,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     if (fixed_Q_in)
     {
-        q_in = Q_in / (2.0 * pi * R_0 * 2.0 * mesh->getCoordinates()->dx(0, 0) * a_mid);
-        q_in = 1e6 * q_in / (C_s0 * P_0);
+        double num_q_in_cells = 2.0;
+        q_in = Q_in / (2.0 * pi * R_0 * num_q_in_cells * mesh->getCoordinates()->dx(0, 0) * a_mid);
+        q_in = 1.0e6 * q_in / (C_s0 * P_0);
     }
 
     // Set downstream pressure boundaries
