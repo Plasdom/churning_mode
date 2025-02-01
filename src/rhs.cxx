@@ -13,10 +13,10 @@ int Churn::rhs(BoutReal UNUSED(t))
     {
         fixed_P_core_BC(P_core);
     }
-    // else if (fixed_Q_in)
-    // {
-    //     dPdy0_BC();
-    // }
+    else if (fixed_Q_in)
+    {
+        dPdy0_BC();
+    }
     // else if (par_extrap_P_up)
     // if (par_extrap_P_up)
     // {
