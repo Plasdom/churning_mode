@@ -77,6 +77,7 @@ private:
     Field3D div_q;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
+    // Field2D q_in_yup;
     // Field3D debugvar;
 
     // Input Parameters
@@ -123,6 +124,7 @@ private:
     BoutReal boltzmann_k; ///< Boltzmann's constant
     BoutReal q_in;        ///< Heat flux into domain if fixed_Q_in option is true
     BoutReal num_q_in_cells; ///< Number of cells over which to distribute q_in
+    BoutReal alpha_fl;       ///< Flux limiter
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure
@@ -140,6 +142,7 @@ private:
     bool use_gunter_div_q_perp;
     bool T_dependent_q_par;
     bool fixed_Q_in;
+    bool use_flux_limiter;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;

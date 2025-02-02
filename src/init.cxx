@@ -1,4 +1,5 @@
 #include "header.hxx"
+#include "bout/field_factory.hxx"
 
 int Churn::init(bool restarting) // TODO: Use the restart flag
 {
@@ -30,6 +31,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     lambda_SOL_rho = options["lambda_SOL_rho"].doc("SOL width parameter in units of normalised flux coordinate").withDefault(3.0);
     P_core = options["P_core"].doc("Pressure at core boundary [P_0]").withDefault(1.0);
     Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
+    alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -77,6 +79,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     fixed_Q_in = options["fixed_Q_in"]
                      .doc("Fixed input energy at top of domain")
                      .withDefault(false);
+    use_flux_limiter = options["use_flux_limiter"]
+                           .doc("Use a flux limiter on parallel thermal conduction")
+                           .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -144,13 +149,25 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_REPEAT(q_perp);
     }
 
+    // if (fixed_Q_in)
+    // {
+    //     FieldFactory f(mesh);
+    //     q_in_yup = f.create2D("model:q_in_yup");
+    //     q_in_yup = q_in_yup / (P_0 * C_s0);
+    //     SAVE_ONCE(q_in_yup);
+    // }
+    // else
+    // {
+    //     Options::root()["model:q_in_yup"].setConditionallyUsed();
+    // }
+
     // SAVE_REPEAT(debugvar);
     // debugvar = 0.0;
     // SAVE_REPEAT(div_q);
 
     if (fixed_Q_in)
     {
-        num_q_in_cells = round((1.0 / 32.0) * static_cast<BoutReal>(mesh->GlobalNxNoBoundaries));
+        num_q_in_cells = round((1.0 / 4.0) * static_cast<BoutReal>(mesh->GlobalNxNoBoundaries));
         q_in = Q_in / (2.0 * pi * R_0 * num_q_in_cells * mesh->getCoordinates()->dx(0, 0) * a_mid);
         q_in = 1.0e6 * q_in / (C_s0 * P_0);
     }
@@ -215,6 +232,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     }
     if (fixed_P_core)
     {
+        // TODO: use the BC function for this
         for (itu.first(); !itu.isDone(); itu++)
         {
             // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)

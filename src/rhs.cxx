@@ -98,8 +98,13 @@ int Churn::rhs(BoutReal UNUSED(t))
             }
             else if (use_modified_stegmeir_div_q_par)
             {
-                ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
-                q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
+                Field3D q_par_plus = Q_plus(T, kappa_par, B / B_mag);
+                Field3D q_par_minus = Q_minus(T, kappa_par, B / B_mag);
+                ddt(P) += -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
+                q_par = -0.5 * (q_par_plus + q_par_minus) * (B / B_mag);
+
+                // ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
+                // q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
                 // q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_linetrace_div_q_par)

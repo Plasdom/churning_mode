@@ -55,7 +55,7 @@ void Churn::fixed_Q_in_BC()
     {
         for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
         {
-            if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - num_q_in_cells / 2) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + num_q_in_cells / 2))
+            if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - int(num_q_in_cells / 2.0)) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + int(num_q_in_cells / 2.0)))
             {
                 ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
             }
