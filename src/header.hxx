@@ -121,7 +121,8 @@ private:
     BoutReal beta_p;      ///< Poloidal beta [-]
     BoutReal P_grad_0;    ///< Vertical pressure gradient normalisation
     BoutReal boltzmann_k; ///< Boltzmann's constant
-    BoutReal q_in;        /// Heat flux into domain if fixed_Q_in option is true
+    BoutReal q_in;        ///< Heat flux into domain if fixed_Q_in option is true
+    BoutReal num_q_in_cells; ///< Number of cells over which to distribute q_in
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure

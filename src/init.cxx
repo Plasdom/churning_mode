@@ -150,7 +150,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     if (fixed_Q_in)
     {
-        double num_q_in_cells = 2.0;
+        num_q_in_cells = round((1.0 / 32.0) * static_cast<BoutReal>(mesh->GlobalNxNoBoundaries));
         q_in = Q_in / (2.0 * pi * R_0 * num_q_in_cells * mesh->getCoordinates()->dx(0, 0) * a_mid);
         q_in = 1.0e6 * q_in / (C_s0 * P_0);
     }

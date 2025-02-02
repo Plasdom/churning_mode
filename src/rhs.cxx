@@ -59,6 +59,7 @@ int Churn::rhs(BoutReal UNUSED(t))
     /////////////////////////////////////////////////////////////////////////////
     if (evolve_pressure)
     {
+        // TODO: we still have convection across the boundaries even though u should be zero - need to revisit the convection term or calculation of u. Then we can redo some energy analysis stuff
         if (include_advection)
         {
             if (mesh->StaggerGrids)

@@ -29,7 +29,7 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
 
 void Churn::dPdy0_BC()
 {
-    // TODO: Call this in init() rather than rhs() and, if not calling, set P to zero in boundary
+    // TODO: Use BOUT++ dirichlet BC here instead of setting it manually (may need to unset ddt(P)=0)
     TRACE("dPdy0_BC");
 
     int k = 0;
@@ -39,8 +39,7 @@ void Churn::dPdy0_BC()
         {
             for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
             {
-                // P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
-                P(i, j, k) = 0.0;
+                P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
             }
         }
     }
@@ -52,7 +51,6 @@ void Churn::fixed_Q_in_BC()
 {
     TRACE("fixed_Q_in_BC");
 
-    double num_q_in_cells = 2.0;
     for (itu.first(); !itu.isDone(); itu++)
     {
         for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)

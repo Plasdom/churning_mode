@@ -18,81 +18,90 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     TRACE("div_q_perp_classic");
 
     Field3D result;
-    // BoutReal A_plus_half, A_minus_half, ddy_plus, ddy_minus, ddx_plus, ddx_minus;
+    BoutReal A_plus_half, A_minus_half, ddy_plus, ddy_minus, ddx_plus, ddx_minus;
     Coordinates *coord = mesh->getCoordinates();
 
-    // result = 0.0;
+    result = 0.0;
 
-    // // TODO: Could handle the BCs here by just setting dP/dy=0 in upper boundary cells and using the diffops functions instead
+    // TODO: Could handle the BCs here by just setting dP/dy=0 in upper boundary cells and using the diffops functions instead
 
-    // // D2DX2 term
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //     // 2nd order
-    //     A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.xp()] * (1.0 - pow(b.x[i.xp()], 2.0))));
-    //     A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.xm()] * (1.0 - pow(b.x[i.xm()], 2.0))));
-    //     result[i] += (1.0 / (pow(coord->dx[i], 2.0))) * (A_plus_half * (T[i.xp()] - T[i]) - A_minus_half * (T[i] - T[i.xm()]));
-    // }
+    // D2DX2 term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.xp()] * (1.0 - pow(b.x[i.xp()], 2.0))));
+        A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.xm()] * (1.0 - pow(b.x[i.xm()], 2.0))));
+        result[i] += (1.0 / (pow(coord->dx[i], 2.0))) * (A_plus_half * (T[i.xp()] - T[i]) - A_minus_half * (T[i] - T[i.xm()]));
+    }
 
-    // // D2DY2 term
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //     // 2nd order
-    //     A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.yp()] * (1.0 - pow(b.x[i.yp()], 2.0))));
-    //     A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.x[i.ym()], 2.0))));
+    // D2DY2 term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.yp()] * (1.0 - pow(b.x[i.yp()], 2.0))));
+        A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.x[i.ym()], 2.0))));
 
-    //     // Apply grad_perp P = 0 BC if using fixed Q_in
-    //     if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-    //     {
-    //         if (fixed_Q_in)
-    //         {
-    //             A_plus_half = 0.0;
-    //         }
-    //     }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            {
+                if (fixed_Q_in)
+                {
+                    A_plus_half = 0.0;
+                }
+            }
+        }
 
-    //     result[i] += (1.0 / (pow(coord->dy[i], 2.0))) * (A_plus_half * (T[i.yp()] - T[i]) - A_minus_half * (T[i] - T[i.ym()]));
-    // }
+        result[i] += (1.0 / (pow(coord->dy[i], 2.0))) * (A_plus_half * (T[i.yp()] - T[i]) - A_minus_half * (T[i] - T[i.ym()]));
+    }
 
-    // // DXDY term
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //     // 2nd order
-    //     ddy_plus = (0.5 / (coord->dy[i])) * (K_perp[i.xp().yp()] * b.x[i.xp().yp()] * b.y[i.xp().yp()] - K_perp[i.xp().ym()] * b.x[i.xp().ym()] * b.y[i.xp().ym()]);
-    //     ddy_minus = (0.5 / (coord->dy[i])) * (K_perp[i.xm().yp()] * b.x[i.xm().yp()] * b.y[i.xm().yp()] - K_perp[i.xm().ym()] * b.x[i.xm().ym()] * b.y[i.xm().ym()]);
+    // DXDY term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        ddy_plus = (0.5 / (coord->dy[i])) * (K_perp[i.xp().yp()] * b.x[i.xp().yp()] * b.y[i.xp().yp()] - K_perp[i.xp().ym()] * b.x[i.xp().ym()] * b.y[i.xp().ym()]);
+        ddy_minus = (0.5 / (coord->dy[i])) * (K_perp[i.xm().yp()] * b.x[i.xm().yp()] * b.y[i.xm().yp()] - K_perp[i.xm().ym()] * b.x[i.xm().ym()] * b.y[i.xm().ym()]);
 
-    //     // Apply grad_perp P = 0 BC if using fixed Q_in
-    //     if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-    //     {
-    //         if (fixed_Q_in)
-    //         {
-    //             ddy_plus = 0.0;
-    //             ddy_minus = 0.0;
-    //         }
-    //     }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            {
+                if (fixed_Q_in)
+                {
+                    ddy_plus = 0.0;
+                    ddy_minus = 0.0;
+                }
+            }
+        }
 
-    //     result[i] += (0.5 / (coord->dx[i])) * (ddy_plus - ddy_minus);
-    // }
+        result[i] += (0.5 / (coord->dx[i])) * (ddy_plus - ddy_minus);
+    }
 
-    // // DYDX term
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    // {
-    //     // 2nd order
-    //     ddx_plus = (0.5 / (coord->dx[i])) * (K_perp[i.yp().xp()] * b.x[i.yp().xp()] * b.y[i.yp().xp()] - K_perp[i.yp().xm()] * b.x[i.yp().xm()] * b.y[i.yp().xm()]);
-    //     ddx_minus = (0.5 / (coord->dx[i])) * (K_perp[i.ym().xp()] * b.x[i.ym().xp()] * b.y[i.ym().xp()] - K_perp[i.ym().xm()] * b.x[i.ym().xm()] * b.y[i.ym().xm()]);
+    // DYDX term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        ddx_plus = (0.5 / (coord->dx[i])) * (K_perp[i.yp().xp()] * b.x[i.yp().xp()] * b.y[i.yp().xp()] - K_perp[i.yp().xm()] * b.x[i.yp().xm()] * b.y[i.yp().xm()]);
+        ddx_minus = (0.5 / (coord->dx[i])) * (K_perp[i.ym().xp()] * b.x[i.ym().xp()] * b.y[i.ym().xp()] - K_perp[i.ym().xm()] * b.x[i.ym().xm()] * b.y[i.ym().xm()]);
 
-    //     // Apply grad_perp P = 0 BC if using fixed Q_in
-    //     if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-    //     {
-    //         if (fixed_Q_in)
-    //         {
-    //             ddx_plus = 0.0;
-    //         }
-    //     }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            {
+                if (fixed_Q_in)
+                {
+                    ddx_plus = 0.0;
+                }
+            }
+        }
 
-    //     result[i] += (0.5 / (coord->dy[i])) * (ddx_plus - ddx_minus);
-    // }
+        result[i] += (0.5 / (coord->dy[i])) * (ddx_plus - ddx_minus);
+    }
 
-    result = D2DX2_DIFF(T, K_perp * (1.0 - pow(b.x, 2.0))) + D2DY2_DIFF(T, K_perp * (1.0 - pow(b.y, 2.0))) - DDX(K_perp * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(K_perp * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+    // result = D2DX2_DIFF(T, K_perp * (1.0 - pow(b.x, 2.0))) + D2DY2_DIFF(T, K_perp * (1.0 - pow(b.y, 2.0))) - DDX(K_perp * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(K_perp * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
     return result;
 }
