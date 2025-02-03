@@ -59,8 +59,8 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
             {
                 if (fixed_Q_in)
                 {
-                    ddy_plus = 0.0;
-                    ddy_minus = 0.0;
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
                 }
             }
         }
@@ -155,8 +155,8 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
             {
                 if (fixed_Q_in)
                 {
-                    ddy_plus = 0.0;
-                    ddy_minus = 0.0;
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
                 }
             }
         }
@@ -222,6 +222,18 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
 
     q_parx_corners = K_par_corners * bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
     q_pary_corners = K_par_corners * by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
+
+    if (fixed_Q_in)
+    {
+        for (int i = 0; i < mesh->LocalNx; i++)
+        {
+            if (mesh->lastY(i))
+            {
+                q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
+                // q_pary_corners(i, mesh->LocalNy - ngcy_tot - 1, 0) = 0.0;
+            }
+        }
+    }
 
     result.allocate();
     // for (auto i : result)

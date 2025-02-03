@@ -58,6 +58,7 @@ void Churn::fixed_Q_in_BC()
             if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - int(num_q_in_cells / 2.0)) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + int(num_q_in_cells / 2.0)))
             {
                 ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
+                // q_perp.x += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
             }
         }
     }
