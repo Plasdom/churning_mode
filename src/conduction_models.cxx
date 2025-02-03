@@ -38,8 +38,8 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
         // 2nd order
-        A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.yp()] * (1.0 - pow(b.x[i.yp()], 2.0))));
-        A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.x[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.x[i.ym()], 2.0))));
+        A_plus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.y[i], 2.0)) + K_perp[i.yp()] * (1.0 - pow(b.y[i.yp()], 2.0))));
+        A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.y[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.y[i.ym()], 2.0))));
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
         if (fixed_Q_in)
@@ -76,7 +76,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
             }
         }
 
-        result[i] += (0.5 / (coord->dx[i])) * (ddy_plus - ddy_minus);
+        result[i] -= (0.5 / (coord->dx[i])) * (ddy_plus - ddy_minus);
     }
 
     // DYDX term
@@ -98,7 +98,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
             }
         }
 
-        result[i] += (0.5 / (coord->dy[i])) * (ddx_plus - ddx_minus);
+        result[i] -= (0.5 / (coord->dy[i])) * (ddx_plus - ddx_minus);
     }
 
     // result = D2DX2_DIFF(T, K_perp * (1.0 - pow(b.x, 2.0))) + D2DY2_DIFF(T, K_perp * (1.0 - pow(b.y, 2.0))) - DDX(K_perp * b.x * b.y * DDY(T, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(K_perp * b.x * b.y * DDX(T, CELL_CENTER, "DEFAULT", "RGN_ALL"));
