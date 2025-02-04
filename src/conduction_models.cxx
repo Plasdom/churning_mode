@@ -1101,7 +1101,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
 
     Field3D result, q_fs;
     BoutReal f_x, f_y;
-    double y_plus, x_plus, ds_p, ds, u_plus; //, K_par_plus;
+    double y_plus, x_plus, ds_p, ds, u_plus, K_par_plus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1137,6 +1137,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
         // Check if extrapolating across boundary
         if (fixed_Q_in)
@@ -1147,13 +1148,14 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
             }
         }
 
-        result[i] = K_par[i] * (u_plus - u[i]) / ds;
+        // result[i] = K_par[i] * (u_plus - u[i]) / ds;
+        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
     }
 
     if (use_flux_limiter)
     {
         q_fs = 0.4 * sqrt(m_i / m_e) * pow(abs(u), 1.5);
-        result = result / (1.0 + abs(result / (alpha_fl * (q_fs + 1e-10))));
+        result = result / (1.0 + abs(result / (alpha_fl * (q_fs + 1e-15))));
     }
 
     return result;
@@ -1221,7 +1223,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
 
     Field3D result, q_fs;
     BoutReal f_x, f_y;
-    double y_minus, x_minus, ds_p, ds, u_minus; // K_par_minus;
+    double y_minus, x_minus, ds_p, ds, u_minus, K_par_minus;
     int n_x, n_y;
 
     Coordinates *coord = mesh->getCoordinates();
@@ -1257,6 +1259,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
         // Check if extrapolating across boundary
         if (fixed_Q_in)
@@ -1267,13 +1270,14 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
             }
         }
 
-        result[i] = -K_par[i] * (u_minus - u[i]) / ds;
+        // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
+        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
     }
 
     if (use_flux_limiter)
     {
         q_fs = 0.4 * sqrt(m_i / m_e) * pow(abs(u), 1.5);
-        result = result / (1.0 + abs(result / (alpha_fl * (q_fs + 1e-10))));
+        result = result / (1.0 + abs(result / (alpha_fl * (q_fs + 1e-15))));
     }
 
     return result;
@@ -1495,7 +1499,8 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
         tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
 
         // Calculate Spitzer-Harm parallel thermal conductivity
-        result[i] = std::min((3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0, 1.0e7 / D_0);
+        // result[i] = std::min((3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0, 1.0e7 / D_0);
+        result[i] = (3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0;
     }
 
     return result;
