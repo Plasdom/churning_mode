@@ -66,10 +66,10 @@ def read_boutdata(
 
     # Calculate conductive, convective and total heat fluxes
     q_prefactor = ds.metadata["P_0"] * ds.metadata["C_s0"]
-    ds["q_conv_x"] = (2.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
+    ds["q_conv_x"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
         "u_x"
     ]
-    ds["q_conv_y"] = (2.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
+    ds["q_conv_y"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
         "u_y"
     ]
     if hasattr(ds, "q_perp_x") is False:
@@ -130,6 +130,7 @@ def contour_overlay(
     levels: int | list[float] | np.ndarray = 50,
     plot_r_cz: bool = False,
     savepath: str | None = None,
+    title: str | None = None,
 ):
     """Plot overlaid contours at several timesteps
 
@@ -141,6 +142,9 @@ def contour_overlay(
     :param levels: Number of levels to use or list of specific levels to plot
     :param savepath: Where to save figure
     """
+
+    if title is None:
+        title = var
     # linestyles = ["-", "--", ".-"]
     timesteps = list(reversed(timesteps))
     if len(timesteps) > 1:
@@ -175,6 +179,7 @@ def contour_overlay(
                 alpha=alphas[i],
                 levels=plot_levels,
                 cmap="inferno",
+                extend="both",
             )
         else:
             c = ax.contour(
@@ -187,7 +192,7 @@ def contour_overlay(
             )
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    ax.set_title(var)
+    ax.set_title(title)
     if colorbar:
         fig.colorbar(c)
 
@@ -216,6 +221,8 @@ def animate_contour_list(
     max_timestep: int | None = None,
     trim_cells: int | None = None,
     num_levels: int = 50,
+    vmin: float | None = None,
+    vmax: float | None = None,
 ):
     """Animate a list of variables using axes.contourf
 
@@ -269,16 +276,14 @@ def animate_contour_list(
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
-        vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
-        vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
+        # if vmin is None:
+        #     vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
+        # if vmax is None:
+        #     vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
+        vmin = var_arrays[v][0].min()
+        vmax = var_arrays[v][0].max()
         if v == "psi":
-            # levels[v] = np.sort(list(np.linspace(vmin, vmax, num_levels)))
-            # levels[v] = np.sort(np.array(list(levels[v]) + [0]))
             levels[v] = np.sort(
-                # np.array(
-                #     list(-np.linspace(0, (-vmin) ** (1 / 2), 25) ** (2))
-                #     + list(np.linspace(0, vmax ** (1 / 2), 25) ** (2))[1:]
-                # )
                 np.array(
                     list(-np.linspace(0, -vmin, int(num_levels / 2)))
                     + list(np.linspace(0, vmax, int(num_levels / 2)))[1:]
@@ -301,6 +306,7 @@ def animate_contour_list(
                     vmax=levels[v].max(),
                     levels=levels[v],
                     cmap="inferno",
+                    extend="both",
                 )
             else:
                 cont = ax[j].contourf(
@@ -311,6 +317,7 @@ def animate_contour_list(
                     vmax=levels[v].max(),
                     levels=levels[v],
                     cmap="inferno",
+                    extend="both",
                 )
             if plot_r_cz:
                 ax[j].plot(x_cz, y_cz, linestyle="--", color="red")
@@ -549,7 +556,7 @@ def get_tot_energy(ds):
     )
 
 
-def plot_conservation(ds: xr.Dataset):
+def plot_conservation(ds: xr.Dataset, relative: bool = True):
     """Plot conserved quantities over time
 
     :param ds: Bout dataset
@@ -573,7 +580,6 @@ def plot_conservation(ds: xr.Dataset):
     # ax[2].set_title(r"$E=M+K+\Pi$")
     # ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
-    relative = True
     if relative:
         ax[2].plot(ds[r"t"], M - M[0], "-", label=r"$M-M(t=0)$")
         ax[2].plot(ds[r"t"], K - K[0], "-", label=r"$K-K(t=0)$")
@@ -640,10 +646,14 @@ def animate_q_targets(
     nx = len(ds.x)
     ny = len(ds.y)
     x0 = range(len(ds.x))
-    y1 = range(int(ny / 4), int(3 * ny / 4))
+    y1 = range(ny)
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
-    y4 = range(int(ny / 4), int(3 * ny / 4))
+    y4 = range(ny)
+    # y1 = range(int(ny / 4), int(3 * ny / 4))
+    # x2 = range(int(nx / 2), nx)
+    # x3 = range(int(nx / 2))
+    # y4 = range(int(ny / 4), int(3 * ny / 4))
     qin, q1, q2, q3, q4 = get_q_legs(ds)
     Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
 
@@ -674,6 +684,10 @@ def animate_q_targets(
     max_q2 = q2.max()
     max_q3 = q3.max()
     max_q4 = q4.max()
+    min_q1 = q1.min()
+    min_q2 = q2.min()
+    min_q3 = q3.min()
+    min_q4 = q4.min()
 
     def animate(i):
 
@@ -727,14 +741,14 @@ def animate_q_targets(
 
         ax[3].clear()
         l = ax[3].plot(
-            range(len(y4)),
+            ds.y.isel(y=range(len(y4))),
             q4[plot_every * i, :],
             linestyle="-",
             color="black",
             label="Leg 4 (W)",
         )
         l = ax[3].plot(
-            range(len(y4)),
+            ds.y.isel(y=range(len(y4))),
             q4[0, :],
             linestyle="--",
             color="gray",
@@ -749,14 +763,14 @@ def animate_q_targets(
         ax[3].legend(loc="upper right")
 
         if normalise:
-            ax[1].set_ylabel(r"$q_{\parallel} / \int q_{\parallel}ds$ [MWm$^{-3}$]")
+            ax[1].set_ylabel(r"$q_{\parallel} / \int q_{\parallel}ds$ [MWm$^{-2}$]")
         else:
-            ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-3}$]")
+            ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-2}$]")
         ax[-1].set_xlabel("x")
-        ax[0].set_ylim(0, max_q1)
-        ax[1].set_ylim(0, max_q2)
-        ax[2].set_ylim(0, max_q3)
-        ax[3].set_ylim(0, max_q4)
+        ax[0].set_ylim(min_q1, max_q1)
+        ax[1].set_ylim(min_q2, max_q2)
+        ax[2].set_ylim(min_q3, max_q3)
+        ax[3].set_ylim(min_q4, max_q4)
 
         return l
 
@@ -767,7 +781,127 @@ def animate_q_targets(
     return anim
 
 
-def q_target_proportions(
+def plot_q_targets(
+    ds: xr.Dataset,
+    show_t0: bool = True,
+    normalise: bool = False,
+    timestep: int = -1,
+):
+    """Plot q_tot to each diverotr leg (assuming snowflake config)
+
+    :param ds: Xarray dataset from BOUT++
+    :param normalise: Whether to normalise to Q_tot at t=0, defaults to False
+    :return: Animation
+    """
+    nx = len(ds.x)
+    ny = len(ds.y)
+    x0 = range(len(ds.x))
+    y1 = range(ny)
+    x2 = range(int(nx / 2), nx)
+    x3 = range(int(nx / 2))
+    y4 = range(ny)
+    # y1 = range(int(ny / 4), int(3 * ny / 4))
+    # x2 = range(int(nx / 2), nx)
+    # x3 = range(int(nx / 2))
+    # y4 = range(int(ny / 4), int(3 * ny / 4))
+    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
+
+    if normalise:
+        q1 = (q1 / Q1).values
+        q2 = (q2 / Q2).values
+        q3 = (q3 / Q3).values
+        q4 = (q4 / Q4).values
+    else:
+        q1 = q1.values
+        q2 = q2.values
+        q3 = q3.values
+        q4 = q4.values
+
+    fig, ax = plt.subplots(nrows=4, ncols=1, sharex=False)
+
+    fig.subplots_adjust(hspace=0.0)
+
+    ax[0].clear()
+    l = ax[0].plot(
+        range(len(y1)),
+        q1[timestep, :],
+        linestyle="-",
+        color="black",
+        label="Leg 1 (E)",
+    )
+    ax[1].clear()
+    l = ax[1].plot(
+        range(len(x2)),
+        q2[timestep, :],
+        linestyle="-",
+        color="black",
+        label="Leg 2 (SE)",
+    )
+
+    ax[2].clear()
+    l = ax[2].plot(
+        range(len(x3)),
+        q3[timestep, :],
+        linestyle="-",
+        color="black",
+        label="Leg 3 (SW)",
+    )
+
+    ax[3].clear()
+    l = ax[3].plot(
+        ds.y.isel(y=range(len(y4))),
+        q4[timestep, :],
+        linestyle="-",
+        color="black",
+        label="Leg 4 (W)",
+    )
+
+    if show_t0:
+        l = ax[0].plot(
+            range(len(y1)),
+            q1[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+        l = ax[1].plot(
+            range(len(x2)),
+            q2[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+        l = ax[2].plot(
+            range(len(x3)),
+            q3[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+        l = ax[3].plot(
+            ds.y.isel(y=range(len(y4))),
+            q4[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+
+    timestep = ds.t.values[timestep] - ds.t.values[0]
+    ax[0].set_title("t={:.2f}$t_0$".format(timestep))
+    ax[0].legend(loc="upper right")
+    ax[1].legend(loc="upper right")
+    ax[2].legend(loc="upper right")
+    ax[3].legend(loc="upper right")
+
+    if normalise:
+        ax[1].set_ylabel(r"$q_{\parallel} / \int q_{\parallel}ds$ [MWm$^{-2}$]")
+    else:
+        ax[1].set_ylabel(r"$q_{\parallel}$ [MWm$^{-2}$]")
+    ax[-1].set_xlabel("x")
+
+
+def Q_target_proportions(
     ds: xr.Dataset,
     normalise: bool = True,
     savepath: str | None = None,
@@ -780,11 +914,17 @@ def q_target_proportions(
     :param savepath: where to save figure
     """
     qin, q1, q2, q3, q4 = get_q_legs(ds)
-    qin = qin.integrate(coord="x")
-    q1 = q1.integrate(coord="y")
-    q2 = q2.integrate(coord="x")
-    q3 = q3.integrate(coord="x")
-    q4 = q4.integrate(coord="y")
+    if ds.metadata["grid_units"] == "cm":
+        Q_prefactor = 1 / 100.0
+    elif ds.metadata["grid_units"] == "m":
+        Q_prefactor = 1.0
+    elif ds.metadata["grid_units"] == "a_mid":
+        Q_prefactor = ds.metadata["a_mid"]
+    qin = qin.integrate(coord="x") * Q_prefactor
+    q1 = q1.integrate(coord="y") * Q_prefactor
+    q2 = q2.integrate(coord="x") * Q_prefactor
+    q3 = q3.integrate(coord="x") * Q_prefactor
+    q4 = q4.integrate(coord="y") * Q_prefactor
 
     q_tot = q1 + q2 + q3 + q4
 
@@ -804,7 +944,7 @@ def q_target_proportions(
             labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
         )
         # ax.plot(ds.t - ds.t[0], -qin)
-        ax.set_ylabel(r"$P_{l}$ [MWm$^{-2}$]")
+        ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
 
     ax.legend(loc="upper left")
     ax.set_xlabel("$t$ [ms]")
@@ -844,24 +984,39 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     nx = len(ds.x)
     ny = len(ds.y)
     x0 = range(len(ds.x))
-    y1 = range(int(ny / 4), int(3 * ny / 4))
+    y1 = range(ny)
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
-    y4 = range(int(ny / 4), int(3 * ny / 4))
-    qin = -q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(
-        y=-1, x=x0
-    )
-    q1 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
-    q2 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
-    q3 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
-    q4 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
+    y4 = range(ny)
+    # y1 = range(int(ny / 4), int(3 * ny / 4))
+    # x2 = range(int(nx / 2), nx)
+    # x3 = range(int(nx / 2))
+    # y4 = range(int(ny / 4), int(3 * ny / 4))
+    # qin = -q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(
+    #     y=-1, x=x0
+    # )
+    # q1 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
+    # q2 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
+    # q3 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
+    # q4 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
 
-    # Calculate heat flux normal to boundaries
-    B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] ** 2)
-    q1 = q1 * ds["B_x"].isel(x=-1, y=y1) / B_mag.isel(x=-1, y=y1)
-    q2 = q2 * ds["B_y"].isel(y=0, x=x2) / B_mag.isel(y=0, x=x2)
-    q3 = -q3 * ds["B_y"].isel(y=0, x=x3) / B_mag.isel(y=0, x=x3)
-    q4 = q4 * ds["B_x"].isel(x=0, y=y4) / B_mag.isel(x=0, y=y4)
+    # # Calculate heat flux normal to boundaries
+    # B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] ** 2)
+    # q1 = q1 * ds["B_x"].isel(x=-1, y=y1) / B_mag.isel(x=-1, y=y1)
+    # q2 = q2 * ds["B_y"].isel(y=0, x=x2) / B_mag.isel(y=0, x=x2)
+    # q3 = -q3 * ds["B_y"].isel(y=0, x=x3) / B_mag.isel(y=0, x=x3)
+    # q4 = q4 * ds["B_x"].isel(x=0, y=y4) / B_mag.isel(x=0, y=y4)
+
+    # B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] ** 2)
+    # B_p_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
+    # projection_factor = B_mag / B_p_mag
+    projection_factor = 1.0
+
+    qin = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=-1, x=x0)
+    q1 = q_prefactor * (ds["q_tot_x"] * projection_factor).isel(x=-1, y=y1)
+    q2 = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=0, x=x2)
+    q3 = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=0, x=x3)
+    q4 = -q_prefactor * (ds["q_tot_x"] * projection_factor).isel(x=0, y=y4)
 
     return qin, q1, q2, q3, q4
 
@@ -959,6 +1114,151 @@ def find_null_coords(
         psi2 = tmp_psi2
 
     return x1, x2, y1, y2, psi1, psi2
+
+
+def find_primary_sepx(
+    ds: xr.Dataset,
+    max_min_num: int = 5,
+    timestep: int = 0,
+    target_psi: float = 0.0,
+    sep_thresh: float = 1.0,
+) -> list:
+    """Use magnetic pressure minimums to identify location of null points
+
+    :param ds: xarray dataset output from BOUT++
+    :param num: number of nulls (1 or 2)
+    :param timestep: which timestep in which to find nulls
+    :return: x1, x2, y1, y2, psi1, psi2
+    """
+    if not hasattr(ds, "B_p"):
+        ds["B_p"] = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
+    dr = ds["B_p"].isel(t=timestep)
+
+    # Find the first minimum
+    firstmin = dr.argmin(dim=["x", "y"], keep_attrs=True)
+    i1 = firstmin["x"].values
+    j1 = firstmin["y"].values
+    x1 = dr.x[i1]
+    y1 = dr.y[j1]
+    maxval = dr.values.max()
+    dr[i1, j1] = maxval
+    i_mins = [i1]
+    j_mins = [j1]
+
+    # Find some extra minima spatially separated from all previous minima
+    for min_num in range(1, max_min_num):
+        next_minimum_found = False
+        max_search_steps = 100
+        cur_search_step = 0
+        while next_minimum_found is False:
+            nextmin = dr.argmin(dim=["x", "y"], keep_attrs=True)
+            inext = nextmin["x"].values
+            jnext = nextmin["y"].values
+            dr[inext, jnext] = maxval
+
+            # Check whether this minimum is spatially separated from others
+            distinct_from_others = []
+            for q in range(min_num):
+                # dr[inext, jnext] = maxval
+                dist = np.sqrt((inext - i_mins[q]) ** 2 + (jnext - j_mins[q]) ** 2)
+                if dist > sep_thresh:
+                    distinct_from_others.append(True)
+                else:
+                    distinct_from_others.append(False)
+            if all(distinct_from_others):
+                i_mins.append(inext)
+                j_mins.append(jnext)
+                next_minimum_found = True
+            else:
+                cur_search_step += 1
+            if cur_search_step > max_search_steps:
+                raise Exception(
+                    "Max search steps exceeded; could not find a spatially separated minima from all others."
+                )
+
+    # Store min coordinates
+    x_mins = [dr.x[i] for i in i_mins]
+    y_mins = [dr.y[j] for j in j_mins]
+
+    # Find psis
+    psi_mins = np.array(
+        [
+            ds["psi"].isel(x=i_mins[i], y=j_mins[i], t=timestep).values
+            for i in range(max_min_num)
+        ]
+    )
+
+    # Find closest min to
+    # minloc = np.argmin(abs(psi_mins-target_psi))
+    # psi_0 = psi_mins[minloc]
+    # x_0 = x_mins[minloc]
+    # y_0 = y_mins[minloc]
+    # return x_0, y_0, psi_0
+
+    return x_mins, y_mins, sorted(psi_mins)
+
+
+def find_primary_sepx_2(
+    ds: xr.Dataset,
+    timestep: int = 0,
+    target_psi: float = 0.0,
+    num_minima: int = 1000,
+    w1: float = 0.5,
+    w2: float = 0.5,
+) -> list:
+    if not hasattr(ds, "B_p"):
+        ds["B_p"] = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
+    db = ds["B_p"].isel(t=timestep)
+    dp = ds["psi"].isel(t=timestep)
+
+    nx = len(db.x)
+    ny = len(db.y)
+
+    # Find location of minima in B_p
+    vals = db.values.flatten()
+    minlocs = np.argsort(vals)
+
+    # Remove adjacent locs
+    # How to do efficiently?
+    # i = [int(minloc/ny) for minloc in minlocs]
+    # j = [minloc%ny for minloc in minlocs]
+    # for k in range(1,len(minlocs)):
+    #     j = minlocs[k]%ny
+    #     i = int(minlocs[k]/ny)
+    #     j_prev = minlocs[k-1]%ny
+    #     i_prev = int(minlocs[k-1]/ny)
+    #     if (abs(j - j_prev) == 1) or (abs(i - i_prev) == 1):
+    #         minlocs[k] = 0
+    # minlocs = [minloc for minloc in minlocs if minloc != 0]
+
+    # Find psi at B_p minima
+    psi_vals = ds["psi"].isel(t=timestep).values.flatten()
+    psi_at_minlocs = psi_vals[minlocs]
+
+    # Find psi closest to target value
+    psi_target_loc = abs(psi_at_minlocs - target_psi).argmin()
+    psi_minloc = minlocs[psi_target_loc]
+
+    # Get psi at primary sepx and x,y coords of primary null
+    j_x = psi_minloc % ny
+    i_x = int(psi_minloc / ny)
+    x_0 = ds.x[i_x]
+    y_0 = ds.y[j_x]
+    psi_sepx = psi_vals[psi_minloc]
+
+    # db = ds["B_p"].isel(t=timestep)
+    # dp = abs(ds["psi"].isel(t=timestep))
+    # score1 = ((db - db.min()) / (db.max() - db.min()))
+    # score2 = ((dp - dp.min()) / (dp.max() - dp.min()))
+    # score = (w1*score1 + w2*score2) / (w1+w2)
+    # minloc = score.argmin(dim=["x", "y"], keep_attrs=True)
+    # i_0 = minloc["x"].values
+    # j_0 = minloc["y"].values
+    # x_0 = ds.x[i_0]
+    # y_0 = ds.y[j_0]
+    # psi_sepx = ds["psi"].isel(t=timestep,x=i_0,y=j_0)
+
+    return x_0, y_0, psi_sepx
 
 
 def plot_nulls(
@@ -1356,18 +1656,32 @@ def plot_lineslice(
     for timestep in timesteps:
         vals.append(lineslice(ds, variable, line_coords, timestep))
 
+    if variable == "P":
+        vals = [v * ds.metadata["P_0"] for v in vals]
+
+    # Get 1/e drop off point
+    P_max_over_e = []
+    for i, timestep in enumerate(timesteps):
+        P_max_over_e.append(np.max(vals[i]) / np.e)
+
     fig, ax = plt.subplots(2)
 
     ax[0].contourf(
-        ds.x, ds.y, ds.isel(t=-1)[variable].values.T, cmap="inferno", levels=200
+        ds.x,
+        ds.y,
+        ds.isel(t=timesteps[0])[variable].values.T,
+        cmap="inferno",
+        levels=200,
     )
     x = line_coords.T[0]
     y = line_coords.T[1]
     ax[0].plot(x, y, color="red", linestyle="--")
     for i, timestep in enumerate(timesteps):
-        ax[1].plot(s, vals[i], label=timestep)
+        (l,) = ax[1].plot(s, vals[i], label=timestep)
+        ax[1].axhline(P_max_over_e[i], color=l.get_color(), linestyle="--")
     ax[1].legend()
     ax[1].grid()
+    ax[1].set_ylabel(variable)
     fig.tight_layout()
 
 
@@ -1407,7 +1721,7 @@ def ddy(ds: xr.Dataset, f: str) -> xr.DataArray:
     return dfdy
 
 
-def explore_flux_surfaces(ds: xr.Dataset, t: int = 0, colorbar: bool = False):
+def explore_nulls(ds: xr.Dataset, t: int = 0, colorbar: bool = False):
     """Interactive plot with sliders for two surfaces of constant psi
 
     :param ds: xarray dataset
