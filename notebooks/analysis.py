@@ -12,6 +12,12 @@ from matplotlib.widgets import Button, Slider
 import os
 
 mu_0 = 1.256637e-6
+el_charge = 1.602e-19
+m_e = 9.11e-31
+m_i = 2 * 1.667e-27
+mu_0 = 1.256637e-6
+eps_0 = 8.854188e-12
+boltzmann_k = 1.380649e-23
 
 
 def read_boutdata(
@@ -131,6 +137,7 @@ def contour_overlay(
     plot_r_cz: bool = False,
     savepath: str | None = None,
     title: str | None = None,
+    extend: str = "neither",
 ):
     """Plot overlaid contours at several timesteps
 
@@ -179,7 +186,7 @@ def contour_overlay(
                 alpha=alphas[i],
                 levels=plot_levels,
                 cmap="inferno",
-                extend="both",
+                extend=extend,
             )
         else:
             c = ax.contour(
@@ -189,9 +196,10 @@ def contour_overlay(
                 alpha=alphas[i],
                 levels=plot_levels,
                 cmap="inferno",
+                extend=extend,
             )
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
+    ax.set_xlabel("x [cm]")
+    ax.set_ylabel("y [cm]")
     ax.set_title(title)
     if colorbar:
         fig.colorbar(c)
@@ -206,6 +214,9 @@ def contour_overlay(
 
     if savepath is not None:
         fig.savefig(savepath)
+
+    # ax.set_xlim((-10, 10))
+    # ax.set_ylim((-15, 15))
 
     return ax
 
@@ -276,12 +287,12 @@ def animate_contour_list(
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
-        # if vmin is None:
-        #     vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
-        # if vmax is None:
-        #     vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
-        vmin = var_arrays[v][0].min()
-        vmax = var_arrays[v][0].max()
+        if vmin is None:
+            vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
+        if vmax is None:
+            vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
+        # vmin = var_arrays[v][0].min()
+        # vmax = var_arrays[v][0].max()
         if v == "psi":
             levels[v] = np.sort(
                 np.array(
@@ -1630,7 +1641,7 @@ def lineslice(
 def plot_lineslice(
     ds: xr.Dataset,
     variable: str,
-    line_coords: np.ndarray,
+    line_coords: np.ndarray | None = None,
     timesteps: int | list[int] = -1,
 ):
     """Plot values of a given variable along a line given by the input coordinates
@@ -1640,6 +1651,14 @@ def plot_lineslice(
     :param line_coords: Line coordinates
     :param timesteps: Timestamp to plot, defaults to -1
     """
+    if line_coords is None:
+        x1, _, y1, _, _, _ = find_null_coords(ds, timestep=0)
+        Lx = ds.x.max() - ds.x.min()
+        p0 = [x1 - 0.5 * Lx, y1 + 0.5 * np.tan(30 * np.pi / 180) * Lx]
+        p1 = [x1, y1]
+        line_coords = np.array(
+            [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
+        ).transpose()
 
     # Get parallel coordinate
     s = np.zeros(len(line_coords))
@@ -1657,12 +1676,12 @@ def plot_lineslice(
         vals.append(lineslice(ds, variable, line_coords, timestep))
 
     if variable == "P":
-        vals = [v * ds.metadata["P_0"] for v in vals]
+        vals = [(v - ds["P"].values[0, 0, 0]) * ds.metadata["P_0"] for v in vals]
 
     # Get 1/e drop off point
     P_max_over_e = []
     for i, timestep in enumerate(timesteps):
-        P_max_over_e.append(np.max(vals[i]) / np.e)
+        P_max_over_e.append(np.max([v for v in vals[i] if not np.isnan(v)]) / np.e)
 
     fig, ax = plt.subplots(2)
 
@@ -1675,9 +1694,15 @@ def plot_lineslice(
     )
     x = line_coords.T[0]
     y = line_coords.T[1]
-    ax[0].plot(x, y, color="red", linestyle="--")
+    ax[0].plot(x, y, color="red", linestyle="-")
     for i, timestep in enumerate(timesteps):
-        (l,) = ax[1].plot(s, vals[i], label=timestep)
+        (l,) = ax[1].plot(
+            s,
+            vals[i],
+            label="t = {:.2f}ms".format(
+                1000 * (ds.t[timestep] - ds.t[0]) * ds.metadata["t_0"]
+            ),
+        )
         ax[1].axhline(P_max_over_e[i], color=l.get_color(), linestyle="--")
     ax[1].legend()
     ax[1].grid()
@@ -1816,3 +1841,98 @@ def explore_nulls(ds: xr.Dataset, t: int = 0, colorbar: bool = False):
 
     # plt.show()
     return surf1_slider, surf2_slider
+
+
+def extract_rundeck_data(runs: list[str], d_sol: float, avg_window: int = 50) -> dict:
+    """Extract churning mode relevant data from a rundeck
+
+    :param runs: List of churning mode run data directories
+    :param d_sol: Width of SOL at null point [m]
+    :return: Dict containing a series of arrays
+    """
+
+    # Create some arrays
+    nr = len(runs)
+    p_null = np.zeros(nr)
+    P_out_wo = np.zeros(nr)
+    P_out_w = np.zeros(nr)
+    chi_perp_eff_wo = np.zeros(nr)
+    chi_perp_eff_w = np.zeros(nr)
+    n_sepx = np.zeros(nr)
+    r_ch = np.zeros(nr)
+    grad_p = np.zeros(nr)
+    beta_p = np.zeros(nr)
+    v_th_null = np.zeros(nr)
+    tau_ch = np.zeros(nr)
+    D_x_th = np.zeros(nr)
+    max_t = np.zeros(nr)
+    d_xx = np.zeros(nr)
+
+    for i, r in enumerate(runs):
+        # Read in dataset
+        ds = read_boutdata(r, remove_xgc=True, units="m")
+        ds = ds.rolling(t=avg_window, min_periods=1).mean()
+        _, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
+
+        # Find the nulls
+        x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
+        d_xx[i] = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+        # Find the line crossing the null region
+        Lx = ds.x.max() - ds.x.min()
+        p0 = [
+            x1 - 0.5 * Lx,
+            y1 + 0.5 * np.tan(30 * np.pi / 180) * Lx,
+        ]
+        p1 = [x1, y1]
+        null_region_line = np.array(
+            [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
+        ).transpose()
+
+        # Extract other data
+        n_sepx[i] = ds.metadata["n_sepx"]
+        p_null[i] = (
+            lineslice(ds, "P", null_region_line, timestep=0).max() * ds.metadata["P_0"]
+        )
+        r_ch[i] = (
+            0.81
+            * ds.metadata["a_mid"]
+            * (
+                ((p_null[i] * 2 * mu_0) / ds.metadata["B_pmid"] ** 2)
+                * ds.metadata["a_mid"]
+                / ds.metadata["R_0"]
+            )
+            ** (1 / 3)
+        )
+        grad_p[i] = p_null[i] / d_sol
+        max_t[i] = ds.t.values[-1] - ds.t.values[0]
+        P_out_wo[i] = (
+            Q1.isel(t=0) + Q2.isel(t=0) + Q3.isel(t=0) + Q4.isel(t=0)
+        ).values * 1e6
+        P_out_w[i] = (
+            Q1.isel(t=-1) + Q2.isel(t=-1) + Q3.isel(t=-1) + Q4.isel(t=-1)
+        ).values * 1e6
+        chi_perp_eff_wo[i] = (P_out_wo[i] / ds.metadata["a_mid"]) / grad_p[i]
+        chi_perp_eff_w[i] = (P_out_w[i] / ds.metadata["a_mid"]) / grad_p[i]
+        beta_p[i] = 2.0 * mu_0 * p_null[i] / ds.metadata["B_pmid"] ** 2
+        v_th_null[i] = np.sqrt(p_null[i] / (n_sepx[i] * m_i))
+        tau_ch[i] = np.sqrt(ds.metadata["R_0"] * r_ch[i]) / v_th_null[i]
+        D_x_th[i] = 0.5 * r_ch[i] ** 2 / tau_ch[i]
+
+    # Store in a dict (TODO: use a dataarray here instead?)
+    out = {}
+    out["p_null"] = p_null
+    out["P_out_wo"] = P_out_wo
+    out["P_out_w"] = P_out_w
+    out["chi_perp_eff_wo"] = chi_perp_eff_wo
+    out["chi_perp_eff_w"] = chi_perp_eff_w
+    out["n_sepx"] = n_sepx
+    out["r_ch"] = r_ch
+    out["grad_p"] = grad_p
+    out["beta_p"] = beta_p
+    out["v_th_null"] = p_null
+    out["tau_ch"] = tau_ch
+    out["D_x_th"] = D_x_th
+    out["max_t"] = max_t
+
+    return out
