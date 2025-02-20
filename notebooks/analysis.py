@@ -999,35 +999,18 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
     y4 = range(ny)
-    # y1 = range(int(ny / 4), int(3 * ny / 4))
-    # x2 = range(int(nx / 2), nx)
-    # x3 = range(int(nx / 2))
-    # y4 = range(int(ny / 4), int(3 * ny / 4))
-    # qin = -q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(
-    #     y=-1, x=x0
-    # )
-    # q1 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=-1, y=y1)
-    # q2 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x2)
-    # q3 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(y=0, x=x3)
-    # q4 = q_prefactor * np.sqrt(ds["q_tot_x"] ** 2 + ds["q_tot_y"] ** 2).isel(x=0, y=y4)
 
-    # # Calculate heat flux normal to boundaries
-    # B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] ** 2)
-    # q1 = q1 * ds["B_x"].isel(x=-1, y=y1) / B_mag.isel(x=-1, y=y1)
-    # q2 = q2 * ds["B_y"].isel(y=0, x=x2) / B_mag.isel(y=0, x=x2)
-    # q3 = -q3 * ds["B_y"].isel(y=0, x=x3) / B_mag.isel(y=0, x=x3)
-    # q4 = q4 * ds["B_x"].isel(x=0, y=y4) / B_mag.isel(x=0, y=y4)
+    # qin = -q_prefactor * (ds["q_tot_y"] ).isel(y=-1, x=x0)
+    # q1 = q_prefactor * (ds["q_tot_x"] ).isel(x=-1, y=y1)
+    # q2 = -q_prefactor * (ds["q_tot_y"] ).isel(y=0, x=x2)
+    # q3 = -q_prefactor * (ds["q_tot_y"] ).isel(y=0, x=x3)
+    # q4 = -q_prefactor * (ds["q_tot_x"] ).isel(x=0, y=y4)
 
-    # B_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2 + ds["B_z"] ** 2)
-    # B_p_mag = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
-    # projection_factor = B_mag / B_p_mag
-    projection_factor = 1.0
-
-    qin = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=-1, x=x0)
-    q1 = q_prefactor * (ds["q_tot_x"] * projection_factor).isel(x=-1, y=y1)
-    q2 = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=0, x=x2)
-    q3 = -q_prefactor * (ds["q_tot_y"] * projection_factor).isel(y=0, x=x3)
-    q4 = -q_prefactor * (ds["q_tot_x"] * projection_factor).isel(x=0, y=y4)
+    qin = -q_prefactor * (ds["q_cond_y"]).isel(y=-1, x=x0)
+    q1 = q_prefactor * (ds["q_cond_x"]).isel(x=-1, y=y1)
+    q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
+    q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
+    q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
 
     return qin, q1, q2, q3, q4
 
