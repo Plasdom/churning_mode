@@ -549,7 +549,8 @@ def get_tot_energy(ds):
     P_0 = ds.metadata["P_0"]
     B_pmid = ds.metadata["B_pmid"]
 
-    x_c = ds["x"] - 0.5 * np.sum(ds["dx"].isel(y=0))
+    # x_c = ds["x"] - 0.5 * np.sum(ds["dx"].isel(y=0))
+    x_c = ds["x_c"]
     B_px = ds["B_x"]
     B_py = ds["B_y"]
     P = ds["P"]
@@ -558,7 +559,7 @@ def get_tot_energy(ds):
 
     mag_energy = (P_0 / beta_p) * a_mid**2 * integrate_dxdy(ds, B_px**2 + B_py**2)
     kin_energy = 0.5 * a_mid**2 * P_0 * integrate_dxdy(ds, u_x**2 + u_y**2)
-    pot_energy = -P_0 * epsilon * a_mid**2 * integrate_dxdy(ds, P * x_c)
+    pot_energy = -2 * P_0 * epsilon * a_mid**2 * integrate_dxdy(ds, P * x_c)
 
     return (
         mag_energy / (P_0 * a_mid**2),
@@ -573,7 +574,6 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
     :param ds: Bout dataset
     """
 
-    ds = ds.isel(t=range(0, 50))
     tot_pol_flux = get_tot_pol_flux(ds)
     tot_pressure = get_tot_pressure(ds)
     M, K, Pi = get_tot_energy(ds)
@@ -592,9 +592,9 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
     # ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
     if relative:
-        ax[2].plot(ds[r"t"], M - M[0], "-", label=r"$M-M(t=0)$")
-        ax[2].plot(ds[r"t"], K - K[0], "-", label=r"$K-K(t=0)$")
-        ax[2].plot(ds[r"t"], Pi - Pi[0], "-", label=r"$\Pi-\Pi(t=0)$")
+        ax[2].plot(ds[r"t"], M - M[0], "-", label=r"$M-M_0)$")
+        ax[2].plot(ds[r"t"], K - K[0], "-", label=r"$K-K_0$")
+        ax[2].plot(ds[r"t"], Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
         ax[2].plot(
             ds[r"t"],
             (M - M[0]) + (K - K[0]) + (Pi - Pi[0]),
