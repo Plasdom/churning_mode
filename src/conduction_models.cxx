@@ -127,16 +127,16 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.y[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.y[i.ym()], 2.0))));
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        // if (fixed_Q_in)
+        // {
+        if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                if (fixed_Q_in)
-                {
-                    A_plus_half = 0.0;
-                }
+                A_plus_half = 0.0;
             }
         }
+        // }
 
         result[i] += (1.0 / (pow(coord->dy[i], 2.0))) * (A_plus_half * (T[i.yp()] - T[i]) - A_minus_half * (T[i] - T[i.ym()]));
     }
@@ -149,17 +149,17 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         ddy_minus = (0.5 / (coord->dy[i])) * (T[i.xm().yp()] - T[i.xm().ym()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        // if (fixed_Q_in)
+        // {
+        if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                if (fixed_Q_in)
-                {
-                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
-                }
+                ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
             }
         }
+        // }
 
         result[i] -= (0.5 / (coord->dx[i])) * (K_perp[i.xp()] * b.x[i.xp()] * b.y[i.xp()] * ddy_plus - K_perp[i.xm()] * b.x[i.xm()] * b.y[i.xm()] * ddy_minus);
     }
@@ -172,16 +172,16 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        // if (fixed_Q_in)
+        // {
+        if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                if (fixed_Q_in)
-                {
-                    ddx_plus = 0.0;
-                }
+                ddx_plus = 0.0;
             }
         }
+        // }
 
         result[i] -= (0.5 / (coord->dy[i])) * (K_perp[i.yp()] * b.x[i.yp()] * b.y[i.yp()] * ddx_plus - K_perp[i.ym()] * b.x[i.ym()] * b.y[i.ym()] * ddx_minus);
     }
@@ -1473,19 +1473,13 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
 
     Field3D result;
     BoutReal T_capped, tau_e, lambda_ei;
+    // lambda_ei = 10.0;
 
     result.allocate();
     BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     {
         // Limit T used in parallel conduction to T_limit
-        if (T[i] * T_sepx / 2.0 >= Te_limit_ev)
-        {
-            T_capped = T[i];
-        }
-        else
-        {
-            T_capped = Te_limit_ev * 2.0 / T_sepx;
-        }
+        T_capped = std::max(T[i], Te_limit_ev * 2.0 / T_sepx);
 
         // Find collision Coulomb log and collision time
         if (T_sepx * T_capped / 2.0 > 10.0)
@@ -1500,7 +1494,7 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
 
         // Calculate Spitzer-Harm parallel thermal conductivity
         // result[i] = std::min((3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0, 1.0e7 / D_0);
-        result[i] = (3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0;
+        result[i] = (3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0;
     }
 
     return result;

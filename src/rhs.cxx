@@ -50,7 +50,9 @@ int Churn::rhs(BoutReal UNUSED(t))
     mesh->communicate(phi);
 
     // Calculate velocity
+    // phi.applyBoundary("neumann");
     u = -cross(e_z, Grad(phi));
+    u.applyBoundary("dirichlet");
 
     // Get T
     T = P; // Normalised T = normalised P when rho = const
@@ -107,7 +109,7 @@ int Churn::rhs(BoutReal UNUSED(t))
 
                 // ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
                 // q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
-                // q_par = (-kappa_par * B * (B * Grad(T)) / pow(B_mag, 2)) * (sqrt(pow(B.x, 2.0) + pow(B.y, 2.0)) / B_mag); // TODO: This should be calculated using Gunter stencil really
+                // q_par = (-kappa_par * B * (B * Grad(T)) / pow(B_mag, 2));
             }
             else if (use_linetrace_div_q_par)
             {
@@ -125,8 +127,8 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             if (use_classic_div_q_perp)
             {
-                // ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
-                ddt(P) += D2DX2_DIFF(T, kappa_perp) + D2DY2_DIFF(T, kappa_perp);
+                ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
+                // ddt(P) += D2DX2_DIFF(P, kappa_perp) + D2DY2_DIFF(P, kappa_perp);
                 q_perp = -kappa_perp * Grad(T);
             }
             else if (use_gunter_div_q_perp)
