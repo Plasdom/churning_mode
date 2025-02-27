@@ -1466,6 +1466,230 @@ Field3D Churn::div_q_par_modified_stegmeir_efficient(const Field3D &T, const Fie
     return result;
 }
 
+Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D &B, const Field3D &B_mag)
+{
+    TRACE("Q_plus_fv");
+
+    Field3D result, q_fs;
+    BoutReal f1, f2, f3, A1, A2, A3, dV, B_avg;
+    double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
+    int n_x, n_y;
+    double theta, theta_g1, theta_g2, theta_g3;
+    int xi, sgn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    theta_g1 = atan2(0.5 * coord->dy(0, 0), coord->dx(0, 0));
+    theta_g2 = atan2(coord->dy(0, 0), coord->dx(0, 0));
+    theta_g3 = atan2(coord->dy(0, 0), 0.5 * coord->dx(0, 0));
+
+    // result = theta_g3 * 180 / pi;
+
+    result = 0.0;
+    for (auto i : result)
+    {
+        theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        if (theta < theta_g1)
+        {
+            // Find flux across two x boundaries
+            sgn = (0 < B.x[i]) - (B.x[i] < 0);
+            x_plus = sgn * coord->dx[i];
+            y_plus = x_plus * B.y[i] / B.x[i];
+            y_plus_up = y_plus + coord->dy[i] / 2.0;
+            y_plus_down = y_plus - coord->dy[i] / 2.0;
+            xi = floor(y_plus / coord->dy[i]);
+
+            A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+            A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
+
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dy[i] * ds;
+            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f1 = A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z());
+            f2 = A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z());
+            result[i] = (K_par[i] / (dV * B_avg)) * (f1 + f2 - u[i] * B.x[i] * coord->dy[i]);
+        }
+        else if (theta >= theta_g1 && theta < theta_g2)
+        {
+            // Find flux across two x boundaries and one y boundary
+            sgn = (0 < B.x[i]) - (B.x[i] < 0);
+            x_plus = sgn * coord->dx[i];
+            y_plus = x_plus * B.y[i] / B.x[i];
+            y_plus_up = y_plus + coord->dy[i] / 2.0;
+            y_plus_down = y_plus - coord->dy[i] / 2.0;
+            xi = floor(y_plus / coord->dy[i]);
+
+            if (y_plus_up >= coord->dy[i])
+            {
+                // 3rd boundary is upper y
+                A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+                A2 = coord->dy[i] - (xi + 0.5) * coord->dy[i];
+                x_plus_up = 0.5 * coord->dy[i] * B.x[i] / B.y[i];
+                A3 = coord->dx[i] - x_plus_up;
+
+                ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+                dV = coord->dy[i] * ds; // TODO: Refine this to account for non-rectangular shape of tube here
+                B_avg = B_mag[i];       // TODO: Use 4-point interpolation to find B_avg
+                // TODO: Use 4-point stencil for K_par too
+                f1 = A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z());
+                f2 = A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z());
+                f3 = A3 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.y(i.x() + sgn, i.y() + xi + 1, i.z());
+                result[i] = (K_par[i] / (dV * B_avg)) * (f1 + f2 + f3 - u[i] * B.x[i] * coord->dy[i]);
+                // result[i] = f3;
+            }
+            else if (y_plus_down <= -coord->dy[i])
+            {
+                // 3rd boundary is lower y
+                x_plus_down = -0.5 * coord->dy[i] * B.x[i] / B.y[i];
+                A1 = coord->dx[i] - x_plus_down;
+                A2 = coord->dy[i] - (xi + 1.0 + 0.5) * coord->dy[i];
+                A3 = y_plus_up - (xi + 0.5) * coord->dy[i];
+
+                ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+                dV = coord->dy[i] * ds; // TODO: Refine this to account for non-rectangular shape of tube here
+                B_avg = B_mag[i];       // TODO: Use 4-point interpolation to find B_avg
+                // TODO: Use 4-point stencil for K_par too
+                f1 = -A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.y(i.x() + sgn, i.y() + xi, i.z());
+                f2 = A2 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z());
+                f3 = A3 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z());
+                result[i] = (K_par[i] / (dV * B_avg)) * (f1 + f2 + f3 - u[i] * B.x[i] * coord->dy[i]);
+                // result[i] = ;
+            }
+        }
+        else if (theta >= theta_g2 && theta < theta_g3)
+        {
+            // Find flux across two y boundaries and one x boundary
+            // result[i] = 3;
+        }
+        else if (theta >= theta_g3)
+        {
+            // // Find flux across two y boundaries
+            // sgn = (0 < B.y[i]) - (B.y[i] < 0);
+            // y_plus = sgn * coord->dy[i];
+            // x_plus = y_plus * B.x[i] / B.y[i];
+            // x_plus_up = x_plus + coord->dx[i] / 2.0;
+            // x_plus_down = x_plus - coord->dx[i] / 2.0;
+            // xi = floor(x_plus / coord->dx[i]);
+
+            // A1 = (xi + 0.5) * coord->dx[i] - x_plus_down;
+            // A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
+
+            // ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            // dV = coord->dx[i] * ds;
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // // TODO: Use 4-point stencil for K_par too
+            // f1 = A1 * u(i.x() + xi, i.y() + sgn, i.z()) * B.y(i.x() + xi, i.y() + sgn, i.z());
+            // f2 = A2 * u(i.x() + xi + 1, i.y() + sgn, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn, i.z());
+            // result[i] = (K_par[i] / (dV * B_avg)) * (f1 + f2 - u[i] * B.y[i] * coord->dx[i]);
+            // result[i] = 4;
+        }
+
+        // result[i] = theta * 180.0 / pi;
+
+        // if (theta > theta_g)
+        // {
+        //     // Find flux in y-axis
+        //     sgn = (0 < B.y[i]) - (B.y[i] < 0);
+        //     y_plus = sgn * coord->dy[i];
+        //     x_plus = y_plus * B.x[i] / B.y[i];
+        //     x_plus_up = x_plus + coord->dx[i] / 2.0;
+        //     x_plus_down = x_plus - coord->dx[i] / 2.0;
+        //     xi = floor(x_plus / coord->dx[i]);
+
+        //     A1 = (xi + 0.5) * coord->dx[i] - x_plus_down;
+        //     A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
+        //     ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+        //     dV = coord->dx[i] * ds;
+        //     B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+        //     // TODO: Use 4-point stencil for K_par too
+        //     result[i] = (K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + xi, i.y() + sgn, i.z()) * B.y(i.x() + xi, i.y() + sgn, i.z()) + A2 * u(i.x() + xi + 1, i.y() + sgn, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn, i.z()) - u[i] * B.y[i] * coord->dx[i]);
+        // }
+        // else
+        // {
+        //     // Find flux in x-axis
+        //     sgn = (0 < B.x[i]) - (B.x[i] < 0);
+        //     x_plus = sgn * coord->dx[i];
+        //     y_plus = x_plus * B.y[i] / B.x[i];
+        //     y_plus_up = y_plus + coord->dy[i] / 2.0;
+        //     y_plus_down = y_plus - coord->dy[i] / 2.0;
+        //     xi = floor(y_plus / coord->dy[i]);
+
+        //     A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+        //     A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
+        //     ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+        //     dV = coord->dy[i] * ds;
+        //     B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+        //     // TODO: Use 4-point stencil for K_par too
+        //     result[i] = (K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z()) + A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z()) - u[i] * B.x[i] * coord->dy[i]);
+        // }
+    }
+
+    return result;
+}
+
+Field3D Churn::Q_minus_fv(const Field3D &u, const Field3D &K_par, const Vector3D &B, const Field3D &B_mag)
+{
+    TRACE("Q_minus_fv");
+
+    Field3D result, q_fs;
+    BoutReal f_x, f_y, A1, A2, dV, B_avg;
+    double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
+    int n_x, n_y;
+    double theta, theta_g;
+    int xi, sgn;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
+
+    result = 0.0;
+    for (auto i : result)
+    {
+        theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        if (theta > theta_g)
+        {
+            // Find flux in y-axis
+            sgn = (0 < B.y[i]) - (B.y[i] < 0);
+            sgn = -sgn;
+            y_plus = sgn * coord->dy[i];
+            x_plus = y_plus * B.x[i] / B.y[i];
+            x_plus_up = x_plus + coord->dx[i] / 2.0;
+            x_plus_down = x_plus - coord->dx[i] / 2.0;
+            xi = floor(x_plus / coord->dx[i]);
+
+            A1 = (xi + 0.5) * coord->dx[i] - x_plus_down;
+            A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dx[i] * ds;
+            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            result[i] = -(K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + xi, i.y() + sgn, i.z()) * B.y(i.x() + xi, i.y() + sgn, i.z()) + A2 * u(i.x() + xi + 1, i.y() + sgn, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn, i.z()) - u[i] * B.y[i] * coord->dx[i]);
+        }
+        else
+        {
+            // Find flux in x-axis
+            sgn = (0 < B.x[i]) - (B.x[i] < 0);
+            sgn = -sgn;
+            x_plus = sgn * coord->dx[i];
+            y_plus = x_plus * B.y[i] / B.x[i];
+            y_plus_up = y_plus + coord->dy[i] / 2.0;
+            y_plus_down = y_plus - coord->dy[i] / 2.0;
+            xi = floor(y_plus / coord->dy[i]);
+
+            A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+            A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dy[i] * ds;
+            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            result[i] = -(K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z()) + A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z()) - u[i] * B.x[i] * coord->dy[i]);
+        }
+    }
+
+    return result;
+}
+
 Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev)
 {
     // Calculate the Spitzer-Harm thermal conductivity for electrons on the input temperature field

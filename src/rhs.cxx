@@ -104,8 +104,12 @@ int Churn::rhs(BoutReal UNUSED(t))
                 Field3D q_par_plus = Q_plus(T, kappa_par, B / B_mag);
                 Field3D q_par_minus = Q_minus(T, kappa_par, B / B_mag);
                 ddt(P) += -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
-                q_par = -0.5 * (q_par_plus + q_par_minus) * (B / B_mag);
-                // q_par.x = -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
+                // q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
+                // q_par = -0.5 * (Q_plus_fv(T, kappa_par, B, B_mag) + Q_minus_fv(T, kappa_par, B, B_mag)) * (B / B_mag);
+                q_par.x = Q_plus_fv(T, kappa_par, B, B_mag);
+                q_par.y = Q_plus(T, kappa_par, B / B_mag);
+                // q_par.x = Q_minus_fv(T, kappa_par, B, B_mag);
+                // q_par.y = Q_minus(T, kappa_par, B / B_mag);
 
                 // ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
                 // q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);

@@ -185,8 +185,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
                 {
                     for (int iz = 0; iz < mesh->LocalNz; iz++)
                     {
-                        P(ix, iy, iz) = T_down / T_sepx;
-                        // P(ix, iy, iz) = 0.0;
+                        // P(ix, iy, iz) = T_down / T_sepx;
+                        P(ix, iy, iz) = 1.0;
                     }
                 }
             }
@@ -214,7 +214,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
                 for (int iz = 0; iz < mesh->LocalNz; iz++)
                 {
                     P(itl.ind, iy, iz) = T_down / T_sepx;
-                    // P(itl.ind, iy, iz) = 0.0;
+                    // P(itl.ind, iy, iz) = 1.0;
                 }
             }
         }
