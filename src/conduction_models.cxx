@@ -1474,8 +1474,8 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
     BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
     double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
     int n_x, n_y;
-    double theta, theta_g, theta_g1, theta_g2, theta_g3;
-    int xi, sgn;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y;
+    int xi, sgn_x, sgn_y;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -1491,6 +1491,8 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
     for (auto i : result)
     {
         theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        sgn_x = (0 < B.x[i]) - (B.x[i] < 0);
+        sgn_y = (0 < B.y[i]) - (B.y[i] < 0);
 
         // if (theta < theta_g1)
         // {
@@ -1591,8 +1593,7 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
         if (theta > theta_g)
         {
             // Find flux in y-axis
-            sgn = (0 < B.y[i]) - (B.y[i] < 0);
-            y_plus = sgn * coord->dy[i];
+            y_plus = sgn_y * coord->dy[i];
             x_plus = y_plus * B.x[i] / B.y[i];
             x_plus_up = x_plus + coord->dx[i] / 2.0;
             x_plus_down = x_plus - coord->dx[i] / 2.0;
@@ -1603,19 +1604,21 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             dV = coord->dx[i] * ds;
 
-            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
             // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
 
-            f1 = A1 * u(i.x() + xi, i.y() + sgn, i.z()) * B.y(i.x() + xi, i.y() + sgn, i.z());
-            f2 = A2 * u(i.x() + xi + 1, i.y() + sgn, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn, i.z());
+            f1 = A1 * u(i.x() + xi, i.y() + sgn_y, i.z()) * B.y(i.x() + xi, i.y() + sgn_y, i.z());
+            f2 = A2 * u(i.x() + xi + 1, i.y() + sgn_y, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn_y, i.z());
             fin = u[i] * B.y[i] * coord->dx[i];
-            result[i] = sgn * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
+            result[i] = sgn_y * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
         }
         else
         {
             // Find flux in x-axis
-            sgn = (0 < B.x[i]) - (B.x[i] < 0);
-            x_plus = sgn * coord->dx[i];
+            x_plus = sgn_x * coord->dx[i];
             y_plus = x_plus * B.y[i] / B.x[i];
             y_plus_up = y_plus + coord->dy[i] / 2.0;
             y_plus_down = y_plus - coord->dy[i] / 2.0;
@@ -1625,13 +1628,96 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
             ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             dV = coord->dy[i] * ds;
-            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
-            // TODO: Use 4-point stencil for K_par too
 
-            f1 = A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z());
-            f2 = A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z());
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + sgn_x, i.y() + xi, i.z()) * B.x(i.x() + sgn_x, i.y() + xi, i.z());
+            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn_x, i.y() + xi + 1, i.z());
             fin = u[i] * B.x[i] * coord->dy[i];
-            result[i] = sgn * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
+            result[i] = sgn_x * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
+        }
+    }
+
+    return result;
+}
+
+Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B_mag)
+{
+    TRACE("Q_plus_fv_T");
+
+    Field3D result, q_fs;
+    BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
+    double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
+    int n_x, n_y;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y;
+    int xi, sgn_x, sgn_y;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
+
+    result = 0.0;
+    for (auto i : result)
+    {
+        theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        sgn_x = (0 < B.x[i]) - (B.x[i] < 0);
+        sgn_y = (0 < B.y[i]) - (B.y[i] < 0);
+        sgn_x = -sgn_x;
+        sgn_y = -sgn_y;
+
+        if (theta > theta_g)
+        {
+            // Find flux in y-axis
+            y_plus = sgn_y * coord->dy[i];
+            x_plus = y_plus * B.x[i] / B.y[i];
+            x_plus_up = x_plus + coord->dx[i] / 2.0;
+            x_plus_down = x_plus - coord->dx[i] / 2.0;
+            xi = floor(x_plus / coord->dx[i]);
+
+            A1 = (xi + 0.5) * coord->dx[i] - x_plus_down;
+            A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dx[i] * ds;
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + xi, i.y() + sgn_y, i.z()) * B.y(i.x() + xi, i.y() + sgn_y, i.z());
+            f2 = A2 * u(i.x() + xi + 1, i.y() + sgn_y, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn_y, i.z());
+            fin = u[i] * B.y[i] * coord->dx[i];
+            result[i] = -sgn_y * (1.0 / (dV * B_avg)) * (f1 + f2 - fin);
+        }
+        else
+        {
+            // Find flux in x-axis
+            x_plus = sgn_x * coord->dx[i];
+            y_plus = x_plus * B.y[i] / B.x[i];
+            y_plus_up = y_plus + coord->dy[i] / 2.0;
+            y_plus_down = y_plus - coord->dy[i] / 2.0;
+            xi = floor(y_plus / coord->dy[i]);
+
+            A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+            A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dy[i] * ds;
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + sgn_x, i.y() + xi, i.z()) * B.x(i.x() + sgn_x, i.y() + xi, i.z());
+            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn_x, i.y() + xi + 1, i.z());
+            fin = u[i] * B.x[i] * coord->dy[i];
+            result[i] = -sgn_x * (1.0 / (dV * B_avg)) * (f1 + f2 - fin);
         }
     }
 
@@ -1643,11 +1729,11 @@ Field3D Churn::Q_minus_fv(const Field3D &u, const Field3D &K_par, const Vector3D
     TRACE("Q_minus_fv");
 
     Field3D result, q_fs;
-    BoutReal f_x, f_y, A1, A2, dV, B_avg;
+    BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
     double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
     int n_x, n_y;
-    double theta, theta_g;
-    int xi, sgn;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y;
+    int xi, sgn_x, sgn_y;
 
     Coordinates *coord = mesh->getCoordinates();
 
@@ -1657,12 +1743,15 @@ Field3D Churn::Q_minus_fv(const Field3D &u, const Field3D &K_par, const Vector3D
     for (auto i : result)
     {
         theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        sgn_x = (0 < B.x[i]) - (B.x[i] < 0);
+        sgn_y = (0 < B.y[i]) - (B.y[i] < 0);
+        sgn_x = -sgn_x;
+        sgn_y = -sgn_y;
+
         if (theta > theta_g)
         {
             // Find flux in y-axis
-            sgn = (0 < B.y[i]) - (B.y[i] < 0);
-            sgn = -sgn;
-            y_plus = sgn * coord->dy[i];
+            y_plus = sgn_y * coord->dy[i];
             x_plus = y_plus * B.x[i] / B.y[i];
             x_plus_up = x_plus + coord->dx[i] / 2.0;
             x_plus_down = x_plus - coord->dx[i] / 2.0;
@@ -1672,16 +1761,22 @@ Field3D Churn::Q_minus_fv(const Field3D &u, const Field3D &K_par, const Vector3D
             A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
             ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             dV = coord->dx[i] * ds;
-            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
             // TODO: Use 4-point stencil for K_par too
-            result[i] = -(K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + xi, i.y() + sgn, i.z()) * B.y(i.x() + xi, i.y() + sgn, i.z()) + A2 * u(i.x() + xi + 1, i.y() + sgn, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn, i.z()) - u[i] * B.y[i] * coord->dx[i]);
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + xi, i.y() + sgn_y, i.z()) * B.y(i.x() + xi, i.y() + sgn_y, i.z());
+            f2 = A2 * u(i.x() + xi + 1, i.y() + sgn_y, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn_y, i.z());
+            fin = u[i] * B.y[i] * coord->dx[i];
+            result[i] = sgn_y * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
         }
         else
         {
             // Find flux in x-axis
-            sgn = (0 < B.x[i]) - (B.x[i] < 0);
-            sgn = -sgn;
-            x_plus = sgn * coord->dx[i];
+            x_plus = sgn_x * coord->dx[i];
             y_plus = x_plus * B.y[i] / B.x[i];
             y_plus_up = y_plus + coord->dy[i] / 2.0;
             y_plus_down = y_plus - coord->dy[i] / 2.0;
@@ -1691,9 +1786,94 @@ Field3D Churn::Q_minus_fv(const Field3D &u, const Field3D &K_par, const Vector3D
             A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
             ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             dV = coord->dy[i] * ds;
-            B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
             // TODO: Use 4-point stencil for K_par too
-            result[i] = -(K_par[i] / (dV * B_avg)) * (A1 * u(i.x() + sgn, i.y() + xi, i.z()) * B.x(i.x() + sgn, i.y() + xi, i.z()) + A2 * u(i.x() + sgn, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn, i.y() + xi + 1, i.z()) - u[i] * B.x[i] * coord->dy[i]);
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + sgn_x, i.y() + xi, i.z()) * B.x(i.x() + sgn_x, i.y() + xi, i.z());
+            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn_x, i.y() + xi + 1, i.z());
+            fin = u[i] * B.x[i] * coord->dy[i];
+            result[i] = sgn_x * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
+        }
+    }
+
+    return result;
+}
+
+Field3D Churn::Q_minus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B_mag)
+{
+    TRACE("Q_minus_fv_T");
+
+    Field3D result, q_fs;
+    BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
+    double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
+    int n_x, n_y;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y;
+    int xi, sgn_x, sgn_y;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
+
+    result = 0.0;
+    for (auto i : result)
+    {
+        theta = atan2(abs(B.y[i]), abs(B.x[i]));
+        sgn_x = (0 < B.x[i]) - (B.x[i] < 0);
+        sgn_y = (0 < B.y[i]) - (B.y[i] < 0);
+
+        if (theta > theta_g)
+        {
+            // Find flux in y-axis
+            y_plus = sgn_y * coord->dy[i];
+            x_plus = y_plus * B.x[i] / B.y[i];
+            x_plus_up = x_plus + coord->dx[i] / 2.0;
+            x_plus_down = x_plus - coord->dx[i] / 2.0;
+            xi = floor(x_plus / coord->dx[i]);
+
+            A1 = (xi + 0.5) * coord->dx[i] - x_plus_down;
+            A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dx[i] * ds;
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + xi, i.y() + sgn_y, i.z()) * B.y(i.x() + xi, i.y() + sgn_y, i.z());
+            f2 = A2 * u(i.x() + xi + 1, i.y() + sgn_y, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn_y, i.z());
+            fin = u[i] * B.y[i] * coord->dx[i];
+            result[i] = -sgn_y * (1.0 / (dV * B_avg)) * (f1 + f2 - fin);
+        }
+        else
+        {
+            // Find flux in x-axis
+            x_plus = sgn_x * coord->dx[i];
+            y_plus = x_plus * B.y[i] / B.x[i];
+            y_plus_up = y_plus + coord->dy[i] / 2.0;
+            y_plus_down = y_plus - coord->dy[i] / 2.0;
+            xi = floor(y_plus / coord->dy[i]);
+
+            A1 = (xi + 0.5) * coord->dy[i] - y_plus_down;
+            A2 = y_plus_up - (xi + 0.5) * coord->dy[i];
+            ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            dV = coord->dy[i] * ds;
+
+            // B_avg = B_mag[i]; // TODO: Use 4-point interpolation to find B_avg
+            // TODO: Use 4-point stencil for K_par too
+            f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            f1 = A1 * u(i.x() + sgn_x, i.y() + xi, i.z()) * B.x(i.x() + sgn_x, i.y() + xi, i.z());
+            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn_x, i.y() + xi + 1, i.z());
+            fin = u[i] * B.x[i] * coord->dy[i];
+            result[i] = -sgn_x * (1.0 / (dV * B_avg)) * (f1 + f2 - fin);
         }
     }
 
