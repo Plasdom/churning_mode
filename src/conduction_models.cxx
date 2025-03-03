@@ -1481,12 +1481,6 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
 
     theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
 
-    // theta_g1 = atan2(0.5 * coord->dy(0, 0), coord->dx(0, 0));
-    // theta_g2 = atan2(coord->dy(0, 0), coord->dx(0, 0));
-    // theta_g3 = atan2(coord->dy(0, 0), 0.5 * coord->dx(0, 0));
-
-    // result = theta_g3 * 180 / pi;
-
     result = 0.0;
     for (auto i : result)
     {
@@ -1595,11 +1589,11 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             // Find flux in y-axis
             y_plus = sgn_y * coord->dy[i];
             x_plus = y_plus * B.x[i] / abs(B.y[i]);
-            x_plus_up = x_plus + sgn_x * coord->dx[i] / 2.0;
-            x_plus_down = x_plus - sgn_x * coord->dx[i] / 2.0;
+            x_plus_up = x_plus + coord->dx[i] / 2.0;
+            x_plus_down = x_plus - coord->dx[i] / 2.0;
             xi = floor(x_plus / coord->dx[i]);
 
-            A2 = x_plus_up - 0.5 * coord->dx[i];
+            A2 = x_plus_up - (xi + 0.5) * coord->dx[i];
             A1 = coord->dx[i] - A2;
             ds = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             dV = coord->dx[i] * ds;
@@ -1636,7 +1630,7 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
 
             f1 = A1 * u(i.x() + sgn_x, i.y() + xi, i.z()) * B.x(i.x() + sgn_x, i.y() + xi, i.z());
-            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + xi + 1, i.y() + sgn_y, i.z());
+            f2 = A2 * u(i.x() + sgn_x, i.y() + xi + 1, i.z()) * B.x(i.x() + sgn_x, i.y() + xi + 1, i.z());
             fin = u[i] * B.x[i] * coord->dy[i];
             result[i] = sgn_x * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
         }
@@ -1713,7 +1707,7 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
             B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
 
             f1 = A1 * u(i.x() - sgn_x, i.y() - xi, i.z()) * B.x(i.x() - sgn_x, i.y() - xi, i.z());
-            f2 = A2 * u(i.x() - sgn_x, i.y() - xi - 1, i.z()) * B.x(i.x() - xi - 1, i.y() - sgn_y, i.z());
+            f2 = A2 * u(i.x() - sgn_x, i.y() - xi - 1, i.z()) * B.x(i.x() - sgn_x, i.y() - xi - 1, i.z());
             fin = u[i] * B.x[i] * coord->dy[i];
             result[i] = sgn_x * (1.0 / (dV * B_avg)) * (f1 + f2 - fin);
         }
