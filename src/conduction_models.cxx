@@ -1518,8 +1518,8 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             x_plus = y_plus * B.x[i] / B.y[i];
             x_plus_up = y_plus * ((0.5 * (B.x[i] + B.x[i.xp()])) / (0.5 * (B.y[i] + B.y[i.xp()]))) + 0.5 * coord->dx[i];
             x_plus_down = y_plus * ((0.5 * (B.x[i] + B.x[i.xm()])) / (0.5 * (B.y[i] + B.y[i.xm()]))) - 0.5 * coord->dx[i];
-            xi_up = floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i]);
-            xi_down = floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i]);
+            xi_up = std::max(std::min(static_cast<int>(floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i])), 2), -2);
+            xi_down = std::max(std::min(static_cast<int>(floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i])), 2), -2);
 
             x_cur = x_plus_down;
             A_tot = 0.0;
@@ -1544,7 +1544,9 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
 
             fin = u[i] * B.y[i] * coord->dy[i];
             // fin = u[i] * coord->dy[i];
-            result[i] = (K_par[i] / (dV * B_avg)) * (f - fin);
+            result[i] = sgn_y * (K_par[i] / (dV * B_avg)) * (f - fin);
+
+            // result[i] = x_plus_up / coord->dx[i];
         }
         else
         {
@@ -1553,8 +1555,8 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             y_plus = x_plus * B.y[i] / B.x[i];
             y_plus_up = x_plus * ((0.5 * (B.y[i] + B.y[i.yp()])) / (0.5 * (B.x[i] + B.x[i.yp()]))) + 0.5 * coord->dy[i];
             y_plus_down = x_plus * ((0.5 * (B.y[i] + B.y[i.ym()])) / (0.5 * (B.x[i] + B.x[i.ym()]))) - 0.5 * coord->dy[i];
-            xi_up = floor((y_plus_up - 0.5 * coord->dy[i]) / coord->dy[i]);
-            xi_down = floor((y_plus_down + 0.5 * coord->dy[i]) / coord->dy[i]);
+            xi_up = std::max(std::min(static_cast<int>(floor((y_plus_up - 0.5 * coord->dy[i]) / coord->dy[i])), 2), -2);
+            xi_down = std::max(std::min(static_cast<int>(floor((y_plus_down + 0.5 * coord->dy[i]) / coord->dy[i])), 2), -2);
 
             y_cur = y_plus_down;
             A_tot = 0.0;
@@ -1582,7 +1584,11 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
 
             fin = u[i] * B.x[i] * coord->dy[i];
             // fin = u[i] * coord->dy[i];
-            result[i] = (K_par[i] / (dV * B_avg)) * (f - fin);
+            result[i] = sgn_x * (K_par[i] / (dV * B_avg)) * (f - fin);
+
+            // result[i] = 0.0;
+
+            // result[i] = y_plus_down / coord->dy[i];
 
             // A2 = y_plus_up - (xi_up + 0.5) * coord->dy[i];
             // A1 = coord->dy[i] - A2;
@@ -1636,10 +1642,10 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
             // Find flux in y-axis
             y_plus = sgn_y * coord->dy[i];
             x_plus = y_plus * B.x[i] / B.y[i];
-            x_plus_up = y_plus * ((0.5 * (B.x[i] + B.x[i.xm()])) / (0.5 * (B.y[i] + B.y[i.xm()]))) + 0.5 * coord->dx[i];
-            x_plus_down = y_plus * ((0.5 * (B.x[i] + B.x[i.yp()])) / (0.5 * (B.y[i] + B.y[i.yp()]))) - 0.5 * coord->dx[i];
-            xi_up = floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i]);
-            xi_down = floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i]);
+            x_plus_up = y_plus * ((0.5 * (B.x[i] + B.x[i.xp()])) / (0.5 * (B.y[i] + B.y[i.xp()]))) + 0.5 * coord->dx[i];
+            x_plus_down = y_plus * ((0.5 * (B.x[i] + B.x[i.xm()])) / (0.5 * (B.y[i] + B.y[i.xm()]))) - 0.5 * coord->dx[i];
+            xi_up = std::max(std::min(static_cast<int>(floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i])), 2), -2);
+            xi_down = std::max(std::min(static_cast<int>(floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i])), 2), -2);
 
             x_cur = x_plus_down;
             A_tot = 0.0;
@@ -1661,7 +1667,7 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
             B_avg = B_mag[i];
 
             fin = u[i] * B.y[i] * coord->dy[i];
-            result[i] = (1.0 / (dV * B_avg)) * (f - fin);
+            result[i] = sgn_y * (1.0 / (dV * B_avg)) * (f - fin);
         }
         else
         {
@@ -1672,8 +1678,8 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
             y_plus = x_plus * B.y[i] / B.x[i];
             y_plus_up = x_plus * ((0.5 * (B.y[i] + B.y[i.yp()])) / (0.5 * (B.x[i] + B.x[i.yp()]))) + 0.5 * coord->dy[i];
             y_plus_down = x_plus * ((0.5 * (B.y[i] + B.y[i.ym()])) / (0.5 * (B.x[i] + B.x[i.ym()]))) - 0.5 * coord->dy[i];
-            xi_up = floor((y_plus_up - 0.5 * coord->dy[i]) / coord->dy[i]);
-            xi_down = floor((y_plus_down + 0.5 * coord->dy[i]) / coord->dy[i]);
+            xi_up = std::max(std::min(static_cast<int>(floor((y_plus_up - 0.5 * coord->dy[i]) / coord->dy[i])), 2), -2);
+            xi_down = std::max(std::min(static_cast<int>(floor((y_plus_down + 0.5 * coord->dy[i]) / coord->dy[i])), 2), -2);
 
             y_cur = y_plus_down;
             A_tot = 0.0;
@@ -1726,7 +1732,7 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
 
             fin = u[i] * B.x[i] * coord->dy[i];
             // fin = u[i] * coord->dy[i];
-            result[i] = (1.0 / (dV * B_avg)) * (f - fin);
+            result[i] = sgn_x * (1.0 / (dV * B_avg)) * (f - fin);
         }
     }
 
