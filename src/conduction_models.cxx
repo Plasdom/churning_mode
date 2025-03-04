@@ -1474,15 +1474,15 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
     BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
     double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
     int n_x, n_y;
-    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y, A, y_cur, f, A_tot, d1, d2;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y, A, y_cur, x_cur, f, A_tot, d1, d2;
     int xi, xi_up, xi_down, sgn_x, sgn_y, num_overlaps;
 
     Coordinates *coord = mesh->getCoordinates();
 
     theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
 
-    result = 0.0;
-    for (auto i : result)
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     {
         theta = atan2(abs(B.y[i]), abs(B.x[i]));
         sgn_x = (0 <= B.x[i]) - (B.x[i] < 0);
@@ -1512,6 +1512,39 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             // f2 = A2 * u(i.x() + xi + 1, i.y() + sgn_y, i.z()) * B.y(i.x() + xi + 1, i.y() + sgn_y, i.z());
             // fin = u[i] * B.y[i] * coord->dx[i];
             // result[i] = sgn_y * (K_par[i] / (dV * B_avg)) * (f1 + f2 - fin);
+
+            // Find flux in y-axis
+            y_plus = sgn_y * coord->dy[i];
+            x_plus = y_plus * B.x[i] / B.y[i];
+            x_plus_up = y_plus * ((0.5 * (B.x[i] + B.x[i.xp()])) / (0.5 * (B.y[i] + B.y[i.xp()]))) + 0.5 * coord->dx[i];
+            x_plus_down = y_plus * ((0.5 * (B.x[i] + B.x[i.xm()])) / (0.5 * (B.y[i] + B.y[i.xm()]))) - 0.5 * coord->dx[i];
+            xi_up = floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i]);
+            xi_down = floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i]);
+
+            x_cur = x_plus_down;
+            A_tot = 0.0;
+            f = 0.0;
+            for (int k = xi_down; k <= xi_up + 1; k++)
+            {
+                A = std::min(coord->dx[i] * (k + 0.5), x_plus_up) - x_cur;
+                f += A * u(i.x() + k, i.y() + sgn_y, i.z()) * B.y(i.x() + k, i.y() + sgn_y, i.z());
+
+                x_cur += A;
+
+                A_tot += A;
+            }
+
+            d1 = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+            d2 = sqrt(pow(x_plus_up - x_plus_down - 0.5 * coord->dx[i], 2));
+            dV = 2.0 * d1 * d2;
+
+            f_x = sgn_x * 0.5 * (x_plus_up - x_plus_down) / coord->dx[i];
+            f_y = sgn_y * 0.5 * y_plus / coord->dy[i];
+            B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+
+            fin = u[i] * B.y[i] * coord->dy[i];
+            // fin = u[i] * coord->dy[i];
+            result[i] = (K_par[i] / (dV * B_avg)) * (f - fin);
         }
         else
         {
@@ -1530,6 +1563,7 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             {
                 A = std::min(coord->dy[i] * (k + 0.5), y_plus_up) - y_cur;
                 f += A * u(i.x() + sgn_x, i.y() + k, i.z()) * B.x(i.x() + sgn_x, i.y() + k, i.z());
+                // f += A * u(i.x() + sgn_x, i.y() + k, i.z());
 
                 y_cur += A;
 
@@ -1539,12 +1573,15 @@ Field3D Churn::Q_plus_fv(const Field3D &u, const Field3D &K_par, const Vector3D 
             d1 = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
             d2 = sqrt(pow(y_plus_up - y_plus_down - 0.5 * coord->dy[i], 2));
             dV = 2.0 * d1 * d2;
+            // dV = 1.0;
 
             f_x = sgn_x * 0.5 * x_plus / coord->dx[i];
             f_y = sgn_y * 0.5 * (y_plus_up - y_plus_down) / coord->dy[i];
             B_avg = (1.0 - f_y) * ((1 - f_x) * B_mag(i.x(), i.y(), i.z()) + f_x * B_mag(i.x() + sgn_x, i.y(), i.z())) + f_y * ((1 - f_x) * B_mag(i.x(), i.y() + sgn_y, i.z()) + f_x * B_mag(i.x() + sgn_x, i.y() + sgn_y, i.z()));
+            // B_avg = 1.0;
 
             fin = u[i] * B.x[i] * coord->dy[i];
+            // fin = u[i] * coord->dy[i];
             result[i] = (K_par[i] / (dV * B_avg)) * (f - fin);
 
             // A2 = y_plus_up - (xi_up + 0.5) * coord->dy[i];
@@ -1580,15 +1617,15 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
     BoutReal fin, f1, f2, f3, A1, A2, A3, dV, B_avg;
     double y_plus, y_plus_up, y_plus_down, x_plus, x_plus_up, x_plus_down, ds;
     int n_x, n_y;
-    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y, A, y_cur, f, A_tot, d1, d2;
+    double theta, theta_g, theta_g1, theta_g2, theta_g3, f_x, f_y, A, y_cur, x_cur, f, A_tot, d1, d2;
     int xi, xi_up, xi_down, sgn_x, sgn_y, num_overlaps;
 
     Coordinates *coord = mesh->getCoordinates();
 
     theta_g = atan2(coord->dy(0, 0), coord->dx(0, 0));
 
-    result = 0.0;
-    for (auto i : result)
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
         theta = atan2(abs(B.y[i]), abs(B.x[i]));
         sgn_x = (0 <= B.x[i]) - (B.x[i] < 0);
@@ -1596,10 +1633,41 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
 
         if (theta > theta_g)
         {
+            // Find flux in y-axis
+            y_plus = sgn_y * coord->dy[i];
+            x_plus = y_plus * B.x[i] / B.y[i];
+            x_plus_up = y_plus * ((0.5 * (B.x[i] + B.x[i.xm()])) / (0.5 * (B.y[i] + B.y[i.xm()]))) + 0.5 * coord->dx[i];
+            x_plus_down = y_plus * ((0.5 * (B.x[i] + B.x[i.yp()])) / (0.5 * (B.y[i] + B.y[i.yp()]))) - 0.5 * coord->dx[i];
+            xi_up = floor((x_plus_up - 0.5 * coord->dx[i]) / coord->dx[i]);
+            xi_down = floor((x_plus_down + 0.5 * coord->dx[i]) / coord->dx[i]);
+
+            x_cur = x_plus_down;
+            A_tot = 0.0;
+            f = 0.0;
+            for (int k = xi_down; k <= xi_up + 1; k++)
+            {
+                A = std::min(coord->dx[i] * (k + 0.5), x_plus_up) - x_cur;
+                f += A * u(i.x() - k, i.y() - sgn_y, i.z()) * B.y(i.x() - k, i.y() - sgn_y, i.z());
+
+                x_cur += A;
+
+                A_tot += A;
+            }
+
+            d1 = coord->dy[i];
+            d2 = coord->dx[i];
+            dV = 2.0 * d1 * d2;
+
+            B_avg = B_mag[i];
+
+            fin = u[i] * B.y[i] * coord->dy[i];
+            result[i] = (1.0 / (dV * B_avg)) * (f - fin);
         }
         else
         {
             // Find flux in x-axis
+
+            // Get RHS flux
             x_plus = sgn_x * coord->dx[i];
             y_plus = x_plus * B.y[i] / B.x[i];
             y_plus_up = x_plus * ((0.5 * (B.y[i] + B.y[i.yp()])) / (0.5 * (B.x[i] + B.x[i.yp()]))) + 0.5 * coord->dy[i];
@@ -1614,19 +1682,50 @@ Field3D Churn::Q_plus_fv_T(const Field3D &u, const Vector3D &B, const Field3D &B
             {
                 A = std::min(coord->dy[i] * (k + 0.5), y_plus_up) - y_cur;
                 f += A * u(i.x() - sgn_x, i.y() - k, i.z()) * B.x(i.x() - sgn_x, i.y() - k, i.z());
+                // f += A * u(i.x() - sgn_x, i.y() - k, i.z());
 
                 y_cur += A;
 
                 A_tot += A;
             }
 
+            // result[i] = u(i.x() + 1, i.y() + 1, i.z());
+
+            // // Get LHS flux
+            // x_plus = -sgn_x * 0.5 * coord->dx[i];
+            // y_plus = x_plus * -B.y[i] / B.x[i];
+            // y_plus_up = -x_plus * ((0.5 * (B.y[i] + B.y[i.yp()])) / (0.5 * (B.x[i] + B.x[i.yp()]))) + 0.5 * coord->dy[i];
+            // y_plus_down = -x_plus * ((0.5 * (B.y[i] + B.y[i.ym()])) / (0.5 * (B.x[i] + B.x[i.ym()]))) - 0.5 * coord->dy[i];
+            // xi_up = floor((y_plus_up - 0.5 * coord->dy[i]) / coord->dy[i]);
+            // xi_down = floor((y_plus_down + 0.5 * coord->dy[i]) / coord->dy[i]);
+
+            // y_cur = y_plus_down;
+            // A_tot = 0.0;
+            // fin = 0.0;
+            // for (int k = xi_down; k <= xi_up + 1; k++)
+            // {
+            //     A = std::min(coord->dy[i] * (k + 0.5), y_plus_up) - y_cur;
+            //     // f += A * u(i.x() - sgn_x, i.y() - k, i.z()) * B.x(i.x() - sgn_x, i.y() - k, i.z());
+            //     // fin += A * u(i.x() + sgn_x, i.y() - k, i.z());
+            //     // fin += A * u(i.x() - sgn_x, i.y() - k, i.z());
+            //     // fin += A * u(i.x() - sgn_x, i.y() + k, i.z());
+            //     fin += A * u(i.x() + sgn_x, i.y() + k, i.z());
+
+            //     y_cur += A;
+
+            //     A_tot += A;
+            // }
+
             d1 = coord->dy[i];
             d2 = coord->dx[i];
             dV = 2.0 * d1 * d2;
+            // dV = 1.0;
 
             B_avg = B_mag[i];
+            // B_avg = 1.0;
 
             fin = u[i] * B.x[i] * coord->dy[i];
+            // fin = u[i] * coord->dy[i];
             result[i] = (1.0 / (dV * B_avg)) * (f - fin);
         }
     }
