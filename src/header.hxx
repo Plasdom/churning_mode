@@ -78,7 +78,7 @@ private:
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
     // Field2D q_in_yup;
-    // Field3D debugvar;
+    Field3D thermal_force_term;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -125,11 +125,14 @@ private:
     BoutReal q_in;        ///< Heat flux into domain if fixed_Q_in option is true
     BoutReal num_q_in_cells; ///< Number of cells over which to distribute q_in
     BoutReal alpha_fl;       ///< Flux limiter
+    BoutReal Omega_i0;       ///< Ion cyclotron frequency
+    double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure
     bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
     bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
+    bool include_thermal_force_term; ///< Include the thermal force term in the psi equation
     bool invert_laplace;             ///< Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint) (TODO: Implement this option)
     bool include_advection;          ///< Use advection terms
     bool fixed_T_down;               ///< Use a constant value for P on downstream boundaries
@@ -189,6 +192,7 @@ private:
     Field3D rotated_laplacexy(const Field3D &f);
     Field3D D2DX2_DIFF(const Field3D &f, const Field3D &A);
     Field3D D2DY2_DIFF(const Field3D &f, const Field3D &A);
+    Field3D grad_par_custom(const Field3D &u, const Vector3D &b);
 
 protected:
     int init(bool restarting) override;

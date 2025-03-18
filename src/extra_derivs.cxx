@@ -149,3 +149,53 @@ Field3D Churn::rotated_laplacexy(const Field3D &f)
 
     return result;
 }
+
+Field3D Churn::grad_par_custom(const Field3D &u, const Vector3D &b)
+{
+    TRACE("grad_par");
+
+    Field3D result;
+    BoutReal f_x, f_y;
+    double y_plus, x_plus, ds_p, ds, u_plus, u_minus;
+    int n_x, n_y;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+    for (auto i : result)
+    {
+
+        x_plus = coord->dy[i] * abs(b.x[i] / b.y[i]);
+        x_plus = std::min(static_cast<double>(coord->dx[i]), x_plus);
+        y_plus = coord->dx[i] * abs(b.y[i] / b.x[i]);
+        y_plus = std::min(static_cast<double>(coord->dy[i]), y_plus);
+        if (b.x[i] >= 0)
+        {
+            n_x = 0;
+        }
+        else
+        {
+            n_x = -1;
+            x_plus = -x_plus;
+        }
+        if (b.y[i] >= 0)
+        {
+            n_y = 0;
+        }
+        else
+        {
+            n_y = -1;
+            y_plus = -y_plus;
+        }
+        ds_p = 2.0 * sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+        ds = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+        f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
+        f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
+        u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+
+        result[i] = 0.5 * (u_plus - u_minus) / ds;
+    }
+
+    return result;
+}

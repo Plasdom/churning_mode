@@ -43,6 +43,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_churn_drive_term = options["include_churn_drive_term"]
                                    .doc("Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)")
                                    .withDefault(true);
+    include_thermal_force_term = options["include_thermal_force_term"]
+                                     .doc("Include the thermal force term in the psi equation")
+                                     .withDefault(false);
     invert_laplace = options["invert_laplace"]
                          .doc("Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)")
                          .withDefault(true);
@@ -100,11 +103,13 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     t_0 = a_mid / C_s0;
     D_0 = a_mid * C_s0;
     psi_0 = B_pmid * R_0 * a_mid;
-    phi_0 = pow(C_s0, 2) * B_t0 * t_0 / c;
+    phi_0 = pow(C_s0, 2) * abs(B_t0) * t_0 / c;
     epsilon = a_mid / R_0;
-    // beta_p = 1.0e-7 * 8.0 * pi * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
-    beta_p = 2.0 * mu_0 * P_0 / pow(B_pmid, 2.0); // TODO: Double check units on this
+    // beta_p = 1.0e-7 * 8.0 * pi * P_0 / pow(B_pmid, 2.0);
+    beta_p = 2.0 * mu_0 * P_0 / pow(B_pmid, 2.0);
     P_grad_0 = P_0 / a_mid;
+    Omega_i0 = abs(B_t0) * e / m_i;
+    b0 = B_t0 / sqrt(pow(B_t0, 2.0));
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
@@ -164,6 +169,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     // SAVE_REPEAT(debugvar);
     // debugvar = 0.0;
     // SAVE_REPEAT(div_q);
+    SAVE_REPEAT(thermal_force_term);
+    thermal_force_term = 0.0;
 
     if (fixed_Q_in)
     {
