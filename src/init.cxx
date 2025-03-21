@@ -110,6 +110,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     P_grad_0 = P_0 / a_mid;
     Omega_i0 = abs(B_t0) * e / m_i;
     b0 = B_t0 / sqrt(pow(B_t0, 2.0));
+    delta = (1.0 / (2.0 * t_0 * Omega_i0));
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];

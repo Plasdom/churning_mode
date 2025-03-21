@@ -126,6 +126,7 @@ private:
     BoutReal num_q_in_cells; ///< Number of cells over which to distribute q_in
     BoutReal alpha_fl;       ///< Flux limiter
     BoutReal Omega_i0;       ///< Ion cyclotron frequency
+    BoutReal delta;          ///< Parameter related to strength of thermal force and grad p terms
     double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
 
     // Switches
