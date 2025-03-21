@@ -51,7 +51,7 @@ int Churn::rhs(BoutReal UNUSED(t))
 
     // Calculate velocity
     // phi.applyBoundary("neumann");
-    u = -b0 * cross(e_z, Grad(phi));
+    u = b0 * cross(e_z, Grad(phi));
     u.applyBoundary("dirichlet");
 
     // Get T
@@ -210,7 +210,7 @@ int Churn::rhs(BoutReal UNUSED(t))
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-        ddt(omega) += b0 * 2.0 * epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        ddt(omega) -= b0 * 2.0 * epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
     }
     if (include_mag_restoring_term)
     {
@@ -219,7 +219,7 @@ int Churn::rhs(BoutReal UNUSED(t))
 
         // Using 3rd derivative stencils
         // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * (D3D2XDY(psi) + D3DY3(psi)) - DDY(psi) * (D3D2YDX(psi) + D3DX3(psi)));
-        ddt(omega) -= b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+        ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
 
         // Using a rotated Laplacian stencil
         // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * DDY(rotated_laplacexy(psi)) - DDY(psi) * DDX(rotated_laplacexy(psi)));
