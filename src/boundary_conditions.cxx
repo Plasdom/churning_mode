@@ -12,7 +12,7 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
         {
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
-                if (psi(itu.ind, iy, iz) >= 0.0)
+                if (psi(itu.ind, iy, iz) >= psi_bndry_P_core_BC)
                 {
                     P(itu.ind, iy, iz) = P_core_set;
                 }

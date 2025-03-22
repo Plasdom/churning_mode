@@ -30,6 +30,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     r_star = options["r_star"].doc("Radius of the additional mixing zone [a_mid]").withDefault(0.1);
     lambda_SOL_rho = options["lambda_SOL_rho"].doc("SOL width parameter in units of normalised flux coordinate").withDefault(3.0);
     P_core = options["P_core"].doc("Pressure at core boundary [P_0]").withDefault(1.0);
+    psi_bndry_P_core_BC = options["psi_bndry_P_core_BC"].doc("Psi vlaue defining core boundary for fixed_P_core option").withDefault(0.0);
     Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
     alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
 

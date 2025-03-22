@@ -102,6 +102,7 @@ private:
     BoutReal P_core;         ///< Pressure at core boundary [P_0]
     BoutReal lambda_SOL_rho; ///< SOL width parameter in units of normalised flux coordinate
     BoutReal Q_in;           ///< Inpuw power to top of domain [MW]
+    BoutReal psi_bndry_P_core_BC; ///< When fixed_P_core=true, set P_core to the specified value within field lines where psi is greater than this value
 
     // Other parameters
     BoutReal mu_0;        ///< Vacuum permeability [N A^-2]
