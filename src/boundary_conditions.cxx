@@ -18,7 +18,8 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
                 }
                 else
                 {
-                    P(itu.ind, iy, iz) = P_core_set * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
+                    // P(itu.ind, iy, iz) = P_core_set * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
+                    P(itu.ind, iy, iz) = T_down / T_sepx;
                 }
             }
         }

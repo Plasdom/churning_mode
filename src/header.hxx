@@ -148,6 +148,7 @@ private:
     bool T_dependent_q_par;
     bool fixed_Q_in;
     bool use_flux_limiter;
+    bool disable_qin_outside_core;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;

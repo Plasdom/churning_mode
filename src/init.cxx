@@ -86,6 +86,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     use_flux_limiter = options["use_flux_limiter"]
                            .doc("Use a flux limiter on parallel thermal conduction")
                            .withDefault(false);
+    disable_qin_outside_core = options["disable_qin_outside_core"]
+                                   .doc("Set input heat flux to zero outside psi=psi_bndry_P_core_BC")
+                                   .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
