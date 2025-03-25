@@ -210,7 +210,8 @@ int Churn::rhs(BoutReal UNUSED(t))
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
     if (include_churn_drive_term)
     {
-        ddt(omega) -= b0 * 2.0 * epsilon * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        ddt(omega) -= cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P);
+        ddt(omega) += sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P);
     }
     if (include_mag_restoring_term)
     {

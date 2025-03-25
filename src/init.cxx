@@ -33,6 +33,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     psi_bndry_P_core_BC = options["psi_bndry_P_core_BC"].doc("Psi vlaue defining core boundary for fixed_P_core option").withDefault(0.0);
     Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
     alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
+    alpha_rot = options["alpha_rot"].doc("Rotation angle of initial poloidal flux").withDefault(0.0);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -282,7 +283,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
     SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_perp_eff, chi_par);
-    SAVE_ONCE(x_c, y_c);
+    SAVE_ONCE(x_c, y_c, delta, b0, Omega_i0);
 
     Coordinates *coord = mesh->getCoordinates();
 

@@ -1559,8 +1559,8 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
         tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
 
         // Calculate Spitzer-Harm parallel thermal conductivity
-        // result[i] = std::min((3.2 * n_sepx * boltzmann_k * e * T_sepx * T_capped * tau_e / m_e) / D_0, 1.0e7 / D_0);
-        result[i] = (3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0;
+        result[i] = std::min((3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0, 1.0e7 / D_0);
+        // result[i] = (3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0;
     }
 
     return result;
