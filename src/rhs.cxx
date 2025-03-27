@@ -89,21 +89,21 @@ int Churn::rhs(BoutReal UNUSED(t))
             if (use_classic_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += div_q_par_classic(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, kappa_par, B / B_mag);
                 q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
                 // q_par.x = div_q_par_classic(T, kappa_par, B / B_mag);
             }
             else if (use_gunter_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += div_q_par_gunter(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, kappa_par, B / B_mag);
                 q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_modified_stegmeir_div_q_par)
             {
                 Field3D q_par_plus = Q_plus(T, kappa_par, B / B_mag);
                 Field3D q_par_minus = Q_minus(T, kappa_par, B / B_mag);
-                ddt(P) += -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
+                ddt(P) += -(2.0 / 3.0) * 0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
                 q_par = -0.5 * (q_par_plus + q_par_minus) * (B / B_mag);
                 // q_par.x = -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
 
@@ -127,13 +127,13 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             if (use_classic_div_q_perp)
             {
-                ddt(P) += div_q_perp_classic(T, kappa_perp, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
                 // ddt(P) += D2DX2_DIFF(P, kappa_perp) + D2DY2_DIFF(P, kappa_perp);
                 q_perp = -kappa_perp * Grad(T);
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += div_q_perp_gunter(T, kappa_perp, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, kappa_perp, B / B_mag);
                 q_perp = -kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
             }
 

@@ -81,8 +81,11 @@ n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 300        # Plasma temperature at separatrix [eV]
 B_t0 = 1.00            # Toroidal field strength [T]
 B_pmid = 0.3          # Poloidal field strength [T]
-T_down = 0.0         # Fixed downstream temperature [eV]
-Q_in = 10.0                # Input power to top of domain [MW]
+T_down = 20.0         # Fixed downstream temperature [eV]
+P_core = 1.0       # Pressure at core boundary [P_0]
+Q_in = 2.0
+psi_bndry_P_core_BC = 0.0
+lambda_SOL_rho = 0.000001       # SOL width parameter in x direction at upstream boundary
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
@@ -92,7 +95,9 @@ include_mag_restoring_term = true  # Include the poloidal magnetic field restori
 include_thermal_force_term = true   # Include the thermal force term in the psi equation
 include_advection = true            # Include advection terms
 fixed_T_down = true            # Use a constant value for P on downstream boundaries
-fixed_Q_in = true
+fixed_Q_in = false
+fixed_P_core = false                  # Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)
+disable_qin_outside_core = true
 #TODO: Add temperature dependence conduction models
 
 # Select parallel thermal conduction model (first method set to true will be used)
