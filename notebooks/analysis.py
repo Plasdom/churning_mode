@@ -10,6 +10,9 @@ from matplotlib import animation
 from matplotlib.colors import LightSource
 from matplotlib.widgets import Button, Slider
 import os
+from scipy.interpolate import interp1d
+from skimage.measure import find_contours
+import shapely as sh
 
 mu_0 = 1.256637e-6
 el_charge = 1.602e-19
@@ -1195,6 +1198,134 @@ def find_null_coords(
     return x1, x2, y1, y2, psi1, psi2
 
 
+def find_null_coords_2(
+    ds: xr.Dataset,
+    num: int = 2,
+    timestep: int = 0,
+    psi_guess1: float = 0.0,
+    psi_guess2: float = 0.0,
+    psi_range_frac: float = 0.1,
+    n_psi: int = 1000,
+):
+    """Use flux contours to find the null coordinates
+
+    :param ds: xarray dataset output from BOUT++
+    :param num: number of nulls (1 or 2)
+    :param timestep: which timestep in which to find nulls
+    :return: x1, x2, y1, y2, psi1, psi2
+    """
+    x_ = ds.x.values
+    y_ = ds.y.values
+    psi = ds["psi"].isel(t=timestep).values
+    x = interp1d(np.arange(0, psi.shape[0]), x_)
+    y = interp1d(np.arange(0, psi.shape[1]), y_)
+    psi_uppery = ds["psi"].isel(t=timestep, y=-1).values
+    nx = len(x_)
+    ny = len(y_)
+
+    # Create a range of psi values to try, starting from inside the core and moving out
+    psi_range = psi_uppery.max() - psi_uppery.min()
+    if psi_uppery[0] < psi_uppery[int(nx / 2)]:
+        psis = np.linspace(
+            psi_guess1 + psi_range * psi_range_frac,
+            psi_guess1 - psi_range * psi_range_frac,
+            n_psi,
+        )
+    else:
+        psis = np.linspace(
+            psi_guess1 - psi_range * psi_range_frac,
+            psi_guess1 + psi_range * psi_range_frac,
+            n_psi,
+        )
+
+    # Find the contours of each psi, and check whether we're in the core by looking for a connecting line on the upper boundary
+    for j, psi_cur in enumerate(psis):
+        contours = find_contours(psi, level=psi_cur)
+
+        outside_core = [False for _ in range(len(contours))]
+        for i, contour in enumerate(contours):
+
+            if (int(contour[0, 1]) == ny - 1) and (int(contour[-1, 1]) == ny - 1):
+                outside_core[i] = False
+            else:
+                outside_core[i] = True
+
+        if all(outside_core):
+            psi_sepx = psis[j - 1]
+            sepx_contours = find_contours(psi, level=psi_sepx)
+            break
+
+    # Find the X-point
+    shapes = []
+    for c in sepx_contours:
+        shapes.append(sh.LineString(np.array([x(c[:, 0]), y(c[:, 1])]).T))
+    segment_bridges = []
+    for i in range(len(shapes)):
+        for j in range(i, len(shapes)):
+            segment_bridges.append(sh.shortest_line(shapes[i], shapes[j]))
+    l = 1e12
+    for bridge in segment_bridges:
+        if bridge.length < l and bridge.length > 0:
+            Xpt = bridge.centroid.coords[0]
+            l = bridge.length
+
+    # Store X-point coordinates and psi value
+    x1 = Xpt[0]
+    y1 = Xpt[1]
+    psi_sepx1 = psi_sepx
+
+    if num == 2:
+        # Find the secondary separatrix
+        if psi_uppery[0] > psi_uppery[int(nx / 2)]:
+            psis = np.linspace(
+                psi_guess2 + psi_range * psi_range_frac,
+                psi_guess2 - psi_range * psi_range_frac,
+                n_psi,
+            )
+        else:
+            psis = np.linspace(
+                psi_guess2 - psi_range * psi_range_frac,
+                psi_guess2 + psi_range * psi_range_frac,
+                n_psi,
+            )
+
+        for j, psi_cur in enumerate(psis):
+            contours = find_contours(psi, level=psi_cur)
+            outside_pfr = [False for _ in range(len(contours))]
+            for i, contour in enumerate(contours):
+
+                if (int(contour[0, 1]) == 0) and (int(contour[-1, 1]) == 0):
+                    outside_pfr[i] = False
+                else:
+                    outside_pfr[i] = True
+
+            if all(outside_pfr):
+                psi_sepx = psis[j - 1]
+                sepx_contours = find_contours(psi, level=psi_sepx)
+                break
+
+        # Find the X-point
+        shapes = []
+        for c in sepx_contours:
+            shapes.append(sh.LineString(np.array([x(c[:, 0]), y(c[:, 1])]).T))
+        segment_bridges = []
+        for i in range(len(shapes)):
+            for j in range(i, len(shapes)):
+                segment_bridges.append(sh.shortest_line(shapes[i], shapes[j]))
+        l = 1e12
+        for bridge in segment_bridges:
+            if bridge.length < l and bridge.length > 0:
+                Xpt = bridge.centroid.coords[0]
+                l = bridge.length
+
+        # Store X-point coordinates and psi value
+        x2 = Xpt[0]
+        y2 = Xpt[1]
+        psi_sepx2 = psi_sepx
+
+    return x1, x2, y1, y2, psi_sepx1, psi_sepx2
+
+
 def find_primary_sepx(
     ds: xr.Dataset,
     max_min_num: int = 5,
@@ -1439,15 +1570,21 @@ def animate_nulls(
         vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
         levels[v] = np.sort(list(np.linspace(vmin, vmax, 2 * num_levels)))
 
-    if not refind_nulls_each_timestep:
-        x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
-    else:
-        psi1 = None
-        psi2 = None
+    # x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
+    x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
+        ds, timestep=0, psi_range_frac=0.1, n_psi=10000
+    )
 
     def animate(i, refind_nulls_each_timestep, psi1=None, psi2=None):
         if refind_nulls_each_timestep:
-            x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=i * plot_every)
+            x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
+                ds,
+                timestep=i * plot_every,
+                psi_range_frac=0.05,
+                n_psi=500,
+                psi_guess1=psi1,
+                psi_guess2=psi2,
+            )
 
         for j, v in enumerate(vars):
             ax[j].clear()
