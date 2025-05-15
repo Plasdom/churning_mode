@@ -3,6 +3,7 @@ import time
 from psutil import swap_memory
 import xarray as xr
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib import pyplot as plt
 from xbout import open_boutdataset
 from pathlib import Path
@@ -383,8 +384,9 @@ def animate_vector(
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     scalar = ds["P"]
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(3.5, 3.5))
     ax = plt.axes(xlim=(0, X.max()), ylim=(0, Y.max()))
+
     # ls = LightSource(azdeg=110, altdeg=10)
 
     xmin = np.min(ds.x)
@@ -401,8 +403,9 @@ def animate_vector(
             scalar.isel(t=i).values.T,
             cmap="inferno",
             levels=200,
-            vmax=2,
             extend="both",
+            vmax=3,
+            vmin=0,
         )
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
@@ -415,18 +418,19 @@ def animate_vector(
             Y,
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
-            color="red",
+            color="white",
             # linewidth=lw,
-            linewidth=0.5,
+            linewidth=0.25,
             integration_direction="both",
             density=density,
+            # alpha=0.7,
             **mpl_kwargs,
         )
         # cont = ax.quiver(X, Y, vec_x.isel(t=i).values.T, vec_y.isel(t=i).values.T, color="black")
         timestep = (
-            1000 * (ds.t.values[plot_every * i] - ds.t.values[0]) * ds.metadata["t_0"]
+            1e6 * (ds.t.values[plot_every * i] - ds.t.values[0]) * ds.metadata["t_0"]
         )
-        ax.set_title("t={:.2f}ms".format(timestep))
+        ax.set_title("t={:.2f}us".format(timestep))
         # if i == 0:
         #     ax.set_title(plot_every * i)
         # else:
@@ -435,6 +439,7 @@ def animate_vector(
         ax.set_ylabel("y")
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
+        fig.tight_layout()
 
         return cont
 
@@ -451,8 +456,10 @@ def plot_vector(
     scalar: str = "P",
     t: int = 1,
     lw_prefactor: float | None = None,
+    lw_scaling_exponent: float = 1.0,
     savepath: str | None = None,
     use_seed_points: bool = False,
+    ax: Axes | None = None,
     **kwargs,
 ):
     """Plot vector field at a single timestep
@@ -483,20 +490,23 @@ def plot_vector(
             ]
         ).T
 
-    fig = plt.figure()
-    ax = plt.axes()
+    if ax is None:
+        fig, ax = plt.subplots(1, figsize=(3, 3))
     # ls = LightSource(azdeg=110, altdeg=10)
 
-    cont = ax.contourf(
-        X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500, vmax=2
+    contf = ax.contourf(
+        X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500, vmax=3
     )
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
     if lw_prefactor is None:
-        lw = 5 * vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()
+        lw = 5 * (vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()) ** (
+            lw_scaling_exponent
+        )
         # lw = 3 * np.sqrt(vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max())
     else:
-        lw = lw_prefactor * vec_mag.isel(t=t).values.T
+        # lw = lw_prefactor * vec_mag.isel(t=t).values.T
+        lw = lw_prefactor
         # lw = lw_prefactor * np.sqrt(vec_mag.isel(t=t).values.T)
     if use_seed_points:
         cont = ax.streamplot(
@@ -505,8 +515,8 @@ def plot_vector(
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
             color="red",
-            # linewidth=lw,
-            linewidth=0.25,
+            linewidth=lw,
+            # linewidth=0.25,
             integration_direction="both",
             start_points=seed_points,
             **kwargs,
@@ -518,8 +528,8 @@ def plot_vector(
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
             color="red",
-            # linewidth=lw,
-            linewidth=0.25,
+            linewidth=lw,
+            # linewidth=0.25,
             integration_direction="both",
             **kwargs,
         )
@@ -529,14 +539,16 @@ def plot_vector(
     ymin = np.min(ds.y)
     ymax = np.max(ds.y)
 
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
+    ax.set_xlabel("x [cm]")
+    ax.set_ylabel("y [cm]")
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_title(vec_var)
 
     if savepath is not None:
         fig.savefig(savepath)
+
+    return contf
 
 
 def integrate_dxdy(ds: xr.Dataset, var: str):
@@ -600,11 +612,11 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
 
     fig, ax = plt.subplots(3, sharex=True)
     ax[0].plot(ds[r"t"], tot_pol_flux)
-    ax[0].set_title(r"$\psi$")
+    ax[0].set_title(r"$\int \psi dxdy$")
     ax[0].set_ylabel(r"[$\psi_0 a_{mid}^2$]")
 
     ax[1].plot(ds[r"t"], tot_pressure)
-    ax[1].set_title(r"$P$")
+    ax[1].set_title(r"$\int Pdxdy$")
     ax[1].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
     # ax[2].plot(ds_trimmed[r"t"], (M) + (K) + (Pi), "-", color=r"black")
@@ -1025,6 +1037,7 @@ def plot_Q_targets(
     normalise: bool = True,
     savepath: str | None = None,
     ylim: list | tuple | None = None,
+    ylog: bool = False
 ):
     """Plot total heat flow to each divertor leg
 
@@ -1050,21 +1063,23 @@ def plot_Q_targets(
     fig, ax = plt.subplots(1)
     x = (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000
     if normalise:
-        ax.plot(x, q1 / q_tot, linestyle="--", label="Leg 1 (E)")
-        ax.plot(x, q2 / q_tot, linestyle="--", label="Leg 2 (E)")
-        ax.plot(x, q3 / q_tot, linestyle="--", label="Leg 3 (E)")
-        ax.plot(x, q4 / q_tot, linestyle="--", label="Leg 4 (E)")
+        ax.plot(x, q1 / q_tot, linestyle="-", label="Leg 1 (E)")
+        ax.plot(x, q2 / q_tot, linestyle="-", label="Leg 2 (E)")
+        ax.plot(x, q3 / q_tot, linestyle="-", label="Leg 3 (E)")
+        ax.plot(x, q4 / q_tot, linestyle="-", label="Leg 4 (E)")
         ax.set_ylabel(r"$P_{l} / P_{tot}$")
     else:
-        ax.plot(x, q1, linestyle="--", label="Leg 1 (E)")
-        ax.plot(x, q2, linestyle="--", label="Leg 2 (E)")
-        ax.plot(x, q3, linestyle="--", label="Leg 3 (E)")
-        ax.plot(x, q4, linestyle="--", label="Leg 4 (E)")
+        ax.plot(x, q1, linestyle="-", label="Leg 1 (E)")
+        ax.plot(x, q2, linestyle="-", label="Leg 2 (E)")
+        ax.plot(x, q3, linestyle="-", label="Leg 3 (E)")
+        ax.plot(x, q4, linestyle="-", label="Leg 4 (E)")
         ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
 
     ax.legend(loc="upper left")
     ax.set_xlabel("$t$ [ms]")
     ax.grid()
+    if ylog:
+        ax.set_yscale("log")
     if ylim is not None:
         ax.set_ylim(ylim)
     fig.tight_layout()
@@ -1609,7 +1624,7 @@ def animate_nulls(
                 ds_plot["psi"].isel(t=i * plot_every).values.T,
                 levels=np.sort([psi1, psi2]),
                 colors="white",
-                linestyles=["--", "-"],
+                linestyles=["-", "-"],
                 zorder=998,
             )
             if refind_nulls_each_timestep:
@@ -1887,7 +1902,7 @@ def plot_lineslice(
 
     if variable == "P":
         # vals = [(v - ds["P"].values[0, 0, 0]) * ds.metadata["P_0"] for v in vals]
-        vals = [(v - ds["P"].values[0, 0, 0]) for v in vals]
+        vals = [(v - ds["P"].values[0, 0, timesteps[-1]]) for v in vals]
 
     # Get 1/e drop off point
     P_max_over_e = []
@@ -1957,7 +1972,14 @@ def ddy(ds: xr.Dataset, f: str) -> xr.DataArray:
     return dfdy
 
 
-def explore_nulls(ds: xr.Dataset, t: int = 0, colorbar: bool = False, **contour_kwargs):
+def explore_nulls(
+    ds: xr.Dataset,
+    t: int = 0,
+    colorbar: bool = False,
+    psi_range_frac: float = 0.1,
+    n_psi: int = 1000,
+    **contour_kwargs,
+):
     """Interactive plot with sliders for two surfaces of constant psi
 
     :param ds: xarray dataset
@@ -1975,7 +1997,10 @@ def explore_nulls(ds: xr.Dataset, t: int = 0, colorbar: bool = False, **contour_
     )
     if colorbar:
         fig.colorbar(cont, label="$P$")
-    _, _, _, _, psi1, psi2 = find_null_coords(ds, timestep=t)
+    # _, _, _, _, psi1, psi2 = find_null_coords(ds, timestep=t)
+    _, _, _, _, psi1, psi2 = find_null_coords_2(
+        ds, timestep=t, psi_range_frac=psi_range_frac, n_psi=n_psi
+    )
     surfs = [
         ax.contour(
             ds.x,
@@ -2006,15 +2031,15 @@ def explore_nulls(ds: xr.Dataset, t: int = 0, colorbar: bool = False, **contour_
     surf1_slider = Slider(
         ax=axsurf1,
         label=r"$\psi_1$",
-        valmin=-0.04 * psi_rng,
-        valmax=0.02 * psi_rng,
+        valmin=psi1 - psi_range_frac * psi_rng,
+        valmax=psi1 + psi_range_frac * psi_rng,
         valinit=psi1,
     )
     surf2_slider = Slider(
         ax=axsurf2,
         label=r"$\psi_2$",
-        valmin=-0.04 * psi_rng,
-        valmax=0.02 * psi_rng,
+        valmin=-psi2 - psi_range_frac * psi_rng,
+        valmax=psi2 + psi_range_frac * psi_rng,
         valinit=psi2,
     )
 
@@ -2077,15 +2102,27 @@ def extract_rundeck_data(
     chi_perp_eff_w = np.zeros(nr)
     n_sepx = np.zeros(nr)
     r_ch = np.zeros(nr)
+    r_D = np.zeros(nr)
     grad_p = np.zeros(nr)
     beta_p = np.zeros(nr)
     v_th_null = np.zeros(nr)
     tau_ch = np.zeros(nr)
+    l_null = np.zeros(nr)
+    tau_tr = np.zeros(nr)
     D_x_th = np.zeros(nr)
+    D_x_th_capped = np.zeros(nr)
+    D_x = np.zeros(nr)
+    D_x_emp = np.zeros(nr)
     max_t = np.zeros(nr)
     d_xx = np.zeros(nr)
     P_legs_wo = np.zeros((nr, 4))
     P_legs_w = np.zeros((nr, 4))
+    epsilon = np.zeros(nr)
+    a = np.zeros(nr)
+    R = np.zeros(nr)
+    f_inner = np.zeros(nr)
+    f_outer = np.zeros(nr)
+    lambda_q = np.zeros(nr)
 
     if isinstance(d_sol, float):
         d_sol = [d_sol for _ in runs]
@@ -2117,6 +2154,9 @@ def extract_rundeck_data(
         p_null[i] = (
             lineslice(ds, "P", null_region_line, timestep=0).max() * ds.metadata["P_0"]
         )
+        # p_null[i] = (
+        #     lineslice(ds, "P", null_region_line, timestep=-1).max() * ds.metadata["P_0"]
+        # )
         r_ch[i] = (
             0.81
             * ds.metadata["a_mid"]
@@ -2140,7 +2180,13 @@ def extract_rundeck_data(
         beta_p[i] = 2.0 * mu_0 * p_null[i] / ds.metadata["B_pmid"] ** 2
         v_th_null[i] = np.sqrt(p_null[i] / (n_sepx[i] * m_i))
         tau_ch[i] = np.sqrt(ds.metadata["R_0"] * r_ch[i]) / v_th_null[i]
-        D_x_th[i] = 0.5 * r_ch[i] ** 2 / tau_ch[i]
+        l_null[i] = (
+            0.7
+            * (ds.metadata["a_mid"] ** 2 / r_ch[i])
+            * ds.metadata["B_t0"]
+            / ds.metadata["B_pmid"]
+        )
+        tau_tr[i] = l_null[i] / v_th_null[i]
 
         P_legs_wo[i][0] = Q1.isel(t=0).values * 1e6
         P_legs_wo[i][1] = Q2.isel(t=0).values * 1e6
@@ -2151,6 +2197,30 @@ def extract_rundeck_data(
         P_legs_w[i][2] = Q3.isel(t=-1).values * 1e6
         P_legs_w[i][3] = Q4.isel(t=-1).values * 1e6
 
+        # D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * ds.metadata["a_mid"]) - ds.metadata["chi_perp"]) * (ds.metadata["a_mid"]**2 / (np.sqrt(np.pi) * r_ch[i]))
+        Lx = ds.x.values.max() - ds.x.values.min()
+        Ly = ds.y.values.max() - ds.y.values.min()
+        # D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Ly/np.sin(1.047))) - ds.metadata["chi_perp"]) * ((Lx*Ly) / (2.0 * np.sqrt(np.pi) * r_ch[i]))
+        # D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Lx + Ly + Ly)) - ds.metadata["chi_perp"]) * ((2*Lx*Ly) / (np.pi * r_ch[i]**2))
+        r_D[i] = min(r_ch[i], d_sol[i])
+        D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Lx + Ly + Ly)) - ds.metadata["chi_perp"]) * ((2*Lx*Ly) / (np.pi * r_D[i]**2))
+
+        D_x_th[i] = 0.5 * r_ch[i] ** 2 / tau_ch[i]
+        D_x_th_capped[i] = 0.5 * r_D[i] ** 2 / (np.sqrt(ds.metadata["R_0"] * r_D[i]) / v_th_null[i])
+
+        epsilon[i] = ds.metadata["a_mid"] / ds.metadata["R_0"]
+        a[i] = ds.metadata["a_mid"]
+        R[i] = ds.metadata["R_0"]
+
+        # D_x_emp[i] = 0.020 * ds.metadata["a_mid"] ** 5.372 * epsilon[i] ** -4.055 * beta_p[i] ** 3.396 * d_sol[i] **-6.784
+        # D_x_emp[i] = 0.00465 * ds.metadata["a_mid"] ** 5.62582 * epsilon[i] ** -3.43687 * beta_p[i] ** 3.51383 * d_sol[i] ** -8.91759
+        # D_x_emp[i] = 0.00222 * ds.metadata["a_mid"] ** 5.91882 * epsilon[i] ** -3.60804 * beta_p[i] ** 3.52131 * d_sol[i] ** -9.24380
+        lambda_q[i] = (d_sol[i] / (a[i]**(2/3))) **3
+        D_x_emp[i] = 1.8972 * epsilon[i] ** -3.09988 * beta_p[i] ** 2.90471 * lambda_q[i] ** -1.74379
+        
+        f_inner[i] = (P_legs_w[i][2] + P_legs_w[i][3]) / np.sum(P_legs_w[i])
+        f_outer[i] = (P_legs_w[i][0] + P_legs_w[i][1]) / np.sum(P_legs_w[i])
+
     # Store in a dict (TODO: use a dataarray here instead?)
     out = {}
     out["p_null"] = p_null
@@ -2160,14 +2230,190 @@ def extract_rundeck_data(
     out["chi_perp_eff_w"] = chi_perp_eff_w
     out["n_sepx"] = n_sepx
     out["r_ch"] = r_ch
+    out["r_D"] = r_D
     out["grad_p"] = grad_p
     out["beta_p"] = beta_p
     out["v_th_null"] = v_th_null
     out["tau_ch"] = tau_ch
     out["D_x_th"] = D_x_th
+    out["D_x_th_capped"] = D_x_th_capped
+    out["D_x"] = D_x
     out["max_t"] = max_t
     out["d_xx"] = d_xx
+    out["d_sol"] = d_sol
     out["P_legs_w"] = P_legs_w
     out["P_legs_wo"] = P_legs_wo
+    out["l_null"] = l_null
+    out["tau_tr"] = tau_tr
+    out["epsilon"] = epsilon
+    out["a_mid"] = a
+    out["R_0"] = R
+    out["D_x_emp"] = D_x_emp
+    out["f_inner"] = f_inner
+    out["f_outer"] = f_outer
+    out["lambda_q"] = lambda_q
 
     return out
+
+
+def plot_P2_P4_ratio(
+    data: dict,
+    data_ne: dict | None = None,
+    show_no_cm: bool = False,
+    a_mid: float = 0.22,
+    trim_first: int = 0,
+    xlim: list[float] = [0, 2.5],
+    ylim: list[float] = [-0.01, 0.5],
+):
+    x = data["d_xx"][trim_first:] / a_mid
+    if data_ne is not None:
+        x_ne = data_ne["d_xx"][trim_first:] / a_mid
+    P_4 = data["P_legs_w"][trim_first:, 3] / np.sum(
+        data["P_legs_w"][trim_first:], axis=1
+    )
+    P_2 = data["P_legs_w"][trim_first:, 1] / np.sum(
+        data["P_legs_w"][trim_first:], axis=1
+    )
+    if data_ne is not None:
+        P_4ne = data_ne["P_legs_w"][trim_first:, 3] / np.sum(
+            data_ne["P_legs_w"][trim_first:], axis=1
+        )
+        P_2ne = data_ne["P_legs_w"][trim_first:, 1] / np.sum(
+            data_ne["P_legs_w"][trim_first:], axis=1
+        )
+    P_40 = data["P_legs_wo"][trim_first:, 3] / np.sum(
+        data["P_legs_wo"][trim_first:], axis=1
+    )
+    P_20 = data["P_legs_wo"][trim_first:, 1] / np.sum(
+        data["P_legs_wo"][trim_first:], axis=1
+    )
+    fig, ax = plt.subplots(1)
+    ax.plot(
+        x,
+        P_2 / P_4,
+        marker="x",
+        linestyle="--",
+        label="ELM peak conditions",
+        color="red",
+        zorder=999,
+    )
+    if data_ne is not None:
+        ax.plot(
+            x_ne,
+            P_2ne / P_4ne,
+            marker="x",
+            linestyle="--",
+            label="L-mode conditions",
+            color="blue",
+        )
+    if show_no_cm:
+        ax.plot(x, P_20 / P_40, marker="x", linestyle="--", label="No CM", color="gray")
+    ax.grid()
+    ax.legend()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel(r"$\sigma$")
+    ax.set_ylabel(r"$P_2 / P_4$")
+
+
+def plot_P2_P4(
+    data: dict,
+    data_ne: dict | None = None,
+    a_mid: float = 0.22,
+):
+    # Plot P2 and P4 vs sigma
+    x = data["d_xx"] / a_mid
+    P_4 = data["P_legs_w"][:, 3] / np.sum(data["P_legs_w"], axis=1)
+    P_2 = data["P_legs_w"][:, 1] / np.sum(data["P_legs_w"], axis=1)
+    if data_ne is not None:
+        P_4ne = data_ne["P_legs_w"][:, 3] / np.sum(data_ne["P_legs_w"], axis=1)
+        P_2ne = data_ne["P_legs_w"][:, 1] / np.sum(data_ne["P_legs_w"], axis=1)
+    fig, ax = plt.subplots(1)
+    ax.plot(x, 100 * P_2, marker="x", linestyle="-", label="Leg 2", color="red")
+    ax.plot(x, 100 * P_4, marker="x", linestyle="-", label="Leg 4", color="blue")
+    if data_ne is not None:
+        ax.plot(
+            x,
+            100 * P_2ne,
+            marker="x",
+            linestyle="--",
+            label="Leg 2 (L-mode conditions)",
+            color="red",
+        )
+        ax.plot(
+            x,
+            100 * P_4ne,
+            marker="x",
+            linestyle="--",
+            label="Leg 4 (L-mode conditions)",
+            color="blue",
+        )
+    ax.grid()
+    ax.legend()
+    ax.set_xlim([0, 2.5])
+    ax.set_ylim([-1, 100])
+    ax.set_xlabel(r"$\sigma$")
+    ax.set_ylabel(r"$P_l$ [%]")
+
+
+def plot_P1_plus_P3(
+    data: dict, a_mid: float = 0.22, label: str | None = None, ax: Axes | None = None
+):
+    x = data["d_xx"] / a_mid
+    P_1 = data["P_legs_w"][:, 0] / np.sum(data["P_legs_w"], axis=1)
+    P_3 = data["P_legs_w"][:, 2] / np.sum(data["P_legs_w"], axis=1)
+
+    if ax is None:
+        fig, ax = plt.subplots(1, figsize=(6, 3))
+        c = "black"
+        set_tight = True
+        ax.grid()
+    else:
+        c = None
+        set_tight = False
+    ax.set_xlim([0, 2.5])
+    ax.set_ylim([0, 80])
+    ax.set_xlabel(r"$\sigma$")
+    ax.set_ylabel(r"$P_1 + P_3$")
+    ax.plot(
+        x,
+        100 * (P_1 + P_3),
+        marker="x",
+        linestyle="--",
+        label=label,
+        color=c,
+    )
+    ax.legend()
+    if set_tight:
+        fig.tight_layout()
+    return ax
+
+
+def plot_f_inner_outer(
+    data: dict,
+    a_mid: float = 0.22,
+    ax: Axes | None = None,
+    label: str | None = None,
+):
+    x = data["d_xx"] / a_mid
+    P_inner = data["P_legs_w"][:, 0] + data["P_legs_w"][:, 1]
+    P_outer = data["P_legs_w"][:, 2] + data["P_legs_w"][:, 3]
+    f = P_inner / P_outer
+
+    if ax is None:
+        fig, ax = plt.subplots(1, figsize=(6, 3))
+        ax.grid()
+        c = "black"
+        set_tight = True
+    else:
+        c = None
+        set_tight = False
+    ax.set_xlabel(r"$\sigma$")
+    ax.set_ylabel(r"$f_{inner}/f_{outer}$")
+    ax.plot(x, f, color=c, label=label, marker="x", linestyle="--")
+    ax.legend()
+    ax.set_ylim([0, 2])
+
+    if set_tight:
+        fig.tight_layout()
+    return ax
