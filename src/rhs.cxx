@@ -105,16 +105,21 @@ int Churn::rhs(BoutReal UNUSED(t))
                 Field3D q_par_minus = Q_minus(T, kappa_par, B / B_mag);
                 ddt(P) += -(2.0 / 3.0) * 0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
                 q_par = -0.5 * (q_par_plus + q_par_minus) * (B / B_mag);
-                // q_par.x = -0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
-
-                // ddt(P) += div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
-                // q_par = -0.5 * (Q_plus(T, kappa_par, B / B_mag) + Q_minus(T, kappa_par, B / B_mag)) * (B / B_mag);
-                // q_par = (-kappa_par * B * (B * Grad(T)) / pow(B_mag, 2));
+                
+                // Coordinates *coord = mesh->getCoordinates();
+                // for (auto i: div_q)
+                // {
+                //     InterpolationPoint r = trace_field_lines_2(i, B/B_mag, coord->dx[i], coord->dy[i], 3, true);
+                //     div_q[i] = r.x;
+                // }
+                // div_q = div_q_par_linetrace(T, kappa_par, B / B_mag);
+                // div_q =  0.5 * (Q_plus_T(q_par_plus, B / B_mag) + Q_minus_T(q_par_minus, B / B_mag));
+                // div_q =  q_par_plus;
             }
             else if (use_linetrace_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                // ddt(P) += div_q_par_linetrace(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag);
                 // div_q = div_q_par_linetrace2(T, kappa_par, B / B_mag);
                 // ddt(P) += div_q;
             }

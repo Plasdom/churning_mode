@@ -367,7 +367,8 @@ TwoIntersects Churn::get_intersects(const double &xlo, const double &xhi, const 
     // std::vector<std::vector<double>> result = {{0.0, 1.0}, {2.0, 3.0}};
     TwoIntersects result;
     CellIntersect intersect;
-    double m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+    double tol = 1e-10;
+    double m, c, y1, y2, x1, x2;
 
     // Find line equation for b
     if (bx == 0.0)
@@ -381,43 +382,81 @@ TwoIntersects Churn::get_intersects(const double &xlo, const double &xhi, const 
     c = P.y - m * P.x;
 
     // Determine which of box faces are intersected
-    y_xlo = m * xlo + c;
-    y_xhi = m * xhi + c;
-    x_ylo = (ylo - c) / m;
-    x_yhi = (yhi - c) / m;
+    y1 = m * xlo + c;
+    x1 = (ylo - c) / m;
+    y2 = m * xhi + c;
+    x2 = (yhi - c) / m;
 
-    if ((ylo <= y_xlo) && (y_xlo < yhi))
+    // // Initialise intersect faces to -1 for debugging
+    // result.first.face = -1;
+    // result.second.face = -1;
+
+    if ((ylo < y1) && (y1 < yhi))
     {
         // Intersect lower x face
         intersect.face = 0;
         intersect.x = xlo;
-        intersect.y = y_xlo;
+        intersect.y = y1;
         result.first = intersect;
     }
-    if ((ylo < y_xhi) && (y_xhi <= yhi))
+    if ((ylo < y2) && (y2 < yhi))
     {
         // Intersect upper x face
         intersect.face = 2;
         intersect.x = xhi;
-        intersect.y = y_xhi;
+        intersect.y = y2;
         result.second = intersect;
     }
-    if ((xlo < x_ylo) && (x_ylo <= xhi))
+    if ((xlo < x1) && (x1 < xhi))
     {
         // Intersect lower y face
         intersect.face = 3;
-        intersect.x = x_ylo;
+        intersect.x = x1;
         intersect.y = ylo;
         result.first = intersect;
     }
-    if ((xlo <= x_yhi) && (x_yhi < xhi))
+    if ((xlo < x2) && (x2 < xhi))
     {
         // Intersect upper y face
         intersect.face = 1;
-        intersect.x = x_yhi;
+        intersect.x = x2;
         intersect.y = yhi;
         result.second = intersect;
     }
+    if ((abs(y1-ylo) < tol) && (abs(x1-xlo) < tol))
+    {
+        // Intersect lower left corner
+        intersect.face = 4;
+        intersect.x = xlo;
+        intersect.y = ylo;
+        result.first = intersect;
+    }
+    if ((abs(y1-yhi)<tol) && (abs(x2-xlo) < tol))
+    {
+        // Intersect upper left corner
+        intersect.face = 5;
+        intersect.x = xlo;
+        intersect.y = yhi;
+        result.first = intersect;
+    }
+    if ((abs(x2-xhi)<tol) && (abs(y2-yhi) < tol))
+    {
+        // Intersect upper right corner
+        intersect.face = 6;
+        intersect.x = xhi;
+        intersect.y = yhi;
+        result.second = intersect;
+    }
+    if ((abs(x1-xhi)<tol) && (abs(y2-ylo) < tol))
+    {
+        // Intersect lower right corner
+        intersect.face = 7;
+        intersect.x = xhi;
+        intersect.y = ylo;
+        result.second = intersect;
+    }
+
+
 
     return result;
 }
@@ -429,7 +468,8 @@ CellIntersect Churn::get_next_intersect(const double &xlo, const double &xhi, co
 
     // std::vector<std::vector<double>> result = {{0.0, 1.0}, {2.0, 3.0}};
     CellIntersect result;
-    double m, c, y_xlo, y_xhi, x_ylo, x_yhi;
+    double m, c, y1, y2, x1, x2;
+    double tol = 1e-10;
 
     // Find line equation for b
     if (bx == 0.0)
@@ -443,41 +483,69 @@ CellIntersect Churn::get_next_intersect(const double &xlo, const double &xhi, co
     c = prev_intersect.y - m * prev_intersect.x;
 
     // Determine which of box faces are intersected
-    y_xlo = m * xlo + c;
-    y_xhi = m * xhi + c;
-    x_ylo = (ylo - c) / m;
-    x_yhi = (yhi - c) / m;
+    y1 = m * xlo + c;
+    y2 = m * xhi + c;
+    x1 = (ylo - c) / m;
+    x2 = (yhi - c) / m;
 
-    if ((ylo <= y_xlo) && (y_xlo < yhi) && (prev_intersect.face != 2))
+    // Initialise intersect face to -1 for debugging
+    result.face = -1;
+
+    if ((ylo <= y1) && (y1 < yhi) && (prev_intersect.face != 2))
     {
         // Intersect lower x face
         result.face = 0;
         result.x = xlo;
-        result.y = y_xlo;
+        result.y = y1;
     }
-
-    if ((ylo < y_xhi) && (y_xhi <= yhi) && (prev_intersect.face != 0))
+    if ((ylo < y2) && (y2 <= yhi) && (prev_intersect.face != 0))
     {
         // Intersect upper x face
         result.face = 2;
         result.x = xhi;
-        result.y = y_xhi;
+        result.y = y2;
     }
-
-    if ((xlo < x_ylo) && (x_ylo <= xhi) && (prev_intersect.face != 1))
+    if ((xlo < x1) && (x1 <= xhi) && (prev_intersect.face != 1))
     {
         // Intersect lower y face
         result.face = 3;
-        result.x = x_ylo;
+        result.x = x1;
         result.y = ylo;
     }
-
-    if ((xlo <= x_yhi) && (x_yhi < xhi) && (prev_intersect.face != 3))
+    if ((xlo <= x2) && (x2 < xhi) && (prev_intersect.face != 3))
     {
         // Intersect upper y face
         result.face = 1;
-        result.x = x_yhi;
+        result.x = x2;
         result.y = yhi;
+    }
+    if ((abs(y1-ylo) < tol) && (abs(x1-xlo) < tol) && (prev_intersect.face != 6))
+    {
+        // Intersect lower left corner
+        result.face = 4;
+        result.x = xlo;
+        result.y = ylo;
+    }
+    if ((abs(y1-yhi)<tol) && (abs(x2-xlo) < tol) && (prev_intersect.face != 7))
+    {
+        // Intersect upper left corner
+        result.face = 5;
+        result.x = xlo;
+        result.y = yhi;
+    }
+    if ((abs(x2-xhi)<tol) && (abs(y2-yhi) < tol) && (prev_intersect.face != 4))
+    {
+        // Intersect upper right corner
+        result.face = 6;
+        result.x = xhi;
+        result.y = yhi;
+    }
+    if ((abs(x1-xhi)<tol) && (abs(y2-ylo) < tol) && (prev_intersect.face != 5))
+    {
+        // Intersect lower right corner
+        result.face = 7;
+        result.x = xhi;
+        result.y = ylo;
     }
 
     // TODO: Confirm one of above if statements is always entered
@@ -523,6 +591,52 @@ Ind3D Churn::increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellInter
     // TODO: Check that this condition is never met
     //   result[i] = -999;
     // }
+
+    return i_next;
+}
+Ind3D Churn::increment_cell_2(const Ind3D &i, const Ind3D &i_prev, const int &face)
+{
+    // Determine which cell to move to next
+    TRACE("increment_cell_2");
+
+    Ind3D i_next;
+    double tol = 1.0e-6;
+    int x_inc, y_inc;
+
+    i_next = i_prev;
+    
+    if (face == 0)
+    {
+        i_next = i_next.xm();
+    }
+    else if (face == 1)
+    {
+        i_next = i_next.yp();
+    }
+    else if (face == 2)
+    {
+        i_next = i_next.xp();
+    }
+    else if (face == 3)
+    {
+        i_next = i_next.ym();
+    }
+    else if (face == 4)
+    {
+        i_next = i_next.xm().ym();
+    }
+    else if (face == 5)
+    {
+        i_next = i_next.xm().yp();
+    }
+    else if (face == 6)
+    {
+        i_next = i_next.xp().yp();
+    }
+    else if (face == 7)
+    {
+        i_next = i_next.xp().ym();
+    }
 
     return i_next;
 }
@@ -578,14 +692,6 @@ InterpolationPoint Churn::trace_field_lines(const Ind3D &i, const Vector3D &b, c
             next_intersect = intersects.first;
         }
     }
-    // if (plus == true)
-    // {
-    //   next_intersect = intersects[0];
-    // }
-    // else
-    // {
-    //   next_intersect = intersects[1];
-    // }
 
     // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
     par_dist += sqrt(pow(next_intersect.x - 0.0, 2.0) + pow(next_intersect.y - 0.0, 2.0)) * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
@@ -648,6 +754,114 @@ InterpolationPoint Churn::trace_field_lines(const Ind3D &i, const Vector3D &b, c
     return result;
 }
 
+InterpolationPoint Churn::trace_field_lines_2(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_steps, const bool &plus)
+{
+    InterpolationPoint result;
+    CellIntersect next_intersect, prev_intersect;
+    TwoIntersects intersects;
+    double par_dist, xlo, xhi, ylo, yhi, theta_g, theta_b;
+    Ind3D i_next, i_prev;
+    Point cell_centre;
+    ClosestPoint p;
+    int n_steps;
+    bool continue_tracing = true;
+    double tol = 1e-10;
+
+    // Initialise the next intersection
+    next_intersect.x = 0.0;
+    next_intersect.y = 0.0;
+    par_dist = 0.0;
+    p.x = 0.0;
+    p.y = 0.0;
+    p.distance = 0.0;
+    theta_g = atan2(dy,dx);
+
+    // Get the first intersect from the centre of cell (i,j)
+    intersects = get_intersects(-dx / 2.0, dx / 2.0, -dy / 2.0, dy / 2.0, next_intersect, b.x[i], b.y[i]);
+
+    // Specify plus/minus direction (choice is arbitrary)
+    // TODO: Check the logic of selecting next intersect here. What if intersects.size != 2?
+    prev_intersect = next_intersect;
+    theta_b = atan2(b.y[i],b.x[i]);
+    if (plus == true)
+    {
+        if ((theta_b + tol >= -theta_g) && (theta_b < pi - theta_g))
+        {
+            next_intersect = intersects.second;
+        }
+        else
+        {
+            next_intersect = intersects.first;
+        }
+    }
+    else{
+        if ((theta_b + tol >= -theta_g) && (theta_b < pi - theta_g))
+        {
+            next_intersect = intersects.first;
+        }
+        else
+        {
+            next_intersect = intersects.second;
+        }
+    }
+
+
+    // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+    par_dist += sqrt(pow(next_intersect.x - 0.0, 2.0) + pow(next_intersect.y - 0.0, 2.0)) * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+
+    // Determine which cell to move to next
+    i_prev = i;
+    i_next = increment_cell_2(i, i_prev, next_intersect.face);
+
+    // Continue to trace field lines in the given direction
+    n_steps = 0;
+    while (continue_tracing == true)
+    {
+
+        // Find intercepts in the new cell
+        prev_intersect = next_intersect;
+        
+        xlo = std::max(-dx + (i_next.x() - i_prev.x()) * dx, -dx);
+        xhi = std::min(dx + (i_next.x() - i_prev.x()) * dx, dx);
+        ylo = std::max(-dy + (i_next.y() - i_prev.y()) * dy, -dy);
+        yhi = std::min(dy + (i_next.y() - i_prev.y()) * dy, dy);
+        next_intersect = get_next_intersect(xlo,
+                                            xhi,
+                                            ylo,
+                                            yhi,
+                                            prev_intersect,
+                                            b.x[i_next],
+                                            b.y[i_next]);
+
+        // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+        par_dist += sqrt(pow(next_intersect.x - prev_intersect.x, 2.0) + pow(next_intersect.y - prev_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
+        
+        // Get subsequent intersects in plus direction
+        i_prev = i_next;
+        i_next = increment_cell_2(i, i_prev, next_intersect.face);
+
+        n_steps++;
+
+        // Check whether tracing can stop
+        if ((abs(next_intersect.x) >= dx)){
+            continue_tracing = false;
+        }
+        else if ((abs(next_intersect.y) >= dy)){
+            continue_tracing = false;
+        }
+        else if (n_steps > max_steps){
+        // else if (n_steps > 0){
+            continue_tracing = false;
+        }
+    }
+    
+    result.x = next_intersect.x;
+    result.y = next_intersect.y;
+    result.parallel_distance = par_dist;
+
+    return result;
+}
+
 ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const double &bx, const double &by)
 {
     // Find the closest point on the line following the magnetic field, extending from an cell face intersection point (Px,Py), to a point at (x0, y0), e.g. a cell centre. Output is a vector with three elements (x, y, distance)
@@ -682,7 +896,7 @@ ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const
     return result;
 }
 
-Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
+Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const Vector3D &b)
 {
     TRACE("div_q_par_linetrace");
 
@@ -692,9 +906,9 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, cons
     InterpolationPoint interp_p_plus, interp_p_minus;
     int n_steps, n_x, n_y;
     double f_x, f_y, u_plus, q_plus_T, u_minus, q_minus_T, div_q_plus, div_q_minus;
-    int max_x_inc = 3;
-    int max_y_inc = 3;
-    int max_steps = 12;
+    int max_x_inc = 1;
+    int max_y_inc = 1;
+    int max_steps = 3;
     Ind3D i_offset;
 
     x_plus = 0.0;
@@ -706,55 +920,91 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, cons
     parallel_distances_plus = 0.0;
     parallel_distances_minus = 0.0;
     result = 0.0;
-    // BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
-    for (auto i : result)
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    // for (auto i : result)
     {
 
-        interp_p_plus = trace_field_lines(i, b, coord->dx[i], coord->dy[i], max_x_inc, max_y_inc, max_steps, true);
+        interp_p_plus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, true);
         x_plus[i] = interp_p_plus.x;
         y_plus[i] = interp_p_plus.y;
         parallel_distances_plus[i] = interp_p_plus.parallel_distance;
 
-        interp_p_minus = trace_field_lines(i, b, coord->dx[i], coord->dy[i], max_x_inc, max_y_inc, max_steps, false);
+        interp_p_minus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, false);
         x_minus[i] = interp_p_minus.x;
         y_minus[i] = interp_p_minus.y;
         parallel_distances_minus[i] = interp_p_minus.parallel_distance;
 
-        n_x = static_cast<int>(floor(x_plus[i] / coord->dx[i]));
-        n_x = std::min(std::max(n_x, -ngcx), ngcx);
-        n_y = static_cast<int>(floor(y_plus[i] / coord->dy[i]));
-        n_y = std::min(std::max(n_y, -ngcy), ngcy);
+        if (x_plus[i]>=0)
+        {
+            n_x = 0;
+        }
+        else 
+        {
+            n_x = -1;
+        }
+        if (y_plus[i]>=0)
+        {
+            n_y = 0;
+        }
+        else 
+        {
+            n_y = -1;
+        }
         i_offset = i.offset(n_x, n_y, 0);
+
 
         f_x = (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
 
         u_plus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
-        q_plus[i] = K_par * (u_plus - u[i]) / parallel_distances_plus[i];
+        q_plus[i] = K_par[i] * (u_plus - u[i]) / parallel_distances_plus[i];
 
-        n_x = static_cast<int>(floor(x_minus[i] / coord->dx[i]));
-        n_x = std::min(std::max(n_x, -ngcx), ngcx);
-        n_y = static_cast<int>(floor(y_minus[i] / coord->dy[i]));
-        n_y = std::min(std::max(n_y, -ngcy), ngcy);
+        if (x_minus[i]>=0)
+        {
+            n_x = 0;
+        }
+        else 
+        {
+            n_x = -1;
+        }
+        if (y_minus[i]>=0)
+        {
+            n_y = 0;
+        }
+        else 
+        {
+            n_y = -1;
+        }
         i_offset = i.offset(n_x, n_y, 0);
 
         f_x = (x_minus[i] - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus[i] - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
-        q_minus[i] = -K_par * (u_minus - u[i]) / parallel_distances_minus[i];
+        q_minus[i] = -K_par[i] * (u_minus - u[i]) / parallel_distances_minus[i];
     }
 
-    // result = y_plus / coord->dy;
     // // Naive method
     // result = 2.0 * (q_plus - q_minus) / (parallel_distances_plus + parallel_distances_minus);
 
     // Support operator method
     BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
     {
-        n_x = static_cast<int>(floor(x_plus[i] / coord->dx[i]));
-        n_x = std::min(std::max(n_x, -ngcx), ngcx);
-        n_y = static_cast<int>(floor(y_plus[i] / coord->dy[i]));
-        n_y = std::min(std::max(n_y, -ngcy), ngcy);
+        if (x_plus[i]>=0)
+        {
+            n_x = 0;
+        }
+        else 
+        {
+            n_x = -1;
+        }
+        if (y_plus[i]>=0)
+        {
+            n_y = 0;
+        }
+        else 
+        {
+            n_y = -1;
+        }
         i_offset = i.offset(-n_x, -n_y, 0);
 
         f_x = (x_plus[i] - n_x * coord->dx[i]) / coord->dx[i];
@@ -762,10 +1012,22 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, cons
         q_plus_T = (1.0 - f_y) * ((1 - f_x) * q_plus[i_offset] + f_x * q_plus[i_offset.xm()]) + f_y * ((1 - f_x) * q_plus[i_offset.ym()] + f_x * q_plus[i_offset.xm().ym()]);
         div_q_plus = (parallel_distances_plus[i] / (0.5 * (parallel_distances_plus[i] + parallel_distances_minus[i]))) * ((q_plus_T - q_plus[i]) / parallel_distances_plus[i]);
 
-        n_x = static_cast<int>(floor(x_minus[i] / coord->dx[i]));
-        n_x = std::min(std::max(n_x, -ngcx), ngcx);
-        n_y = static_cast<int>(floor(y_minus[i] / coord->dy[i]));
-        n_y = std::min(std::max(n_y, -ngcy), ngcy);
+        if (x_minus[i]>=0)
+        {
+            n_x = 0;
+        }
+        else 
+        {
+            n_x = -1;
+        }
+        if (y_minus[i]>=0)
+        {
+            n_y = 0;
+        }
+        else 
+        {
+            n_y = -1;
+        }
         i_offset = i.offset(-n_x, -n_y, 0);
 
         f_x = (x_minus[i] - n_x * coord->dx[i]) / coord->dx[i];
@@ -774,13 +1036,13 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const BoutReal &K_par, cons
         div_q_minus = -(parallel_distances_minus[i] / (0.5 * (parallel_distances_plus[i] + parallel_distances_minus[i]))) * ((q_minus_T - q_minus[i]) / parallel_distances_minus[i]);
 
         result[i] = -0.5 * (div_q_plus + div_q_minus);
-        // result[i] = -div_q_plus;
+        
     }
 
     return result;
 }
 
-Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, const Vector3D &b)
+Field3D Churn::div_q_par_linetrace2(const Field3D &u, const Field3D &K_par, const Vector3D &b)
 {
     TRACE("div_q_par_linetrace2");
 
@@ -1100,7 +1362,7 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
         f_y = (y_plus[i] - n_y * coord->dy[i]) / coord->dy[i];
 
         u_plus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
-        q_plus[i] = K_par * (u_plus - u[i]) / parallel_distances_plus[i];
+        q_plus[i] = K_par[i] * (u_plus - u[i]) / parallel_distances_plus[i];
 
         n_x = static_cast<int>(floor(x_minus[i] / coord->dx[i]));
         n_y = static_cast<int>(floor(y_minus[i] / coord->dy[i]));
@@ -1109,7 +1371,7 @@ Field3D Churn::div_q_par_linetrace2(const Field3D &u, const BoutReal &K_par, con
         f_x = (x_minus[i] - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus[i] - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
-        q_minus[i] = -K_par * (u_minus - u[i]) / parallel_distances_minus[i];
+        q_minus[i] = -K_par[i] * (u_minus - u[i]) / parallel_distances_minus[i];
     }
 
     // // Naive method

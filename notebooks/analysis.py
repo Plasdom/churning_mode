@@ -491,7 +491,7 @@ def plot_vector(
         ).T
 
     if ax is None:
-        fig, ax = plt.subplots(1, figsize=(3, 3))
+        fig, ax = plt.subplots(1)
     # ls = LightSource(azdeg=110, altdeg=10)
 
     contf = ax.contourf(

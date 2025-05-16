@@ -174,7 +174,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     // SAVE_REPEAT(debugvar);
     // debugvar = 0.0;
-    // SAVE_REPEAT(div_q);
+    SAVE_REPEAT(div_q);
     SAVE_REPEAT(thermal_force_term);
     thermal_force_term = 0.0;
 
@@ -237,8 +237,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         //   {
         //     for (int iz = 0; iz < mesh->LocalNz; iz++)
         //     {
-        //       // P(itu.ind, iy, iz) = T_down / T_sepx;
-        //       P(itu.ind, iy, iz) = 0.0;
+        //       P(itu.ind, iy, iz) = T_down / T_sepx;
+        //     //   P(itu.ind, iy, iz) = 1.0;
         //     }
         //   }
         // }
