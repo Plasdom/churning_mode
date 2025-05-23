@@ -387,9 +387,9 @@ TwoIntersects Churn::get_intersects(const double &xlo, const double &xhi, const 
     y2 = m * xhi + c;
     x2 = (yhi - c) / m;
 
-    // // Initialise intersect faces to -1 for debugging
-    // result.first.face = -1;
-    // result.second.face = -1;
+    // Initialise intersect faces to -1 for debugging
+    result.first.face = -1;
+    result.second.face = -1;
 
     if ((ylo < y1) && (y1 < yhi))
     {
@@ -522,6 +522,10 @@ CellIntersect Churn::get_next_intersect(const double &xlo, const double &xhi, co
     }
 
     // TODO: Confirm one of above if statements is always entered
+    if (result.face ==-1)
+    {
+        std::cout << "WARNING: Field line tracing has not worked as expected.";
+    }
 
     return result;
 }
@@ -786,45 +790,48 @@ InterpolationPoint Churn::trace_field_lines_2(const Ind3D &i, const Vector3D &b,
     i_prev = i;
     i_next = increment_cell_2(i, i_prev, next_intersect.face);
 
-    // Continue to trace field lines in the given direction
-    n_steps = 0;
-    while (continue_tracing == true)
+    // Continue to trace field lines in the given direction (exclude last ghost cells in each direction as would involve tracing outside the simulation domain)
+    if ((i_next.y() >= 1) && (i_next.y() < mesh->LocalNy-1) && (i_next.x() >= 1) && (i_next.x() < mesh->LocalNx-1))
     {
+        n_steps = 0;
+        while (continue_tracing == true)
+        {
 
-        // Find intercepts in the new cell
-        prev_intersect = next_intersect;
-        
-        xlo = std::max(-dx + (i_next.x() - i_prev.x()) * dx, -dx);
-        xhi = std::min(dx + (i_next.x() - i_prev.x()) * dx, dx);
-        ylo = std::max(-dy + (i_next.y() - i_prev.y()) * dy, -dy);
-        yhi = std::min(dy + (i_next.y() - i_prev.y()) * dy, dy);
-        next_intersect = get_next_intersect(xlo,
-                                            xhi,
-                                            ylo,
-                                            yhi,
-                                            prev_intersect,
-                                            b.x[i_next],
-                                            b.y[i_next]);
+            // Find intercepts in the new cell
+            prev_intersect = next_intersect;
+            
+            xlo = std::max(-dx + (i_next.x() - i_prev.x()) * dx, -dx);
+            xhi = std::min(dx + (i_next.x() - i_prev.x()) * dx, dx);
+            ylo = std::max(-dy + (i_next.y() - i_prev.y()) * dy, -dy);
+            yhi = std::min(dy + (i_next.y() - i_prev.y()) * dy, dy);
+            next_intersect = get_next_intersect(xlo,
+                                                xhi,
+                                                ylo,
+                                                yhi,
+                                                prev_intersect,
+                                                b.x[i_next],
+                                                b.y[i_next]);
 
-        // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
-        par_dist += sqrt(pow(next_intersect.x - prev_intersect.x, 2.0) + pow(next_intersect.y - prev_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
-        
-        // Get subsequent intersects in plus direction
-        i_prev = i_next;
-        i_next = increment_cell_2(i, i_prev, next_intersect.face);
+            // Find the parallel distance par_dist = distance from (x_plus_prev, y_plus_prev) to (x_plus, y_plus) (i.e. it's the cumulative distance just to the next intersection point)
+            par_dist += sqrt(pow(next_intersect.x - prev_intersect.x, 2.0) + pow(next_intersect.y - prev_intersect.y, 2.0)) * sqrt(pow(b.z[i_next], 2.0) / (pow(b.x[i_next], 2.0) + pow(b.y[i_next], 2.0)) + 1.0);
+            
+            // Get subsequent intersects in plus direction
+            i_prev = i_next;
+            i_next = increment_cell_2(i, i_prev, next_intersect.face);
 
-        n_steps++;
+            n_steps++;
 
-        // Check whether tracing can stop
-        if ((abs(next_intersect.x) >= dx)){
-            continue_tracing = false;
-        }
-        else if ((abs(next_intersect.y) >= dy)){
-            continue_tracing = false;
-        }
-        else if (n_steps > max_steps){
-        // else if (n_steps > 0){
-            continue_tracing = false;
+            // Check whether tracing can stop
+            if ((abs(next_intersect.x) >= dx)){
+                continue_tracing = false;
+            }
+            else if ((abs(next_intersect.y) >= dy)){
+                continue_tracing = false;
+            }
+            else if (n_steps > max_steps){
+            // else if (n_steps > 0){
+                continue_tracing = false;
+            }
         }
     }
     
@@ -896,16 +903,11 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
     BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     // for (auto i : result)
     {
-
+        // q_plus
         interp_p_plus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, true);
         x_plus[i] = interp_p_plus.x;
         y_plus[i] = interp_p_plus.y;
         parallel_distances_plus[i] = interp_p_plus.parallel_distance;
-
-        interp_p_minus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, false);
-        x_minus[i] = interp_p_minus.x;
-        y_minus[i] = interp_p_minus.y;
-        parallel_distances_minus[i] = interp_p_minus.parallel_distance;
 
         if (x_plus[i]>=0)
         {
@@ -932,6 +934,28 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         u_plus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
         q_plus[i] = K_par[i] * (u_plus - u[i]) / parallel_distances_plus[i];
 
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                q_plus[i] = 0.0;;
+            }
+        }
+        else if (disable_qin_outside_core)
+        {
+            if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            {
+                q_plus[i] = 0.0;
+            }
+        }
+
+        // q_minus
+        interp_p_minus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, false);
+        x_minus[i] = interp_p_minus.x;
+        y_minus[i] = interp_p_minus.y;
+        parallel_distances_minus[i] = interp_p_minus.parallel_distance;
+
         if (x_minus[i]>=0)
         {
             n_x = 0;
@@ -954,6 +978,22 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         f_y = (y_minus[i] - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
         q_minus[i] = -K_par[i] * (u_minus - u[i]) / parallel_distances_minus[i];
+
+        // Check if extrapolating across boundary
+        if (fixed_Q_in)
+        {
+            if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            {
+                q_minus[i] = 0.0;
+            }
+        }
+        else if (disable_qin_outside_core)
+        {
+            if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            {
+                q_minus[i] = 0.0;
+            }
+        }
     }
 
     // // Naive method
