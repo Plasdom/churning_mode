@@ -31,18 +31,21 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         A_minus_half = (0.5 * (K_par[i] * (pow(b.y[i], 2.0)) + K_par[i.ym()] * (pow(b.y[i.ym()], 2.0))));
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                A_plus_half = 0.0;
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    A_plus_half = 0.0;
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+            else if (disable_qin_outside_core)
             {
-                A_plus_half = 0.0;
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    A_plus_half = 0.0;
+                }
             }
         }
 
@@ -57,20 +60,23 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         ddy_minus = (0.5 / (coord->dy[i])) * (T[i.xm().yp()] - T[i.xm().ym()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-                ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+            else if (disable_qin_outside_core)
             {
-                ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-                ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
             }
         }
 
@@ -85,21 +91,24 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                if (fixed_Q_in)
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    if (fixed_Q_in)
+                    {
+                        ddx_plus = 0.0;
+                    }
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
                 {
                     ddx_plus = 0.0;
                 }
-            }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-            {
-                ddx_plus = 0.0;
             }
         }
 
@@ -143,18 +152,21 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         A_minus_half = (0.5 * (K_perp[i] * (1.0 - pow(b.y[i], 2.0)) + K_perp[i.ym()] * (1.0 - pow(b.y[i.ym()], 2.0))));
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                A_plus_half = 0.0;
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    A_plus_half = 0.0;
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+            else if (disable_qin_outside_core)
             {
-                A_plus_half = 0.0;
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    A_plus_half = 0.0;
+                }
             }
         }
 
@@ -169,20 +181,23 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         ddy_minus = (0.5 / (coord->dy[i])) * (T[i.xm().yp()] - T[i.xm().ym()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-                ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+            else if (disable_qin_outside_core)
             {
-                ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-                ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
             }
         }
 
@@ -197,18 +212,21 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
         ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
 
         // Apply grad_perp P = 0 BC if using fixed Q_in
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                ddx_plus = 0.0;
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    ddx_plus = 0.0;
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+            else if (disable_qin_outside_core)
             {
-                ddx_plus = 0.0;
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    ddx_plus = 0.0;
+                }
             }
         }
 
@@ -266,7 +284,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
     {
         for (int i = 0; i < mesh->LocalNx; i++)
         {
-            if (mesh->lastY(i) && psi(i, mesh->GlobalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
+            if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
             {
                 q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
             }
@@ -337,7 +355,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
         int k = 0;
         for (int i = 0; i < mesh->LocalNx; i++)
         {
-            if (mesh->lastY(i) && psi(i, mesh->GlobalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
+            if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
             {
                 for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
                 {
@@ -935,18 +953,21 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         q_plus[i] = K_par[i] * (u_plus - u[i]) / parallel_distances_plus[i];
 
         // Check if extrapolating across boundary
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                q_plus[i] = 0.0;;
+                if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    q_plus[i] = 0.0;;
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            else if (disable_qin_outside_core)
             {
-                q_plus[i] = 0.0;
+                if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                {
+                    q_plus[i] = 0.0;
+                }
             }
         }
 
@@ -980,18 +1001,21 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         q_minus[i] = -K_par[i] * (u_minus - u[i]) / parallel_distances_minus[i];
 
         // Check if extrapolating across boundary
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                q_minus[i] = 0.0;
+                if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    q_minus[i] = 0.0;
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            else if (disable_qin_outside_core)
             {
-                q_minus[i] = 0.0;
+                if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                {
+                    q_minus[i] = 0.0;
+                }
             }
         }
     }
@@ -1103,18 +1127,24 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
         K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
         // Check if extrapolating across boundary
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                u_plus = u[i];
+                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    u_plus = u[i];
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            else if (disable_qin_outside_core)
             {
-                u_plus = u[i];
+                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    {
+                        u_plus = u[i];
+                    }
+                }
             }
         }
 
@@ -1232,18 +1262,24 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
         // Check if extrapolating across boundary
-        if (fixed_Q_in)
+        if (mesh->lastY(i.x()))
         {
-            if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+            if (fixed_Q_in)
             {
-                u_minus = u[i];
+                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    u_minus = u[i];
+                }
             }
-        }
-        else if (disable_qin_outside_core)
-        {
-            if ((mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->GlobalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+            else if (disable_qin_outside_core)
             {
-                u_minus = u[i];
+                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    {
+                        u_minus = u[i];
+                    }
+                }   
             }
         }
 
