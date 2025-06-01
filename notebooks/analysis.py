@@ -19,7 +19,6 @@ mu_0 = 1.256637e-6
 el_charge = 1.602e-19
 m_e = 9.11e-31
 m_i = 2 * 1.667e-27
-mu_0 = 1.256637e-6
 eps_0 = 8.854188e-12
 boltzmann_k = 1.380649e-23
 
@@ -1037,7 +1036,7 @@ def plot_Q_targets(
     normalise: bool = True,
     savepath: str | None = None,
     ylim: list | tuple | None = None,
-    ylog: bool = False
+    ylog: bool = False,
 ):
     """Plot total heat flow to each divertor leg
 
@@ -1542,6 +1541,7 @@ def animate_nulls(
     fps: int = 10,
     savepath: str | None = None,
     refind_nulls_each_timestep: bool = True,
+    **mpl_kwargs,
 ):
     """Animate hte position of both nulls over time
 
@@ -1615,8 +1615,12 @@ def animate_nulls(
             )
             ax[j].set_xlabel("x")
             ax[j].set_ylabel("y")
-            timestep = ds_plot.t.values[plot_every * i] - ds.t.values[0]
-            ax[j].set_title(v + ", t={:.2f}$t_0$".format(timestep))
+            timestep = (
+                1000
+                * (ds_plot.t.values[plot_every * i] - ds.t.values[0])
+                * ds.metadata["t_0"]
+            )
+            ax[j].set_title(v + ", t={:.2f} ms".format(timestep))
 
             ax[j].contour(
                 ds_plot.x,
@@ -1626,6 +1630,7 @@ def animate_nulls(
                 colors="white",
                 linestyles=["-", "-"],
                 zorder=998,
+                **mpl_kwargs,
             )
             if refind_nulls_each_timestep:
                 ax[j].scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
@@ -2121,6 +2126,7 @@ def extract_rundeck_data(
     a = np.zeros(nr)
     R = np.zeros(nr)
     f_inner = np.zeros(nr)
+    f_inner_wo = np.zeros(nr)
     f_outer = np.zeros(nr)
     lambda_q = np.zeros(nr)
 
@@ -2203,10 +2209,15 @@ def extract_rundeck_data(
         # D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Ly/np.sin(1.047))) - ds.metadata["chi_perp"]) * ((Lx*Ly) / (2.0 * np.sqrt(np.pi) * r_ch[i]))
         # D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Lx + Ly + Ly)) - ds.metadata["chi_perp"]) * ((2*Lx*Ly) / (np.pi * r_ch[i]**2))
         r_D[i] = min(r_ch[i], d_sol[i])
-        D_x[i] = (P_out_w[i] * d_sol[i] / (p_null[i] * (Lx + Ly + Ly)) - ds.metadata["chi_perp"]) * ((2*Lx*Ly) / (np.pi * r_D[i]**2))
+        D_x[i] = (
+            P_out_w[i] * d_sol[i] / (p_null[i] * (Lx + Ly + Ly))
+            - ds.metadata["chi_perp"]
+        ) * ((2 * Lx * Ly) / (np.pi * r_D[i] ** 2))
 
         D_x_th[i] = 0.5 * r_ch[i] ** 2 / tau_ch[i]
-        D_x_th_capped[i] = 0.5 * r_D[i] ** 2 / (np.sqrt(ds.metadata["R_0"] * r_D[i]) / v_th_null[i])
+        D_x_th_capped[i] = (
+            0.5 * r_D[i] ** 2 / (np.sqrt(ds.metadata["R_0"] * r_D[i]) / v_th_null[i])
+        )
 
         epsilon[i] = ds.metadata["a_mid"] / ds.metadata["R_0"]
         a[i] = ds.metadata["a_mid"]
@@ -2215,10 +2226,16 @@ def extract_rundeck_data(
         # D_x_emp[i] = 0.020 * ds.metadata["a_mid"] ** 5.372 * epsilon[i] ** -4.055 * beta_p[i] ** 3.396 * d_sol[i] **-6.784
         # D_x_emp[i] = 0.00465 * ds.metadata["a_mid"] ** 5.62582 * epsilon[i] ** -3.43687 * beta_p[i] ** 3.51383 * d_sol[i] ** -8.91759
         # D_x_emp[i] = 0.00222 * ds.metadata["a_mid"] ** 5.91882 * epsilon[i] ** -3.60804 * beta_p[i] ** 3.52131 * d_sol[i] ** -9.24380
-        lambda_q[i] = (d_sol[i] / (a[i]**(2/3))) **3
-        D_x_emp[i] = 1.8972 * epsilon[i] ** -3.09988 * beta_p[i] ** 2.90471 * lambda_q[i] ** -1.74379
-        
+        lambda_q[i] = (d_sol[i] / (a[i] ** (2 / 3))) ** 3
+        D_x_emp[i] = (
+            1.8972
+            * epsilon[i] ** -3.09988
+            * beta_p[i] ** 2.90471
+            * lambda_q[i] ** -1.74379
+        )
+
         f_inner[i] = (P_legs_w[i][2] + P_legs_w[i][3]) / np.sum(P_legs_w[i])
+        f_inner_wo[i] = (P_legs_wo[i][2] + P_legs_wo[i][3]) / np.sum(P_legs_wo[i])
         f_outer[i] = (P_legs_w[i][0] + P_legs_w[i][1]) / np.sum(P_legs_w[i])
 
     # Store in a dict (TODO: use a dataarray here instead?)
@@ -2250,6 +2267,7 @@ def extract_rundeck_data(
     out["R_0"] = R
     out["D_x_emp"] = D_x_emp
     out["f_inner"] = f_inner
+    out["f_inner_wo"] = f_inner_wo
     out["f_outer"] = f_outer
     out["lambda_q"] = lambda_q
 
