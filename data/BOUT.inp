@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 30   # number of time-steps
-timestep = 1.0e1 # time between outputs [1/t_0 = a_mid/C_s0]
+nout = 50   # number of time-steps
+timestep = 100.0 # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
 MYG = 2   
@@ -16,16 +16,16 @@ MYG = 2
 
 [mesh]
 
-nx = 64+4
+nx = 128+4
 ny = 64
 nz = 1
 
 staggergrids = true
 
-domain_size = 0.25
+domain_size = 1.0
 dx = domain_size / (nx-4)
-dy = domain_size / ny
-dz = domain_size / nz
+dy = dx * 1.7320508
+dz = dx
 
 ixseps1 = -1    # Required to get BCs in y-axis to work
 
@@ -58,40 +58,34 @@ upwind = W3
 
 [solver]
 type=cvode
-# type = rk4
-# #pc_type = hypre
-atol = 1e-6  # absolute tolerance
-rtol = 1e-3   # relative tolerance
-# #mxstep = 10000  # Maximum internal steps per output
-# #use_precon = false
-# #pc_hypre_type = euclid
+rtol = 1e-5
+atol = 1e-10  # absolute tolerance
 mxstep=1e6
-# adaptive=true
-
-#invertable_pctype = hypre
 
 [model]
 
 # Parameters
 D_m = 1.0e-2          # Magnetic diffusivity [m^2 s^-1]
 mu = 1.0e-3            # Kinematic viscosity [m^2 s^-1]
-R_0 = 0.88           # Major radius [m]
-a_mid = 0.25         # Minor radius at midplane [m]
+R_0 = 0.85           # Major radius [m]
+a_mid = 0.65         # Minor radius at midplane [m]
 n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
-T_sepx = 300        # Plasma temperature at separatrix [eV]
-B_t0 = 1.00            # Toroidal field strength [T]
+T_sepx = 200        # Plasma temperature at separatrix [eV]
+B_t0 = 0.8            # Toroidal field strength [T]
 B_pmid = 0.3          # Poloidal field strength [T]
-T_down = 20.0         # Fixed downstream temperature [eV]
+T_down = 0.0         # Fixed downstream temperature [eV]
 P_core = 1.0       # Pressure at core boundary [P_0]
 Q_in = 2.0
 psi_bndry_P_core_BC = 0.0
 lambda_SOL_rho = 0.000001       # SOL width parameter in x direction at upstream boundary
+density_source = 0.0e20 # Volumetric density source [m^3/s]
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
+evolve_density = true
 include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_thermal_force_term = false   # Include the thermal force term in the psi equation
 include_advection = true            # Include advection terms
 fixed_T_down = true            # Use a constant value for P on downstream boundaries
@@ -101,25 +95,26 @@ disable_qin_outside_core = true
 #TODO: Add temperature dependence conduction models
 
 # Select parallel thermal conduction model (first method set to true will be used)
-chi_par = 1.0e6  # Parallel Thermal diffusivity [m^2 s^-1]
+chi_par = 2.0e4
+       # Parallel Thermal diffusivity [m^2 s^-1]
 use_classic_div_q_par = false     
 use_gunter_div_q_par = false       
 use_modified_stegmeir_div_q_par = true       
-use_linetrace_div_q_par = false     
+use_linetrace_div_q_par = false    
 T_dependent_q_par = false     
 
 # Select perpendicular thermal conduction model (first method set to true will be used)
-chi_perp = 1.0e-1         # Perpendicular Thermal diffusivity [m^2 s^-1]
+chi_perp = 1.0e0         # Perpendicular Thermal diffusivity [m^2 s^-1]
 use_classic_div_q_perp = true     
 use_gunter_div_q_perp = false
 
 # Configure additional chi_perp umbrella to simulate churning mode
-D_add = 0.0 # Peak of additional perpendicular diffusion coefficient [m^2/s]
-x_1 = 0 # x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
-x_2 = 0 # x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
-y_1 = 0 # y-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]
-y_2 = 0 # y-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]
-r_star = 0.2 # radius of the additional mixing zone [a_mid]
+D_x = 0.0 # Peak of additional perpendicular diffusion coefficient [m^2/s]
+x_1 = 0.0 # x-coordinate of first X-point  [a_mid]
+y_1 = 0.0 # y-coordinate of first X-point  [a_mid]
+x_2 = 0.0 # x-coordinate of second X-point  [a_mid]
+y_2 = 0.0000 # y-coordinate of second X-point  [a_mid]
+r_star = 10.0 / (100.0*a_mid) # radius of the additional mixing zone [a_mid]
 
 [all]
 
@@ -127,245 +122,74 @@ bndry_all = none
 
 [P]
 
-function = 1
+nx = 128+4
+ny = 64
+domain_size = 1.0
+dx = domain_size /(nx-4)
+dy = dx * 1.7320508
+Lx = dx * (nx-4) 
+Ly = dy * ny
+a_mid = 0.65   
+R_0 = 0.85
+B_pmid_EFIT = 0.3  
+x_c = (x - 0.5) * Lx * a_mid
+y_c = (y/(2*pi) - 0.5) * Ly * a_mid
 
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
+# Arbitrary snowflake with rotation of core about origin (centred on midpoint between nulls)
+distance_factor = 1.0
+D = 0.025 * distance_factor                     # Separation between nulls
+theta = 1.38                # Angle of line connecting nulls (measured anticlockwise from x-axis)
+alpha = 0.0
+initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
+x_offset = (x_c + 0.5*D*cos(theta)) * cos(alpha) - (y_c - 0.5*D*sin(theta)) * sin(alpha)
+y_offset = (x_c + 0.5*D*cos(theta)) * sin(alpha) + (y_c - 0.5*D*sin(theta)) * cos(alpha)
+psi_EFIT = [x_coord = x_offset, y_coord = y_offset]((distance_factor^3)*6.092e-06*initial_psi)
+psi = psi_EFIT / (R_0 * a_mid * B_pmid_EFIT)
+psi_magx = [x_coord = 0, y_coord = 1]((distance_factor^3)*6.092e-06*initial_psi)
+psi_n = (psi-psi_magx)/(0-psi_magx)
 
-# function = 0.17 - x_c^2 + 0*y_c
+T_sepx = 200  
+T_down = 0.0
+P_down = T_down/T_sepx
 
+P_psi_n = 30*sqrt(-(psi_n-1)) + P_down
 
-# # Simple vertical gradient
-# gradient = 1
-# ny = 64
-# domain_size = 0.25
-# dy = domain_size / ny
-# Ly = dy * ny
-# y_c = (y/(2*pi) - 0.5) * Ly
-# function = 1 + gradient * y_c
-
-# # P=1 in core, P=P_down elsewhere (standard X-point)
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# # r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# function = where(theta-pi/4,
-#            where(-theta+3*pi/4,
-#                  1.0,0.0),
-#                  0.0)
-
-# # P=1 in core, P=P_down elsewhere (snowflake)
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# # r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# function = where(theta-pi/3,
-#            where(-theta+2*pi/3,
-#                  1.0,0.0),
-#                  0.0)
-
-# # P=1 in core, P=radially decaying to zero elsewhere (snowflake)
-# lambda_q = 0.0045
-# nx = 64+4
-# ny = 64
-# e = 2.71828
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# # y_c = (y/(2*pi) - 0.5) * Ly
-# x_plus = (Ly / 2) / tan(pi/3)
-# # r = sqrt(x_c^2 + y_c^2)
-# # theta = atan(y_c, x_c)
-# # function = where(x_c-x_plus,where(x_c-x_minus,1.0,0.0),0.0)
-# # function = where(x_minus-x_c,e^(-(x_minus-x_c)/lambda_q),0.0) + where(x_c-x_plus,e^(-(x_c-x_plus)/lambda_q),0.0)
-# function = where(x_plus-x_c,where(-x_c-x_plus,e^(-(-x_plus-x_c)/lambda_q),1.0),e^((x_plus-x_c)/lambda_q))
-
-# # P = psi (snowflake)
-# lambda_q = 0.0005
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# d = 0.35         # Decay length of differential rotation from centre
-# chi_0 = 0     # Max rotation of psi at the centre
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-# function = [r_arg = r, theta_arg = theta](where(theta-pi/3,where(-theta+2*pi/3,
-#                                                                  1,
-#                                                                  e^(-abs(initial_psi)/lambda_q)),
-#                                                                  e^(-abs(initial_psi)/lambda_q)
-#                                                 )
-#                                          )
-
-# # P=1 in core, P=e^-psi/lambda_SOL elsewhere (SF minus configuration)
-# lambda_q = 0.0000
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# sf_a = 1
-# sf_b = 0.3
-# sf_eps = -0.08
-# nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
-# psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord})
-# initial_psi = [x_coord = x_c, y_coord = y_c](psi)
-# function = [r_arg = r, theta_arg = theta](where(-initial_psi,5.0,e^(-abs(initial_psi)/lambda_q)))
-
-# # P=1 in core, P=e^-psi/lambda_SOL elsewhere (SF plus configuration)
-# lambda_q = 0.004
-# nx = 64+4
-# ny = 64
-# domain_size = 0.25
-# dx = domain_size /(nx-4)
-# dy = domain_size /ny
-# Lx = dx * (nx-4) 
-# Ly = dy * ny
-# x_c = (x - 0.5) * Lx
-# y_c = (y/(2*pi) - 0.5) * Ly
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# sf_a = 1
-# sf_b = 0.3
-# sf_eps = 0.00
-# nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
-# psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
-# initial_psi = [x_coord = x_c, y_coord = y_c](psi)
-# function = [r_arg = r, theta_arg = theta](where(-initial_psi,0.2,e^(-abs(initial_psi)/lambda_q)))
-
+function = where(-(psi_n-1), P_psi_n, P_down)
 
 [psi]
 
 # Define parameters and functions for psi initialisation
-
-# # Simple vertical gradient
-# gradient = 5.0
-# ny = 64
-# dy = 0.25/ny
-# Ly = dy * ny
-# y_c = (x/(2*pi) - 0.5) * Ly
-# function = 1 + gradient * y_c
-
-nx = 64+4
+nx = 128+4
 ny = 64
-domain_size = 0.25
+domain_size = 1.0
 dx = domain_size /(nx-4)
-dy = domain_size / ny
+dy = dx * 1.7320508
 Lx = dx * (nx-4) 
 Ly = dy * ny
-x_c = (x - 0.5) * Lx
-y_c = (y/(2*pi) - 0.5) * Ly
+a_mid = 0.65   
+R_0 = 0.85
+B_pmid_EFIT = 0.3
+x_c = (x - 0.5) * Lx * a_mid
+y_c = (y/(2*pi) - 0.5) * Ly * a_mid
 
-# # Straight B field at angle from x-axis
-# alpha = 30
-# function = (x_c * sin(alpha*pi/180) - y_c * cos(alpha*pi/180))
-# function = -y_c * (0.25 - x_c)
-# function = -x_c * (0.25 + y_c)
-
-# # Standard X-point
-# d = 0.35         # Decay length of differential rotation from centre
-# chi_0 = 0     # Max rotation of psi at the centre
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# initial_psi = -{r_arg}^2 * sin(2 * ({theta_arg} + (pi/4) + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-# function = [r_arg = r, theta_arg = theta](initial_psi)
-# scale = [r_arg = 1, theta_arg = pi/2](1/initial_psi)
-
-# # Snowflake
-# d = 0.35         # Decay length of differential rotation from centre
-# chi_0 = 0     # Max rotation of psi at the centre
-# e = 2.71828
-# r = sqrt(x_c^2 + y_c^2)
-# theta = atan(y_c, x_c)
-# initial_psi = -{r_arg}^3 * sin(3 * ({theta_arg} + chi_0 * e ^ (-{r_arg}^2 / d^2) ) )
-# function = [r_arg = r, theta_arg = theta](initial_psi)
-# scale = [r_arg = 1, theta_arg = -pi/2](1.0/(initial_psi))
-
-# Snowflake plus
-sf_a = 1
-sf_b = 0.3
-sf_eps = 0.01
-nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
-initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord}) - (sf_a^2/(3*sf_b)) * nu^1.5
-function = [x_coord = x_c, y_coord = y_c](initial_psi)
-scale = [x_coord = 0, y_coord = 1](1/initial_psi)
-
-# # Snowflake minus
-# sf_a = 1
-# sf_b = 0.3
-# sf_eps = -0.08
-# nu = sf_eps * 2 * sf_b^2 / (sf_a * (sf_a+sf_b))
-# initial_psi = (1/(2*sf_a*sf_b)) * ({x_coord}^2 * {y_coord} - {y_coord}^3/3) + (sf_a / (2*sf_b)) * (nu * {y_coord})
-# function = [x_coord = x_c, y_coord = y_c](initial_psi)
-# scale = [x_coord = 0, y_coord = 1](1/initial_psi)
-
-# # Arbitrary snowflake (centred on primary null)
-# D = 0.4                     # Separation between nulls
-# theta = 1.8                 # Angle of line connecting nulls (measured anticlockwise from x-axis)
-# initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
-# function = [x_coord = x_c, y_coord = y_c](initial_psi)
-# B_x = -3*cos(theta)*{x_coord}/D^2 - 3*sin(theta)*{y_coord}/D^2 + 3*{x_coord}^2/D^3 - 3*{y_coord}^2/D^3
-# B_y = -3*sin(theta)*({x_coord}/D^2) + 3*({y_coord}/D^2)*cos(theta) - 6*{x_coord}*{y_coord}/D^3
-# B_p = sqrt(B_x^2 + B_y^2)
-# scale = [x_coord = 1, y_coord = sqrt(3)](1/B_p)
-# scale = [x_coord = 0, y_coord = 2.0](1/initial_psi)
-
-# Arbitrary snowflake (centred on midpoint between nulls)
-D = 0.4                     # Separation between nulls
-R_0 = 0.88           # Major radius [m]
-a_mid = 0.25         # Minor radius at midplane [m]
-theta = pi/2+0.15                 # Angle of line connecting nulls (measured anticlockwise from x-axis)
+# Arbitrary snowflake with rotation of core about origin (centred on midpoint between nulls)
+distance_factor = 1.0
+D = 0.025 * distance_factor                     # Separation between nulls
+theta = 1.38                # Angle of line connecting nulls (measured anticlockwise from x-axis)
+alpha = 0.0
 initial_psi = -(3/2)*sin(theta)*({x_coord}/D)^2 + 3*{x_coord}*{y_coord}/(D^2)*cos(theta) + (3/2)*sin(theta)*({y_coord}/D)^2 -3*({x_coord}^2*{y_coord}/(D^3))+({y_coord}/D)^3
-x_offset = x_c + 0.5*D*cos(theta)
-y_offset = y_c - 0.5*D*sin(theta)
-function = [x_coord = x_offset, y_coord = y_offset](initial_psi)
-B_x = -3*cos(theta)*{x_coord}/D^2 - 3*sin(theta)*{y_coord}/D^2 + 3*{x_coord}^2/D^3 - 3*{y_coord}^2/D^3
-B_y = -3*sin(theta)*({x_coord}/D^2) + 3*({y_coord}/D^2)*cos(theta) - 6*{x_coord}*{y_coord}/D^3
-B_p = (1 / (1 + {x_coord} * (a_mid/R_0))) * sqrt(B_x^2 + B_y^2)
-scale = [x_coord = 1, y_coord = sqrt(3)](1/B_p)
+x_offset = (x_c + 0.5*D*cos(theta)) * cos(alpha) - (y_c - 0.5*D*sin(theta)) * sin(alpha)
+y_offset = (x_c + 0.5*D*cos(theta)) * sin(alpha) + (y_c - 0.5*D*sin(theta)) * cos(alpha)
+function = [x_coord = x_offset, y_coord = y_offset]((distance_factor^3)*6.092e-06*initial_psi)
+scale = 1 / (R_0 * a_mid * B_pmid_EFIT)
 
 [omega]
 function = 0 # Normalised
 
 [phi]
 function = 0 # Normalised
+
+[n]
+bndry_all = neumann
+# bndry_all = dirichlet(0)
+function = 1 # Normalised

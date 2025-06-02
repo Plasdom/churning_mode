@@ -1,8 +1,12 @@
 #include "header.hxx"
 
-int Churn::rhs(BoutReal UNUSED(t))
-{
+int Churn::rhs(BoutReal t)
+{    
     mesh->communicate(P, psi);
+    if (evolve_density)
+    {
+        mesh->communicate(n);
+    }
     // // Calculate B
     B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
@@ -17,12 +21,6 @@ int Churn::rhs(BoutReal UNUSED(t))
     {
         dPdy0_BC();
     }
-    // else if (par_extrap_P_up)
-    // if (par_extrap_P_up)
-    // {
-    //     debugvar = test_par_extrap_P_up_BC();
-    //     // par_extrap_P_up_BC();
-    // }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
@@ -55,7 +53,13 @@ int Churn::rhs(BoutReal UNUSED(t))
     u.applyBoundary("dirichlet");
 
     // Get T
-    T = P; // Normalised T = normalised P when rho = const
+    T = P / n; // Normalised T = normalised P when rho = const
+    
+    // Apply the density source to the upper boundary cells
+    if (evolve_density)
+    {
+        apply_P_core_density_source();
+    }
 
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -89,25 +93,24 @@ int Churn::rhs(BoutReal UNUSED(t))
             if (use_classic_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, kappa_par, B / B_mag);
-                q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
-                // q_par.x = div_q_par_classic(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, n * kappa_par, B / B_mag);
+                q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
             }
             else if (use_gunter_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, kappa_par, B / B_mag);
-                q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
+                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, n * kappa_par, B / B_mag);
+                q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_modified_stegmeir_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, n * kappa_par, B / B_mag);
                 // q_par is calculated and set in in div_q_par_modified_stegmeir()
             }
             else if (use_linetrace_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, n * kappa_par, B / B_mag);
                 // q_par is calculated and set in in div_q_par_linetrace()
             }
         }
@@ -115,14 +118,14 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             if (use_classic_div_q_perp)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
-                // ddt(P) += D2DX2_DIFF(P, kappa_perp) + D2DY2_DIFF(P, kappa_perp);
-                q_perp = -kappa_perp * Grad(T);
+                // ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
+                ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, n * kappa_perp);
+                q_perp = - n * kappa_perp * Grad(T);
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, kappa_perp, B / B_mag);
-                q_perp = -kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
+                ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, n * kappa_perp, B / B_mag);
+                q_perp = -n * kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
             }
 
             // Calculate q for output
@@ -137,18 +140,19 @@ int Churn::rhs(BoutReal UNUSED(t))
         {
             fixed_Q_in_BC();
         }
-        // TODO: Put this in BC module
-        // for (itu.first(); !itu.isDone(); itu++)
-        // {
-        //     // for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-        //     for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-        //     {
-        //         if ((mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2)) || (mesh->getGlobalXIndex(itu.ind) == int(mesh->GlobalNx / 2) + 1))
-        //         {
-        //             ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
-        //         }
-        //     }
-        // }
+
+        // Density source 
+        if (evolve_density)
+        {
+            ddt(P) += T * density_source * (t_0 / n_sepx);
+        }
+
+    }
+
+    // Density equation
+    if (evolve_density)
+    {
+        ddt(n) = density_source * (t_0 / n_sepx);
     }
 
     // Psi evolution
@@ -180,6 +184,7 @@ int Churn::rhs(BoutReal UNUSED(t))
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
 
+    // Advection
     if (include_advection)
     {
         if (mesh->StaggerGrids)
@@ -195,30 +200,62 @@ int Churn::rhs(BoutReal UNUSED(t))
     {
         ddt(omega) = 0;
     }
+
+    // Vorticity diffusion (kinematic viscosity)
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
+    
+    // Curvature drive
     if (include_churn_drive_term)
     {
-        ddt(omega) -= cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P);
-        ddt(omega) += sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P);
+        if (evolve_density)
+        {
+            ddt(omega) -= (cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) / n;
+            ddt(omega) += (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P)) / n;
+        }
+        else 
+        {
+            ddt(omega) -= cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P);
+            ddt(omega) += sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P);
+        }
     }
+    
+    // Line bending
     if (include_mag_restoring_term)
     {
-        // // Basic approach
-        // ddt(omega) -= b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(psi) * DDX(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-
         // Using 3rd derivative stencils
-        // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * (D3D2XDY(psi) + D3DY3(psi)) - DDY(psi) * (D3D2YDX(psi) + D3DX3(psi)));
-        ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
-
-        // Using a rotated Laplacian stencil
-        // ddt(omega) += -(2.0 / (beta_p)) * (DDX(psi) * DDY(rotated_laplacexy(psi)) - DDY(psi) * DDX(rotated_laplacexy(psi)));
+        if (evolve_density)
+        {
+            ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi))));
+        }
+        else 
+        {
+            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+        }
     }
+    
+    // Terms arising from extended Ohm's law (thermal force and parallel pressure gradient)
     if (include_thermal_force_term)
     {
-        Field3D lap_P = D2DX2(P, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
-        ddt(omega) -= 0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-        ddt(omega) -= 0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-        ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+        if (evolve_density)
+        {
+            Field3D lap_P = D2DX2(P, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+        }
+        else 
+        {
+            Field3D lap_P = D2DX2(P, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+            ddt(omega) -= 0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+            ddt(omega) -= 0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+            ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+        }
+    }
+
+    // Particle source injected with zero momentum
+    if (evolve_density)
+    {
+        ddt(omega) -= density_source * (t_0 / n_sepx) * omega / n; 
     }
 
     // Apply ddt = 0 BCs

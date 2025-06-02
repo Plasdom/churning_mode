@@ -34,11 +34,16 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
     alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
     alpha_rot = options["alpha_rot"].doc("Rotation angle of initial poloidal flux").withDefault(0.0);
+    density_source = options["density_source"].doc("Volumetric particle source [m^3 s^-1] if performing a density ramp").withDefault(0.0);
+    // thermal_force_b0_factor = options["thermal_force_b0_factor"].doc("b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)").withDefault(1.0);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
                           .doc("Evolve plasma pressure")
                           .withDefault(true);
+    evolve_density = options["evolve_density"]
+                          .doc("Evolve plasma density (spatially uniform, i.e. only a volumetric density source is supported)")
+                          .withDefault(false);
     include_mag_restoring_term = options["include_mag_restoring_term"]
                                      .doc("Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})")
                                      .withDefault(true);
@@ -116,6 +121,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     Omega_i0 = abs(B_t0) * e / m_i;
     b0 = B_t0 / sqrt(pow(B_t0, 2.0));
     delta = (1.0 / (2.0 * t_0 * Omega_i0));
+    // delta = (1.0/thermal_force_b0_factor) * (1.0 / (2.0 * t_0 * Omega_i0));
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
@@ -134,15 +140,33 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm.nz_tot = nz_tot;
         mySolver.setOperatorFunction(mm);
         mySolver.setup();
-
-        SOLVE_FOR(P, psi, omega);
+        
+        if (evolve_density)
+        {
+            SOLVE_FOR(P, psi, omega, n);
+            SAVE_REPEAT(n);
+        }
+        else 
+        {
+            SOLVE_FOR(P, psi, omega);
+            Options::root()["n"].setConditionallyUsed();
+        }
         SAVE_REPEAT(u, phi, B);
     }
     else
     {
         phi.setBoundary("phi");
-
-        SOLVE_FOR(P, psi, omega, phi);
+        
+        if (evolve_density)
+        {
+            SOLVE_FOR(P, psi, omega, phi, n);
+            SAVE_REPEAT(n);
+        }
+        else 
+        {
+            SOLVE_FOR(P, psi, omega, phi);
+            Options::root()["n"].setConditionallyUsed();
+        }
         SAVE_REPEAT(u, B);
     }
 
@@ -174,8 +198,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     // SAVE_REPEAT(debugvar);
     // debugvar = 0.0;
-    SAVE_REPEAT(div_q);
-    SAVE_REPEAT(thermal_force_term);
+    // SAVE_REPEAT(div_q);
+    // SAVE_REPEAT(thermal_force_term);
     thermal_force_term = 0.0;
 
     if (fixed_Q_in)
@@ -327,6 +351,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B.x = 0.0;
     B.y = 0.0;
     B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
+
+    // Store initial P profile
+    T_init = P / n;
+    SAVE_ONCE(T_init);
 
     return 0;
 }

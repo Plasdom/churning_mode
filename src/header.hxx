@@ -65,6 +65,7 @@ private:
     // Evolving variables
     Field3D P, psi, omega; ///< Pressure, poloidal magnetic flux and vorticity
     Vector3D B;
+    Field3D n; // Density
 
     // Auxilliary variables
     Field3D phi;
@@ -76,6 +77,7 @@ private:
     Field3D kappa_par, kappa_perp;
     Field3D B_mag, T;
     Field3D div_q;
+    Field3D T_init;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
     // Field2D q_in_yup;
@@ -105,6 +107,7 @@ private:
     BoutReal Q_in;           ///< Inpuw power to top of domain [MW]
     BoutReal psi_bndry_P_core_BC; ///< When fixed_P_core=true, set P_core to the specified value within field lines where psi is greater than this value
     BoutReal alpha_rot;           ///< Rotation angle of initial poloidal flux
+    BoutReal density_source; ///< Volumetric particle source [m^3 s^-1] if performing a density ramp
 
     // Other parameters
     BoutReal mu_0;        ///< Vacuum permeability [N A^-2]
@@ -130,10 +133,12 @@ private:
     BoutReal alpha_fl;       ///< Flux limiter
     BoutReal Omega_i0;       ///< Ion cyclotron frequency
     BoutReal delta;          ///< Parameter related to strength of thermal force and grad p terms
+    // BoutReal thermal_force_b0_factor; ///< b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)
     double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure
+    bool evolve_density;            ///< Evolve plasma density
     bool include_mag_restoring_term; ///< Include the poloidal magnetic field restoring term in the vorticity equation
     bool include_churn_drive_term;   ///< Include the churn driving term in the vorticity equation
     bool include_thermal_force_term; ///< Include the thermal force term in the psi equation
@@ -188,6 +193,7 @@ private:
     void fixed_Q_in_BC();
     void ddt0_BCs();
     void dPdy0_BC();
+    void apply_P_core_density_source();
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();
 

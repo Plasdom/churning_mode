@@ -28,6 +28,25 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
     return;
 }
 
+void Churn::apply_P_core_density_source()
+{
+    // TODO: Call this in init() rather than rhs() and, if not calling, set P to zero in boundary
+    TRACE("apply_P_core_density_source");
+
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                P(itu.ind, iy, iz) = T_init(itu.ind, iy, iz) * n(itu.ind, iy, iz);
+            }
+        }
+    }
+
+    return;
+}
+
 void Churn::dPdy0_BC()
 {
     // TODO: Use BOUT++ dirichlet BC here instead of setting it manually (may need to unset ddt(P)=0)
