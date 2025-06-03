@@ -1486,6 +1486,8 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
     // Calculate the Spitzer-Harm thermal conductivity for electrons on the input temperature field
     TRACE("spitzer_harm_conductivity");
 
+    //TODO: Modify this to allow for varying density
+
     Field3D result;
     BoutReal T_capped, tau_e, lambda_ei;
     // lambda_ei = 10.0;

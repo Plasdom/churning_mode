@@ -61,6 +61,13 @@ int Churn::rhs(BoutReal t)
         apply_P_core_density_source();
     }
 
+    // Density Evolution
+    /////////////////////////////////////////////////////////////////////////////
+    if (evolve_density)
+    {
+        ddt(n) = density_source * (t_0 / n_sepx);
+    }
+
     // Pressure Evolution
     /////////////////////////////////////////////////////////////////////////////
     if (evolve_pressure)
@@ -118,8 +125,8 @@ int Churn::rhs(BoutReal t)
         {
             if (use_classic_div_q_perp)
             {
-                // ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
-                ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, n * kappa_perp);
+                ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, n * kappa_perp, B / B_mag);
+                // ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, n * kappa_perp);
                 q_perp = - n * kappa_perp * Grad(T);
             }
             else if (use_gunter_div_q_perp)
@@ -135,24 +142,18 @@ int Churn::rhs(BoutReal t)
             // q_perp.x = div_q_perp_classic(T, kappa_perp, B / B_mag);
         }
 
-        // Boundary q_in
-        if (fixed_Q_in)
-        {
-            fixed_Q_in_BC();
-        }
-
         // Density source 
         if (evolve_density)
         {
             ddt(P) += T * density_source * (t_0 / n_sepx);
         }
 
-    }
+        // Boundary q_in
+        if (fixed_Q_in)
+        {
+            fixed_Q_in_BC();
+        }
 
-    // Density equation
-    if (evolve_density)
-    {
-        ddt(n) = density_source * (t_0 / n_sepx);
     }
 
     // Psi evolution
