@@ -52,8 +52,15 @@ int Churn::rhs(BoutReal t)
     u = b0 * cross(e_z, Grad(phi));
     u.applyBoundary("dirichlet");
 
-    // Get T
-    T = P / n; // Normalised T = normalised P when rho = const
+    if (evolve_density)
+    {
+        T = P / n;
+    }
+    else 
+    {
+        T = P; // Assume normalised n = 1 if density is not evolved
+    }
+
     
     // Apply the density source to the upper boundary cells
     if (evolve_density)
@@ -100,39 +107,90 @@ int Churn::rhs(BoutReal t)
             if (use_classic_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, n * kappa_par, B / B_mag);
-                q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, n * kappa_par, B / B_mag);
+                    q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
+                }
+                else 
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, kappa_par, B / B_mag);
+                    q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
+                }
             }
             else if (use_gunter_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, n * kappa_par, B / B_mag);
-                q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, n * kappa_par, B / B_mag);
+                    q_par = -n * kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
+                }
+                else 
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, kappa_par, B / B_mag);
+                    q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
+                }
+                
             }
             else if (use_modified_stegmeir_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, n * kappa_par, B / B_mag);
-                // q_par is calculated and set in in div_q_par_modified_stegmeir()
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, n * kappa_par, B / B_mag);
+                    // q_par is calculated and set in in div_q_par_modified_stegmeir()
+                }
+                else 
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, kappa_par, B / B_mag);
+                    // q_par is calculated and set in in div_q_par_modified_stegmeir()
+                }
             }
             else if (use_linetrace_div_q_par)
             {
                 // TODO: Implement spatially varying kappa_par
-                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, n * kappa_par, B / B_mag);
-                // q_par is calculated and set in in div_q_par_linetrace()
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, n * kappa_par, B / B_mag);
+                    // q_par is calculated and set in in div_q_par_linetrace()
+                }
+                else 
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag);
+                    // q_par is calculated and set in in div_q_par_linetrace()
+                }
+                
             }
         }
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {
             if (use_classic_div_q_perp)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, n * kappa_perp, B / B_mag);
-                // ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, n * kappa_perp);
-                q_perp = - n * kappa_perp * Grad(T);
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, n * kappa_perp, B / B_mag);
+                    // ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, n * kappa_perp);
+                    q_perp = - n * kappa_perp * Grad(T);
+                }
+                else 
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
+                    // ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, kappa_perp);
+                    q_perp = - kappa_perp * Grad(T);
+                }
+                
             }
             else if (use_gunter_div_q_perp)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, n * kappa_perp, B / B_mag);
-                q_perp = -n * kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
+                if (evolve_density)
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, n * kappa_perp, B / B_mag);
+                    q_perp = -n * kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
+                }
+                {
+                    ddt(P) += (2.0 / 3.0) * div_q_perp_gunter(T, kappa_perp, B / B_mag);
+                    q_perp = -kappa_perp * (Grad(T) - (B * (B * Grad(T)) / pow(B_mag, 2)));
+                }
             }
 
             // Calculate q for output

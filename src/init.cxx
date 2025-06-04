@@ -353,8 +353,11 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
 
     // Store initial P profile
-    T_init = P / n;
-    SAVE_ONCE(T_init);
+    if (evolve_density)
+    {
+        T_init = P / n;
+        SAVE_ONCE(T_init);
+    }
 
     return 0;
 }
