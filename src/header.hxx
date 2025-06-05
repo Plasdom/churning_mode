@@ -82,6 +82,10 @@ private:
     Field3D x_c, y_c;
     // Field2D q_in_yup;
     Field3D thermal_force_term;
+    Field3D lap_P;
+    Field3D lap_phi;
+    Field3D eta;
+    Field3D J_par;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -133,6 +137,8 @@ private:
     BoutReal alpha_fl;       ///< Flux limiter
     BoutReal Omega_i0;       ///< Ion cyclotron frequency
     BoutReal delta;          ///< Parameter related to strength of thermal force and grad p terms
+    BoutReal nu;          ///< Constant in front of resisitive terms, nu = C_s0^2 / v_A^2
+    BoutReal eta_0;          ///< Constant in front of resistivity, eta_0 = t_0 * c^2 / (4.0 * pi * a_mid^2)
     // BoutReal thermal_force_b0_factor; ///< b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)
     double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
 
@@ -156,6 +162,8 @@ private:
     bool fixed_Q_in;
     bool use_flux_limiter;
     bool disable_qin_outside_core;
+    bool electrostatic;             ///< Use electrostatic model
+    bool use_spitzer_resistivity;   ///< Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;

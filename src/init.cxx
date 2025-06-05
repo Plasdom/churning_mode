@@ -95,6 +95,12 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     disable_qin_outside_core = options["disable_qin_outside_core"]
                                    .doc("Set input heat flux to zero outside psi=psi_bndry_P_core_BC")
                                    .withDefault(false);
+    electrostatic = options["electrostatic"]
+                                   .doc("Use electrostatic model")
+                                   .withDefault(false);
+    use_spitzer_resistivity = options["use_spitzer_resistivity"]
+                                   .doc("Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.")
+                                   .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
@@ -122,6 +128,19 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     b0 = B_t0 / sqrt(pow(B_t0, 2.0));
     delta = (1.0 / (2.0 * t_0 * Omega_i0));
     // delta = (1.0/thermal_force_b0_factor) * (1.0 / (2.0 * t_0 * Omega_i0));
+    nu = pow(C_s0,2.0) / (pow(B_t0,2.0) / (mu_0 * rho));
+    if (use_spitzer_resistivity)
+    {
+        eta = 0.0;
+        eta_0 = t_0 * pow(3.0e8,2.0) / (4.0 * pi * pow(a_mid,2.0));
+        SAVE_ONCE(eta_0);
+        // SAVE_REPEAT(eta);
+    }
+    else 
+    {
+        eta = D_m / D_0;
+        SAVE_ONCE(eta);
+    }
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
@@ -144,11 +163,13 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         if (evolve_density)
         {
             SOLVE_FOR(P, psi, omega, n);
+            // SOLVE_FOR(P, omega, n);
             SAVE_REPEAT(n);
         }
         else 
         {
             SOLVE_FOR(P, psi, omega);
+            // SOLVE_FOR(P, omega);
             Options::root()["n"].setConditionallyUsed();
         }
         SAVE_REPEAT(u, phi, B);
@@ -160,11 +181,13 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         if (evolve_density)
         {
             SOLVE_FOR(P, psi, omega, phi, n);
+            // SOLVE_FOR(P, omega, phi, n);
             SAVE_REPEAT(n);
         }
         else 
         {
             SOLVE_FOR(P, psi, omega, phi);
+            // SOLVE_FOR(P, omega, phi);
             Options::root()["n"].setConditionallyUsed();
         }
         SAVE_REPEAT(u, B);

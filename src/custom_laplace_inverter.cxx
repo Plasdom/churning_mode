@@ -5,6 +5,7 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 {
 
     Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
+    // Field3D result = A + D * (D2DX2(input) + D2DY2(input));
 
     // Ensure boundary points are set appropriately as given by the input field.
     // TODO: Check this is doing what is expected. Surely it's the input, not result, we should be applying boundaries to?
