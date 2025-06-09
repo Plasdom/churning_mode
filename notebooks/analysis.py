@@ -364,6 +364,7 @@ def animate_vector(
     density: float = 0.25,
     plot_every: int = 1,
     fps: int = 20,
+    const_lw: bool = False,
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -383,7 +384,8 @@ def animate_vector(
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     scalar = ds["P"]
 
-    fig = plt.figure(figsize=(3.5, 3.5))
+    # fig = plt.figure(figsize=(3.5, 3.5))
+    fig = plt.figure()
     ax = plt.axes(xlim=(0, X.max()), ylim=(0, Y.max()))
 
     # ls = LightSource(azdeg=110, altdeg=10)
@@ -408,18 +410,26 @@ def animate_vector(
         )
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
-        if lw_prefactor is None:
-            lw = vec_mag.isel(t=i).values.T / vec_mag.isel(t=0).values.max()
+        if const_lw:
+            if lw_prefactor is None:
+                lw = 1.0
+            else:
+                lw = lw_prefactor
         else:
-            lw = lw_prefactor * vec_mag.isel(t=i).values.T
+            if lw_prefactor is None:
+                # lw = vec_mag.isel(t=i).values.T / vec_mag.isel(t=0).values.max()
+                lw = vec_mag.isel(t=i).values.T / vec_mag.values.max()
+            else:
+                lw = lw_prefactor * vec_mag.isel(t=i).values.T
+
         cont = ax.streamplot(
             X,
             Y,
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
             color="white",
-            # linewidth=lw,
-            linewidth=0.25,
+            linewidth=lw,
+            # linewidth=0.25,
             integration_direction="both",
             density=density,
             # alpha=0.7,
@@ -958,7 +968,7 @@ def plot_q_targets(
     ax[-1].set_xlabel(xlabel)
 
 
-def Q_target_proportions(
+def plot_Q_target_proportions(
     ds: xr.Dataset,
     normalise: bool = True,
     savepath: str | None = None,
@@ -1535,6 +1545,33 @@ def plot_nulls(
     return
 
 
+def plot_sepx_psis(ds, n_psi=1000):
+    """Plot the psi values for both separatrices over time
+
+    :param ds: xBOUT dataset
+    """
+
+    psi1s = np.zeros(len(ds.t))
+    psi2s = np.zeros(len(ds.t))
+    for i in range(len(ds.t)):
+        x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
+            ds, timestep=i, psi_range_frac=0.1, n_psi=n_psi
+        )
+        psi1s[i] = psi1
+        psi2s[i] = psi2
+
+    t = 1000 * (ds.t - ds.t[0]) * ds.metadata["t_0"]
+
+    fig, ax = plt.subplots(1)
+    ax.plot(t, psi1s, color="black", label="Primary sepx")
+    ax.plot(t, psi2s, color="red", label="Secondary sepx")
+    ax.grid()
+    ax.legend()
+    ax.set_xlabel(r"$t$ [ms]")
+    ax.set_ylabel(r"$\psi_{sepx}$ [$\psi_0$]")
+    fig.tight_layout()
+
+
 def animate_nulls(
     ds,
     plot_every: int = 1,
@@ -1551,12 +1588,16 @@ def animate_nulls(
     :param savepath: savepath of output gif or video, defaults to None
     :return: animation
     """
-    ds["P_b"] = (
-        10
-        * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
-        / (2 * mu_0)
-    )
+    # ds["P_b"] = (
+    #     10
+    #     * ((ds["B_x"] ** 2 + ds["B_y"] ** 2) * ds.metadata["B_pmid"] ** 2)
+    #     / (2 * mu_0)
+    # )
     ds_plot = ds
+    try:
+        ds["T"] = ds["P"] / ds["n"]
+    except:
+        ds["T"] = ds["P"]
 
     # TODO: Add colorbar
     # Generate grid for plotting
@@ -1564,7 +1605,7 @@ def animate_nulls(
     xmax = -1
     xvals = ds_plot["x"][xmin:xmax]
     yvals = ds_plot["y"][xmin:xmax]
-    vars = ["P"]
+    vars = ["T"]
     fig, ax = plt.subplots(nrows=1, ncols=len(vars))
     if len(vars) == 1:
         ax = [ax]
@@ -1573,17 +1614,17 @@ def animate_nulls(
     min_timestep = 0
     ds_plot = ds_plot.isel(t=range(min_timestep, max_timestep))
 
-    levels = {}
+    # levels = {}
     var_arrays = {}
-    num_levels = 200
+    # num_levels = 200
     for j, v in enumerate(vars):
         var_arrays[v] = ds_plot[v].values[:, xmin:xmax, xmin:xmax]
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
-        vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
-        vmax = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
-        levels[v] = np.sort(list(np.linspace(vmin, vmax, 2 * num_levels)))
+        # vmin_c = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
+        # vmax_c = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
+        # levels[v] = np.sort(list(np.linspace(vmin_c, vmax_c, 2 * num_levels)))
 
     # x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
     x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
@@ -1608,10 +1649,11 @@ def animate_nulls(
                 xvals,
                 yvals,
                 z,
-                vmin=levels[v].min(),
-                vmax=levels[v].max(),
-                levels=levels[v],
+                # vmin=levels[v].min(),
+                # vmax=levels[v].max(),
+                # levels=levels[v],
                 cmap="inferno",
+                **mpl_kwargs,
             )
             ax[j].set_xlabel("x")
             ax[j].set_ylabel("y")
@@ -1630,7 +1672,6 @@ def animate_nulls(
                 colors="white",
                 linestyles=["-", "-"],
                 zorder=998,
-                **mpl_kwargs,
             )
             if refind_nulls_each_timestep:
                 ax[j].scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
@@ -1843,7 +1884,7 @@ def grid_limited_d_sol(target_d_sol: float = 10.0, dx: float = 0.9) -> float:
 
 def lineslice(
     ds: xr.Dataset,
-    variable: str,
+    variable: str | xr.DataArray,
     line_coords: np.ndarray,
     timestep: int = -1,
 ):
@@ -1855,17 +1896,19 @@ def lineslice(
     :param timestep: Integer timestep to evluate at, defaults to -1
     :return: 1D numpy array
     """
+    if isinstance(variable, str):
+        variable = ds[variable]
     result = np.zeros(len(line_coords))
     for i in range(len(line_coords)):
         x = line_coords[i][0]
         y = line_coords[i][1]
-        result[i] = ds[variable].interp(x=x, y=y).isel(t=timestep).values
+        result[i] = variable.interp(x=x, y=y).isel(t=timestep).values
     return result
 
 
 def plot_lineslice(
     ds: xr.Dataset,
-    variable: str = "P",
+    variable: str | xr.DataArray = "P",
     line_coords: np.ndarray | None = None,
     timesteps: int | list[int] = -1,
     **contour_kwargs,
@@ -1873,7 +1916,7 @@ def plot_lineslice(
     """Plot values of a given variable along a line given by the input coordinates
 
     :param ds: xarray dataset from BOUT++ simulation
-    :param variable: Name of variable to plot
+    :param variable: Name of variable to plot, or the variable itself as a xarray DataArray
     :param line_coords: Line coordinates
     :param timesteps: Timestamp to plot, defaults to -1
     """
@@ -1905,9 +1948,12 @@ def plot_lineslice(
     for timestep in timesteps:
         vals.append(lineslice(ds, variable, line_coords, timestep))
 
-    if variable == "P":
-        # vals = [(v - ds["P"].values[0, 0, 0]) * ds.metadata["P_0"] for v in vals]
-        vals = [(v - ds["P"].values[0, 0, timesteps[-1]]) for v in vals]
+    if isinstance(variable, str):
+        variable = ds[variable]
+
+    # if variable == "P":
+    #     # vals = [(v - ds["P"].values[0, 0, 0]) * ds.metadata["P_0"] for v in vals]
+    #     vals = [(v - ds["P"].values[0, 0, timesteps[-1]]) for v in vals]
 
     # Get 1/e drop off point
     P_max_over_e = []
@@ -1919,7 +1965,7 @@ def plot_lineslice(
     ax[0].contourf(
         ds.x,
         ds.y,
-        ds.isel(t=timesteps[0])[variable].values.T,
+        variable.isel(t=timesteps[0]).values.T,
         cmap="inferno",
         **contour_kwargs,
     )
@@ -1937,7 +1983,7 @@ def plot_lineslice(
         ax[1].axhline(P_max_over_e[i], color=l.get_color(), linestyle="--")
     ax[1].legend()
     ax[1].grid()
-    ax[1].set_ylabel(variable)
+    ax[1].set_ylabel(variable.name)
     fig.tight_layout()
 
 
@@ -2435,3 +2481,27 @@ def plot_f_inner_outer(
     if set_tight:
         fig.tight_layout()
     return ax
+
+
+def get_p_null(ds, t: int = 0):
+    """Get null pressure
+
+    :param ds: xBout dataset
+    :param t: timestep
+    :return: p_null [Pa]
+    """
+    x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=t)
+
+    # Find the line crossing the null region
+    Lx = ds.x.max() - ds.x.min()
+    x = max(x1 - 0.5 * Lx, np.min(ds.x))
+    p0 = [
+        x,
+        y1 + (x1 - x) * np.tan(30 * np.pi / 180),
+    ]
+    p1 = [x1, y1]
+    null_region_line = np.array(
+        [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
+    ).transpose()
+    p_null = lineslice(ds, "P", null_region_line, timestep=0).max() * ds.metadata["P_0"]
+    return p_null
