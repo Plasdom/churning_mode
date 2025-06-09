@@ -132,7 +132,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     if (use_spitzer_resistivity)
     {
         eta = 0.0;
-        eta_0 = t_0 * pow(3.0e8,2.0) / (4.0 * pi * pow(a_mid,2.0));
+        eta_0 = t_0 * pow(3.0e8,2.0) / (4.0 * pi * pow(100.0*a_mid,2.0));
         SAVE_ONCE(eta_0);
         // SAVE_REPEAT(eta);
     }
@@ -330,7 +330,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
     SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_perp_eff, chi_par);
-    SAVE_ONCE(x_c, y_c, delta, b0, Omega_i0);
+    SAVE_ONCE(x_c, y_c, delta, b0, Omega_i0, nu);
 
     Coordinates *coord = mesh->getCoordinates();
 
