@@ -201,6 +201,7 @@ private:
     void fixed_Q_in_BC();
     void ddt0_BCs();
     void dPdy0_BC();
+    void dPdy0_BC_outside_core();
     void apply_P_core_density_source();
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();

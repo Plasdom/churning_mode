@@ -13,6 +13,7 @@ int Churn::rhs(BoutReal t)
     B_mag = abs(B);
 
     // Apply upstream P boundary condition
+    //TODO: Check switch logic here, what happens if more than one of these enabled?
     if (fixed_P_core)
     {
         fixed_P_core_BC(P_core);
@@ -20,6 +21,10 @@ int Churn::rhs(BoutReal t)
     else if (fixed_Q_in)
     {
         dPdy0_BC();
+    }
+    else if (disable_qin_outside_core)
+    {
+        dPdy0_BC_outside_core();
     }
 
     // Solve phi

@@ -67,6 +67,28 @@ void Churn::dPdy0_BC()
     return;
 }
 
+void Churn::dPdy0_BC_outside_core()
+{
+    TRACE("dPdy0_BC_outside_core");
+
+    int k = 0;
+    for (int i = 0; i < mesh->LocalNx; i++)
+    {
+        if (mesh->lastY(i))
+        {
+            for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
+            {
+                if (psi(i,j,k) < psi_bndry_P_core_BC)
+                {
+                    P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
+                }
+            }
+        }
+    }
+
+    return;
+}
+
 void Churn::fixed_Q_in_BC()
 {
     TRACE("fixed_Q_in_BC");

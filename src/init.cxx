@@ -134,7 +134,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         eta = 0.0;
         eta_0 = t_0 * pow(3.0e8,2.0) / (4.0 * pi * pow(100.0*a_mid,2.0));
         SAVE_ONCE(eta_0);
-        // SAVE_REPEAT(eta);
+        SAVE_REPEAT(eta);
     }
     else 
     {
