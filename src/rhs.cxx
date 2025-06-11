@@ -75,7 +75,7 @@ int Churn::rhs(BoutReal t)
         BoutReal T_capped;
         for (auto i: eta)
         {
-            T_capped = std::max(T[i]*T_sepx,1.0);
+            T_capped = std::max(T[i]*T_sepx,20.0);
             eta[i] = 0.5 * 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
         }
         eta = eta * eta_0;
