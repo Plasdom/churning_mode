@@ -233,11 +233,11 @@ int Churn::rhs(BoutReal t)
         //     ddt(P) += (2.0/3.0) * (5.0 * eta * nu) * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
         // }
 
-        // Add resistive convection term 
-        if (include_thermal_force_term)
-        {
-            ddt(P) += 2.0 * eta * nu * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
-        }
+        // // Add resistive convection term 
+        // if (include_thermal_force_term)
+        // {
+        //     ddt(P) += 2.0 * eta * nu * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
+        // }
 
         // Boundary q_in
         if (fixed_Q_in)
@@ -363,16 +363,16 @@ int Churn::rhs(BoutReal t)
             ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
         }
 
-        // Resistive contribution to vorticity convection
-        lap_phi = D2DX2(phi) + D2DY2(phi);
-        if (evolve_density)
-        {
-            ddt(omega) -= (1.0 / n) * 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
-        }
-        else 
-        {
-            ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
-        }
+        // // Resistive contribution to vorticity convection
+        // lap_phi = D2DX2(phi) + D2DY2(phi);
+        // if (evolve_density)
+        // {
+        //     ddt(omega) -= (1.0 / n) * 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+        // }
+        // else 
+        // {
+        //     ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+        // }
     }
 
     // Particle source injected with zero momentum
