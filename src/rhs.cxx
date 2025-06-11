@@ -226,11 +226,17 @@ int Churn::rhs(BoutReal t)
             ddt(P) += T * density_source * (t_0 / n_sepx);
         }
 
-        // Add resistive heating terms 
+        // // Add resistive heating terms 
+        // if (include_thermal_force_term)
+        // {
+        //     ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(D2DX2(psi) + D2DY2(psi),2.0);
+        //     ddt(P) += (2.0/3.0) * (5.0 * eta * nu) * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
+        // }
+
+        // Add resistive convection term 
         if (include_thermal_force_term)
         {
-            ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(Laplace(psi),2.0);
-            ddt(P) += (2.0/3.0) * (5.0 * eta * nu) * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
+            ddt(P) += 2.0 * eta * nu * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
         }
 
         // Boundary q_in
@@ -261,7 +267,6 @@ int Churn::rhs(BoutReal t)
         {
             ddt(psi) = 0.0;
         }
-        // BoutReal eta = 1.0e-5;
         ddt(psi) += eta * (D2DX2(psi) + D2DY2(psi));
         if (include_thermal_force_term)
         {
