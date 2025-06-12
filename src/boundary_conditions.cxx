@@ -71,16 +71,16 @@ void Churn::dPdy0_BC_outside_core()
 {
     TRACE("dPdy0_BC_outside_core");
 
-    int k = 0;
-    for (int i = 0; i < mesh->LocalNx; i++)
+    for (itu.first(); !itu.isDone(); itu++)
     {
-        if (mesh->lastY(i))
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
         {
-            for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
-                if (psi(i,j,k) < psi_bndry_P_core_BC)
+                if (psi(itu.ind,iy,iz) < psi_bndry_P_core_BC)
                 {
-                    P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
+                    P(itu.ind, iy, iz) = P(itu.ind, mesh->LocalNy - ngcy_tot - 1, iz);
                 }
             }
         }
