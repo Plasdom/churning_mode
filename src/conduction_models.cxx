@@ -1478,7 +1478,7 @@ Field3D Churn::div_q_par_modified_stegmeir_efficient(const Field3D &T, const Fie
     return result;
 }
 
-Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev)
+Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low, const BoutReal &Te_limit_ev_high)
 {
     // Calculate the Spitzer-Harm thermal conductivity for electrons on the input temperature field
     TRACE("spitzer_harm_conductivity");
@@ -1496,13 +1496,13 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
     BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     {
         // Limit T used in parallel conduction to T_limit
-        T_capped = std::max(T[i], Te_limit_ev * 2.0 / T_sepx);
+        T_capped = std::min(std::max(T[i], Te_limit_ev_low * 2.0 / T_sepx), Te_limit_ev_high * 2.0 / T_sepx);
 
         // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
 
         // Calculate Spitzer-Harm parallel thermal conductivity
         // result[i] = std::min((3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0, 1.0e7 / D_0);
-        result[i] = std::min(kappa_0 * pow(T_capped,2.5), 1.0e6 / D_0);
+        result[i] = kappa_0 * pow(T_capped,2.5);
     }
 
     return result;

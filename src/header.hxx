@@ -192,7 +192,7 @@ private:
     Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b);
-    Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev = 10.0);
+    Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low = 10.0, const BoutReal &Te_limit_ev_high = 500.0);
 
     // Boundary conditions
     RangeIterator itl = mesh->iterateBndryLowerY();
