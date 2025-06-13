@@ -1486,29 +1486,23 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
     //TODO: Modify this to allow for varying density
 
     Field3D result;
-    BoutReal T_capped, tau_e, lambda_ei;
+    BoutReal T_capped, tau_e, tau_e0, kappa_0, lambda_ei;
     // lambda_ei = 10.0;
 
     result.allocate();
+    lambda_ei = 12.0;
+    tau_e0 = 3.0 * sqrt(m_e) * pow((e * T_sepx / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+    kappa_0 = (3.2 * n_sepx * boltzmann_k * (e * T_sepx / 2.0) * tau_e0 / m_e) / D_0;
     BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
     {
         // Limit T used in parallel conduction to T_limit
         T_capped = std::max(T[i], Te_limit_ev * 2.0 / T_sepx);
 
-        // Find collision Coulomb log and collision time
-        if (T_sepx * T_capped / 2.0 > 10.0)
-        {
-            lambda_ei = 24 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T_capped / 2.0, -1.0));
-        }
-        else
-        {
-            lambda_ei = 23 - log(sqrt(rho / (m_e + m_i)) * pow(T_sepx * T_capped / 2.0, -1.5));
-        }
-        tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
+        // tau_e = 3.0 * sqrt(m_e) * pow((e * T_sepx * T_capped / 2.0), 1.5) * pow((4.0 * pi * eps_0), 2.0) / (4.0 * sqrt(2.0 * pi) * (rho / (m_e + m_i)) * lambda_ei * pow(e, 4.0));
 
         // Calculate Spitzer-Harm parallel thermal conductivity
-        result[i] = std::min((3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0, 1.0e7 / D_0);
-        // result[i] = (3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0;
+        // result[i] = std::min((3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0, 1.0e7 / D_0);
+        result[i] = std::min(kappa_0 * pow(T_capped,2.5), 1.0e6 / D_0);
     }
 
     return result;
