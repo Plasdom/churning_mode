@@ -257,8 +257,7 @@ int Churn::rhs(BoutReal t)
         {
             if (mesh->StaggerGrids)
             {
-                // ddt(psi) = -V_dot_Grad(u, psi);
-                ddt(psi) = -V_dot_grad_no_bndry_flow(u, psi);
+                ddt(psi) = -V_dot_Grad(u, psi);
             }
             else
             {
@@ -290,8 +289,7 @@ int Churn::rhs(BoutReal t)
     {
         if (mesh->StaggerGrids)
         {
-            // ddt(omega) = -V_dot_Grad(u, omega);
-            ddt(omega) = -V_dot_grad_no_bndry_flow(u, omega);
+            ddt(omega) = -V_dot_Grad(u, omega);
         }
         else
         {
