@@ -18,14 +18,14 @@ int Churn::rhs(BoutReal t)
     {
         fixed_P_core_BC(P_core);
     }
-    else if (fixed_Q_in)
-    {
-        dPdy0_BC();
-    }
-    else if (disable_qin_outside_core)
-    {
-        dPdy0_BC_outside_core();
-    }
+    // else if (fixed_Q_in)
+    // {
+    //     dPdy0_BC();
+    // }
+    // else if (disable_qin_outside_core)
+    // {
+    //     // dPdy0_BC_outside_core();
+    // }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
@@ -104,7 +104,8 @@ int Churn::rhs(BoutReal t)
         {
             if (mesh->StaggerGrids)
             {
-                ddt(P) = -V_dot_Grad(u, P);
+                // ddt(P) = -V_dot_Grad(u, P);   
+                ddt(P) = -V_dot_grad_no_bndry_flow(u, P);
             }
             else
             {
@@ -256,7 +257,8 @@ int Churn::rhs(BoutReal t)
         {
             if (mesh->StaggerGrids)
             {
-                ddt(psi) = -V_dot_Grad(u, psi);
+                // ddt(psi) = -V_dot_Grad(u, psi);
+                ddt(psi) = -V_dot_grad_no_bndry_flow(u, psi);
             }
             else
             {
@@ -288,7 +290,8 @@ int Churn::rhs(BoutReal t)
     {
         if (mesh->StaggerGrids)
         {
-            ddt(omega) = -V_dot_Grad(u, omega);
+            // ddt(omega) = -V_dot_Grad(u, omega);
+            ddt(omega) = -V_dot_grad_no_bndry_flow(u, omega);
         }
         else
         {

@@ -199,3 +199,63 @@ Field3D Churn::grad_par_custom(const Field3D &u, const Vector3D &b)
 
     return result;
 }
+
+Field3D Churn::V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f){
+
+    TRACE("V_dot_grad_no_bndry_flow");
+
+    Field3D vdx, vdy, result;
+    
+    // Get v dot grad(f)
+    vdx = VDDX(v.x, f);
+    vdy = VDDY(v.y,f);
+
+    // Apply no flow boundary condition
+    if (mesh->firstX())
+    {
+        int ix = ngcx_tot;
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
+            int iz = 0;
+            if (u.x(ix,iy,iz) > 0.0)
+            {
+                vdx(ix,iy,iz) = 0.0;
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        int ix = mesh->LocalNx - ngcx_tot-1;
+        for (int iy = 0; iy < mesh->LocalNy; iy++)
+        {
+            int iz=0;
+            if (u.x(ix,iy,iz) < 0.0)
+            {
+                vdx(ix,iy,iz) = 0.0;
+            }
+        }
+    }
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        // itu.ind contains the x index
+        int iy = mesh->LocalNy - ngcy_tot-1;
+        int iz = 0;
+        if (u.y(itu.ind,iy,iz) < 0.0)
+        {
+            vdy(itu.ind,iy,iz) = 0.0;
+        }
+    }
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+        // itl.ind contains the x index
+        int iy = ngcy_tot;
+        int iz = 0;
+        if (u.y(itl.ind,iy,iz) > 0.0)
+        {
+            vdy(itl.ind,iy,iz) = 0.0;
+        }
+    }
+
+    result = vdy+vdx;
+    return result;
+}

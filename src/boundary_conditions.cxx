@@ -79,6 +79,7 @@ void Churn::dPdy0_BC_outside_core()
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
                 if (psi(itu.ind,iy,iz) < psi_bndry_P_core_BC)
+                // if (psi(itu.ind, mesh->LocalNy - ngcy_tot - 1, iz) < psi_bndry_P_core_BC)
                 {
                     P(itu.ind, iy, iz) = P(itu.ind, mesh->LocalNy - ngcy_tot - 1, iz);
                 }
@@ -97,10 +98,10 @@ void Churn::fixed_Q_in_BC()
     {
         for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
         {
-            if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - int(num_q_in_cells / 2.0)) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + int(num_q_in_cells / 2.0)))
+            if ((mesh->getGlobalXIndex(itu.ind) > int(mesh->GlobalNx / 2) - int(num_Q_in_cells / 2.0)) && (mesh->getGlobalXIndex(itu.ind) <= int(mesh->GlobalNx / 2) + int(num_Q_in_cells / 2.0)))
+            // if (psi(mesh->getGlobalXIndex(itu.ind),iy,0) > psi_bndry_P_core_BC)
             {
                 ddt(P)(itu.ind, iy - 1, 0) += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
-                // q_perp.x += q_in / (2.0 * mesh->getCoordinates()->dy(itu.ind, iy, 0));
             }
         }
     }

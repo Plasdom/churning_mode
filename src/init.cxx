@@ -32,6 +32,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     P_core = options["P_core"].doc("Pressure at core boundary [P_0]").withDefault(1.0);
     psi_bndry_P_core_BC = options["psi_bndry_P_core_BC"].doc("Psi vlaue defining core boundary for fixed_P_core option").withDefault(0.0);
     Q_in = options["Q_in"].doc("Input power to top of domain [MW]").withDefault(1.0);
+    num_Q_in_cells = options["num_Q_in_cells"].doc("Number of cells over which to deposit Q_in").withDefault(10);
     alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
     alpha_rot = options["alpha_rot"].doc("Rotation angle of initial poloidal flux").withDefault(0.0);
     density_source = options["density_source"].doc("Volumetric particle source [m^3 s^-1] if performing a density ramp").withDefault(0.0);
@@ -221,14 +222,13 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     // SAVE_REPEAT(debugvar);
     // debugvar = 0.0;
-    // SAVE_REPEAT(div_q);
+    // SAVE_REPEAT(div_q, div_q2);
     // SAVE_REPEAT(thermal_force_term);
     thermal_force_term = 0.0;
 
     if (fixed_Q_in)
     {
-        num_q_in_cells = round((1.0 / 4.0) * static_cast<BoutReal>(mesh->GlobalNxNoBoundaries));
-        q_in = Q_in / (2.0 * pi * R_0 * num_q_in_cells * mesh->getCoordinates()->dx(0, 0) * a_mid);
+        q_in = Q_in / (2.0 * pi * R_0 * num_Q_in_cells * mesh->getCoordinates()->dx(0, 0) * a_mid);
         q_in = 1.0e6 * q_in / (C_s0 * P_0);
     }
 
@@ -323,7 +323,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     q_perp = 0.0;
     kappa_par = 0.0;
     kappa_perp = 0.0;
-    div_q = 0.0;
+    // div_q = 0.0;
+    // div_q2 = 0.0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);

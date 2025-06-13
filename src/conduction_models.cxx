@@ -97,10 +97,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
             {
                 if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
                 {
-                    if (fixed_Q_in)
-                    {
-                        ddx_plus = 0.0;
-                    }
+                    ddx_plus = 0.0;
                 }
             }
             else if (disable_qin_outside_core)

@@ -76,7 +76,7 @@ private:
     Vector3D q_par, q_perp;
     Field3D kappa_par, kappa_perp;
     Field3D B_mag, T;
-    Field3D div_q;
+    // Field3D div_q, div_q2;
     Field3D T_init;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
@@ -133,7 +133,7 @@ private:
     BoutReal P_grad_0;    ///< Vertical pressure gradient normalisation
     BoutReal boltzmann_k; ///< Boltzmann's constant
     BoutReal q_in;        ///< Heat flux into domain if fixed_Q_in option is true
-    BoutReal num_q_in_cells; ///< Number of cells over which to distribute q_in
+    BoutReal num_Q_in_cells; ///< Number of cells over which to distribute Q_in
     BoutReal alpha_fl;       ///< Flux limiter
     BoutReal Omega_i0;       ///< Ion cyclotron frequency
     BoutReal delta;          ///< Parameter related to strength of thermal force and grad p terms
@@ -215,6 +215,7 @@ private:
     Field3D D2DX2_DIFF(const Field3D &f, const Field3D &A);
     Field3D D2DY2_DIFF(const Field3D &f, const Field3D &A);
     Field3D grad_par_custom(const Field3D &u, const Vector3D &b);
+    Field3D V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f);
 
 protected:
     int init(bool restarting) override;
