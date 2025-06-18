@@ -1,9 +1,13 @@
 #include "header.hxx"
 
-void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
+void Churn::fixed_P_core_BC(const BoutReal &P_core_set, const Vector3D &b)
 {
     // TODO: Call this in init() rather than rhs() and, if not calling, set P to zero in boundary
     TRACE("fixed_P_core_BC");
+
+    BoutReal x_plus, y_plus, f_x, f_y, u_plus;
+    Coordinates *coord = mesh->getCoordinates();
+    int n_x, n_y;
 
     for (itu.first(); !itu.isDone(); itu++)
     {
@@ -19,7 +23,45 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set)
                 else
                 {
                     // P(itu.ind, iy, iz) = P_core_set * exp(-pow((sqrt((psi(itu.ind, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
-                    P(itu.ind, iy, iz) = T_down / T_sepx;
+                    // P(itu.ind, iy, iz) = T_down / T_sepx;
+                    
+                    // Apply parallel neumann BC on input field
+                    x_plus = coord->dy(itu.ind, iy, iz) * abs(b.x(itu.ind, iy, iz) / b.y(itu.ind, iy, iz));
+                    x_plus = std::min(static_cast<double>(coord->dx(itu.ind, iy, iz)), x_plus);
+                    y_plus = coord->dx(itu.ind, iy, iz) * abs(b.y(itu.ind, iy, iz) / b.x(itu.ind, iy, iz));
+                    y_plus = std::min(static_cast<double>(coord->dy(itu.ind, iy, iz)), y_plus);
+                    if (b.x(itu.ind, iy, iz) >= 0)
+                    {
+                        n_x = 0;
+                    }
+                    else
+                    {
+                        n_x = -1;
+                        x_plus = -x_plus;
+                    }
+                    if (b.y(itu.ind, iy, iz) >= 0)
+                    {
+                        n_y = 0;
+                    }
+                    else
+                    {
+                        n_y = -1;
+                        y_plus = -y_plus;
+                    }
+                    f_x = (x_plus - n_x * coord->dx(itu.ind, iy, iz)) / coord->dx(itu.ind, iy, iz);
+                    f_y = (y_plus - n_y * coord->dy(itu.ind, iy, iz)) / coord->dy(itu.ind, iy, iz);
+                    
+                    if (b.y(itu.ind, iy, iz) >= 0)
+                    {
+                        u_plus = (1.0 - f_y) * ((1 - f_x) * P(itu.ind - n_x, iy - n_y, iz) + f_x * P(itu.ind - n_x - 1, iy - n_y, iz)) + f_y * ((1 - f_x) * P(itu.ind - n_x, iy - n_y - 1, iz) + f_x * P(itu.ind - n_x - 1, iy - n_y - 1, iz));
+                    }
+                    else 
+                    {
+                        u_plus = (1.0 - f_y) * ((1 - f_x) * P(itu.ind + n_x, iy + n_y, iz) + f_x * P(itu.ind + n_x + 1, iy + n_y, iz)) + f_y * ((1 - f_x) * P(itu.ind + n_x, iy + n_y + 1, iz) + f_x * P(itu.ind + n_x + 1, iy + n_y + 1, iz));
+                    }
+
+                    // Set the boundary value
+                    P(itu.ind, iy, iz) = u_plus;
                 }
             }
         }
@@ -60,6 +102,73 @@ void Churn::dPdy0_BC()
             for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
             {
                 P(i, j, k) = P(i, mesh->LocalNy - ngcy_tot - 1, k);
+            }
+        }
+    }
+
+    return;
+}
+
+void Churn::parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_core_only)
+{
+    // TODO: Use BOUT++ dirichlet BC here instead of setting it manually (may need to unset ddt(P)=0)
+    TRACE("parallel_neumann_yup");
+
+    BoutReal x_plus, y_plus, f_x, f_y, u_plus;
+    Coordinates *coord = mesh->getCoordinates();
+    int n_x, n_y;
+
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {                
+                if (apply_outside_core_only && (psi(itu.ind,iy,iz) >= psi_bndry_P_core_BC))
+                {
+                    // Do nothing
+                }
+                else 
+                {
+                    // Apply parallel neumann BC on input field
+                    x_plus = coord->dy(itu.ind, iy, iz) * abs(b.x(itu.ind, iy, iz) / b.y(itu.ind, iy, iz));
+                    x_plus = std::min(static_cast<double>(coord->dx(itu.ind, iy, iz)), x_plus);
+                    y_plus = coord->dx(itu.ind, iy, iz) * abs(b.y(itu.ind, iy, iz) / b.x(itu.ind, iy, iz));
+                    y_plus = std::min(static_cast<double>(coord->dy(itu.ind, iy, iz)), y_plus);
+                    if (b.x(itu.ind, iy, iz) >= 0)
+                    {
+                        n_x = 0;
+                    }
+                    else
+                    {
+                        n_x = -1;
+                        x_plus = -x_plus;
+                    }
+                    if (b.y(itu.ind, iy, iz) >= 0)
+                    {
+                        n_y = 0;
+                    }
+                    else
+                    {
+                        n_y = -1;
+                        y_plus = -y_plus;
+                    }
+                    f_x = (x_plus - n_x * coord->dx(itu.ind, iy, iz)) / coord->dx(itu.ind, iy, iz);
+                    f_y = (y_plus - n_y * coord->dy(itu.ind, iy, iz)) / coord->dy(itu.ind, iy, iz);
+                    
+                    if (b.y(itu.ind, iy, iz) >= 0)
+                    {
+                        u_plus = (1.0 - f_y) * ((1 - f_x) * P(itu.ind - n_x, iy - n_y, iz) + f_x * P(itu.ind - n_x - 1, iy - n_y, iz)) + f_y * ((1 - f_x) * P(itu.ind - n_x, iy - n_y - 1, iz) + f_x * P(itu.ind - n_x - 1, iy - n_y - 1, iz));
+                    }
+                    else 
+                    {
+                        u_plus = (1.0 - f_y) * ((1 - f_x) * P(itu.ind + n_x, iy + n_y, iz) + f_x * P(itu.ind + n_x + 1, iy + n_y, iz)) + f_y * ((1 - f_x) * P(itu.ind + n_x, iy + n_y + 1, iz) + f_x * P(itu.ind + n_x + 1, iy + n_y + 1, iz));
+                    }
+
+                    // Set the boundary value
+                    P(itu.ind, iy, iz) = u_plus;
+                }
             }
         }
     }

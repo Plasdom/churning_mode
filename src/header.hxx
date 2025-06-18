@@ -197,12 +197,13 @@ private:
     // Boundary conditions
     RangeIterator itl = mesh->iterateBndryLowerY();
     RangeIterator itu = mesh->iterateBndryUpperY();
-    void fixed_P_core_BC(const BoutReal &P_core_set);
+    void fixed_P_core_BC(const BoutReal &P_core_set, const Vector3D &b);
     void fixed_Q_in_BC();
     void ddt0_BCs();
     void dPdy0_BC();
     void dPdy0_BC_outside_core();
     void apply_P_core_density_source();
+    void parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_core_only = false);
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();
 

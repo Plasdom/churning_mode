@@ -16,16 +16,18 @@ int Churn::rhs(BoutReal t)
     //TODO: Check switch logic here, what happens if more than one of these enabled?
     if (fixed_P_core)
     {
-        fixed_P_core_BC(P_core);
+        fixed_P_core_BC(P_core, B / B_mag);
     }
-    // else if (fixed_Q_in)
-    // {
-    //     dPdy0_BC();
-    // }
-    // else if (disable_qin_outside_core)
-    // {
+    else if (fixed_Q_in)
+    {
+        // dPdy0_BC();
+        parallel_neumann_yup(B / B_mag);
+    }
+    else if (disable_qin_outside_core)
+    {
     //     // dPdy0_BC_outside_core();
-    // }
+        parallel_neumann_yup(B / B_mag, true);
+    }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
