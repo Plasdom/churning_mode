@@ -85,10 +85,13 @@ def read_boutdata(
         ds["q_perp_x"] = 0.0
         ds["q_perp_y"] = 0.0
 
-    ds["q_cond_x"] = ds["q_par_x"] + ds["q_perp_x"]
-    ds["q_cond_y"] = ds["q_par_y"] + ds["q_perp_y"]
-    ds["q_tot_x"] = ds["q_cond_x"] + ds["q_conv_x"]
-    ds["q_tot_y"] = ds["q_cond_y"] + ds["q_conv_y"]
+    try:
+        ds["q_cond_x"] = ds["q_par_x"] + ds["q_perp_x"]
+        ds["q_cond_y"] = ds["q_par_y"] + ds["q_perp_y"]
+        ds["q_tot_x"] = ds["q_cond_x"] + ds["q_conv_x"]
+        ds["q_tot_y"] = ds["q_cond_y"] + ds["q_conv_y"]
+    except:
+        pass
     ds["beta_p"] = (
         2
         * mu_0
@@ -465,7 +468,7 @@ def plot_vector(
     scalar: str = "P",
     t: int = 1,
     lw_prefactor: float | None = None,
-    lw_scaling_exponent: float = 1.0,
+    const_lw: bool = False,
     savepath: str | None = None,
     use_seed_points: bool = False,
     ax: Axes | None = None,
@@ -508,15 +511,16 @@ def plot_vector(
     )
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
-    if lw_prefactor is None:
-        lw = 5 * (vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max()) ** (
-            lw_scaling_exponent
-        )
-        # lw = 3 * np.sqrt(vec_mag.isel(t=t).values.T / vec_mag.isel(t=t).values.max())
+    if const_lw:
+        if lw_prefactor is None:
+            lw = 1.0
+        else:
+            lw = lw_prefactor
     else:
-        # lw = lw_prefactor * vec_mag.isel(t=t).values.T
-        lw = lw_prefactor
-        # lw = lw_prefactor * np.sqrt(vec_mag.isel(t=t).values.T)
+        if lw_prefactor is None:
+            lw = vec_mag.isel(t=t).values.T / vec_mag.values.max()
+        else:
+            lw = lw_prefactor * vec_mag.isel(t=t).values.T
     if use_seed_points:
         cont = ax.streamplot(
             X,
