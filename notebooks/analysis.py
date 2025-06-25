@@ -165,9 +165,9 @@ def contour_overlay(
     else:
         alphas = [1.0]
     fig, ax = plt.subplots(1)
-    ax.set_aspect("equal")
-    vmin = ds[var].isel(t=timesteps).min()
-    vmax = ds[var].isel(t=timesteps).max()
+    # ax.set_aspect("equal")
+    vmin = ds[var].isel(t=timesteps).min().values
+    vmax = ds[var].isel(t=timesteps).max().values
     if isinstance(levels, int):
         plot_levels = np.sort(list(np.linspace(vmin, vmax, levels)))
         if var == "psi":
@@ -1026,18 +1026,18 @@ def plot_Q_target_proportions(
 
     print(
         "At first timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
-            100 * q1[0] / q_tot[0],
-            100 * q2[0] / q_tot[0],
-            100 * q3[0] / q_tot[0],
-            100 * q4[0] / q_tot[0],
+            100 * (q1[0] / q_tot[0]).values,
+            100 * (q2[0] / q_tot[0]).values,
+            100 * (q3[0] / q_tot[0]).values,
+            100 * (q4[0] / q_tot[0]).values,
         )
     )
     print(
         "At last timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
-            100 * q1[-1] / q_tot[-1],
-            100 * q2[-1] / q_tot[-1],
-            100 * q3[-1] / q_tot[-1],
-            100 * q4[-1] / q_tot[-1],
+            100 * (q1[-1] / q_tot[-1]).values,
+            100 * (q2[-1] / q_tot[-1]).values,
+            100 * (q3[-1] / q_tot[-1]).values,
+            100 * (q4[-1] / q_tot[-1]).values,
         )
     )
 
@@ -1122,11 +1122,18 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     # q3 = -q_prefactor * (ds["q_tot_y"] ).isel(y=0, x=x3)
     # q4 = -q_prefactor * (ds["q_tot_x"] ).isel(x=0, y=y4)
 
-    qin = -q_prefactor * (ds["q_cond_y"]).isel(y=-1, x=x0)
-    q1 = q_prefactor * (ds["q_cond_x"]).isel(x=-1, y=y1)
-    q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
-    q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
-    q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
+    if "q_out" in list(ds.variables):
+        qin = q_prefactor * (ds["q_out"]).isel(y=-1, x=x0)
+        q1 = q_prefactor * (ds["q_out"]).isel(x=-1, y=y1)
+        q2 = q_prefactor * (ds["q_out"]).isel(y=0, x=x2)
+        q3 = q_prefactor * (ds["q_out"]).isel(y=0, x=x3)
+        q4 = q_prefactor * (ds["q_out"]).isel(x=0, y=y4)
+    else:
+        qin = -q_prefactor * (ds["q_cond_y"]).isel(y=-1, x=x0)
+        q1 = q_prefactor * (ds["q_cond_x"]).isel(x=-1, y=y1)
+        q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
+        q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
+        q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
 
     return qin, q1, q2, q3, q4
 

@@ -1361,6 +1361,7 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
     q_par_plus = Q_plus(T, K_par, b);
     q_par_minus = Q_minus(T, K_par, b);
     q_par = -0.5 * (q_par_plus + q_par_minus) * b;
+    // q_par = -q_par_plus * b;
     result = -0.5 * (Q_plus_T(q_par_plus, b) + Q_minus_T(q_par_minus, b));
 
     return result;
@@ -1503,6 +1504,112 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
         // Calculate Spitzer-Harm parallel thermal conductivity
         // result[i] = std::min((3.2 * n_sepx * boltzmann_k * (e * T_sepx * T_capped / 2.0) * tau_e / m_e) / D_0, 1.0e7 / D_0);
         result[i] = kappa_0 * pow(T_capped,2.5);
+    }
+
+    return result;
+}
+
+Field3D Churn::calculate_q_out(const Field3D &T, const Field3D &kappa_par, const Field3D &kappa_perp, const Vector3D &b)
+{
+    // Calculate the total conductive heat flux out of the "downstream" boundaries
+    TRACE("calculate_q_out");
+
+    Field3D result;
+    BoutReal dTdx, dTdy, gradT_par, bx, by, q_par, q_perp, k_par, k_perp;
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+
+    // X boundaries
+    if (mesh->firstX())
+    {
+        for (int ix = ngcx_tot; ix < ngcx_tot+1; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    dTdx = (T(ix,iy,iz) - T(ix-1,iy,iz)) / (coord->dx(ix,iy,iz));
+                    dTdy = 0.5 * (((T(ix-1,iy+1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dy(ix-1,iy,iz))) + ((T(ix,iy+1,iz) - T(ix,iy-1,iz)) / (2.0*coord->dy(ix,iy,iz))));
+                    bx = 0.5 * (b.x(ix-1,iy,iz) + b.x(ix,iy,iz));
+                    by = 0.5 * (b.y(ix-1,iy,iz) + b.y(ix,iy,iz));
+                    k_par = 0.5 * (kappa_par(ix-1,iy,iz) + kappa_par(ix,iy,iz));
+                    k_perp = 0.5 * (kappa_perp(ix-1,iy,iz) + kappa_perp(ix,iy,iz));
+                    gradT_par = (bx * dTdx) + (by * dTdy);
+                    
+                    result(ix,iy,iz) = k_par * bx * gradT_par;
+                    result(ix,iy,iz) -= k_perp * (bx * gradT_par - dTdx);
+                }
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        for (int ix = mesh->LocalNx - ngcx_tot - 1; ix < mesh->LocalNx - ngcx_tot; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    dTdx = (T(ix+1,iy,iz) - T(ix,iy,iz)) / (coord->dx(ix,iy,iz));
+                    dTdy = 0.5 * (((T(ix,iy+1,iz) - T(ix,iy-1,iz)) / (2.0*coord->dy(ix,iy,iz))) + ((T(ix+1,iy+1,iz) - T(ix+1,iy-1,iz)) / (2.0*coord->dy(ix+1,iy,iz))));
+                    bx = 0.5 * (b.x(ix,iy,iz) + b.x(ix+1,iy,iz));
+                    by = 0.5 * (b.y(ix,iy,iz) + b.y(ix+1,iy,iz));
+                    k_par = 0.5 * (kappa_par(ix,iy,iz) + kappa_par(ix+1,iy,iz));
+                    k_perp = 0.5 * (kappa_perp(ix,iy,iz) + kappa_perp(ix+1,iy,iz));
+                    gradT_par = (bx * dTdx) + (by * dTdy);
+                    
+                    // result(ix,iy,iz) = T(ix+1,iy,iz);
+                    result(ix,iy,iz) = -k_par * bx * gradT_par;
+                    result(ix,iy,iz) += k_perp * (bx * gradT_par - dTdx);
+                }
+            }
+        }
+    }
+    // Y boundaries
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
+    {
+        if (mesh->firstY(ix))
+        // it.ind contains the x index
+        for (int iy = ngcy_tot; iy < ngcy_tot+1; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                dTdy = (T(ix,iy,iz) - T(ix,iy-1,iz)) / (coord->dy(ix,iy,iz));
+                dTdx = 0.5 * (((T(ix+1,iy,iz) - T(ix,iy,iz)) / (2.0*coord->dy(ix-1,iy,iz))) + ((T(ix+1,iy-1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dy(ix,iy-1,iz))));
+                bx = 0.5 * (b.x(ix,iy-1,iz) + b.x(ix,iy,iz));
+                by = 0.5 * (b.y(ix,iy-1,iz) + b.y(ix,iy,iz));
+                k_par = 0.5 * (kappa_par(ix,iy-1,iz) + kappa_par(ix,iy,iz));
+                k_perp = 0.5 * (kappa_perp(ix,iy-1,iz) + kappa_perp(ix,iy,iz));
+                gradT_par = (bx * dTdx) + (by * dTdy);
+
+                // result(ix,iy,iz) = T(ix,iy-1,iz);
+                result(ix,iy,iz) = k_par * by * gradT_par;
+                result(ix,iy,iz) -= k_perp * (by * gradT_par - dTdy);
+            }
+        }
+    }
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
+    {
+        if (mesh->lastY(ix))
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot - 1; iy < mesh->LocalNy - ngcy_tot; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                dTdy = (T(ix,iy+1,iz) - T(ix,iy,iz)) / (coord->dy(ix,iy,iz));
+                dTdx = 0.5 * (((T(ix+1,iy+1,iz) - T(ix,iy+1,iz)) / (2.0*coord->dy(ix-1,iy+1,iz))) + ((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dy(ix,iy,iz))));
+                bx = 0.5 * (b.x(ix,iy,iz) + b.x(ix,iy+1,iz));
+                by = 0.5 * (b.y(ix,iy,iz) + b.y(ix,iy+1,iz));
+                k_par = 0.5 * (kappa_par(ix,iy,iz) + kappa_par(ix,iy+1,iz));
+                k_perp = 0.5 * (kappa_perp(ix,iy,iz) + kappa_perp(ix,iy+1,iz));
+                gradT_par = (bx * dTdx) + (by * dTdy);
+
+                // result(ix,iy,iz) = T(ix,iy-1,iz);
+                result(ix,iy,iz) = -k_par * by * gradT_par;
+                result(ix,iy,iz) += k_perp * (by * gradT_par - dTdy);
+            }
+        }
     }
 
     return result;

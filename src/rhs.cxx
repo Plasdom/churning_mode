@@ -181,9 +181,11 @@ int Churn::rhs(BoutReal t)
                 {
                     ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag);
                     // q_par is calculated and set in in div_q_par_linetrace()
-                }
-                
+                }  
             }
+
+            // Find the heat flux across the "downstream" boundaries
+            q_out = calculate_q_out(T, kappa_par, kappa_perp, B/B_mag);
         }
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {
@@ -198,8 +200,8 @@ int Churn::rhs(BoutReal t)
                 else 
                 {
                     ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
-                    // ddt(P) += D2DX2_DIFF(P, n * kappa_perp) + D2DY2_DIFF(P, kappa_perp);
-                    q_perp = - kappa_perp * Grad(T);
+                    // ddt(P) += (2.0/3.0) * D2DX2_DIFF(P, kappa_perp) + D2DY2_DIFF(P, kappa_perp);
+                    q_perp = -kappa_perp * (Grad(T) - ((Grad(T) * (B/B_mag)) * (B/B_mag)));
                 }
                 
             }

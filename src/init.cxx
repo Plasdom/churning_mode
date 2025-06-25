@@ -207,6 +207,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_ONCE(kappa_perp);
         SAVE_REPEAT(q_perp);
     }
+    SAVE_REPEAT(q_out);
 
     // if (fixed_Q_in)
     // {
@@ -325,6 +326,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     kappa_perp = 0.0;
     // div_q = 0.0;
     // div_q2 = 0.0;
+    q_out = 0.0;
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);

@@ -86,6 +86,7 @@ private:
     Field3D lap_phi;
     Field3D eta;
     Field3D J_par;
+    Field3D q_out;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -193,6 +194,7 @@ private:
     Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b);
     Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low = 10.0, const BoutReal &Te_limit_ev_high = 500.0);
+    Field3D calculate_q_out(const Field3D &T, const Field3D &kappa_par, const Field3D &kappa_perp, const Vector3D &b);
 
     // Boundary conditions
     RangeIterator itl = mesh->iterateBndryLowerY();
