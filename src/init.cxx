@@ -102,6 +102,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     use_spitzer_resistivity = options["use_spitzer_resistivity"]
                                    .doc("Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.")
                                    .withDefault(false);
+    include_resistive_heating = options["include_resistive_heating"]
+                                   .doc("Include the (parallel) resistive heating term in the pressure equation.")
+                                   .withDefault(false);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);

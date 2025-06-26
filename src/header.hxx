@@ -165,6 +165,7 @@ private:
     bool disable_qin_outside_core;
     bool electrostatic;             ///< Use electrostatic model
     bool use_spitzer_resistivity;   ///< Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.
+    bool include_resistive_heating; ///< Include the (parallel) resistive heating term in the pressure equation
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
