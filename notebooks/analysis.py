@@ -1014,6 +1014,11 @@ def plot_Q_target_proportions(
             [q1, q2, q3, q4],
             labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
         )
+        # ax.stackplot(
+        #     (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
+        #     [qin, q1, q2, q3, q4],
+        #     labels=["$Q_{in}$","Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
+        # )
         # ax.plot(ds.t - ds.t[0], -qin)
         ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
 

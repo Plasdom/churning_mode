@@ -949,24 +949,24 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         u_plus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
         q_plus[i] = K_par[i] * (u_plus - u[i]) / parallel_distances_plus[i];
 
-        // // Check if extrapolating across boundary
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             q_plus[i] = 0.0;;
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
-        //         {
-        //             q_plus[i] = 0.0;
-        //         }
-        //     }
-        // }
+        // Check if extrapolating across boundary
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    q_plus[i] = 0.0;;
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                {
+                    q_plus[i] = 0.0;
+                }
+            }
+        }
 
         // q_minus
         interp_p_minus = trace_field_lines_2(i, b, coord->dx[i], coord->dy[i], max_steps, false);
@@ -997,24 +997,24 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
         u_minus = (1.0 - f_y) * ((1 - f_x) * u[i_offset] + f_x * u[i_offset.xp()]) + f_y * ((1 - f_x) * u[i_offset.yp()] + f_x * u[i_offset.xp().yp()]);
         q_minus[i] = -K_par[i] * (u_minus - u[i]) / parallel_distances_minus[i];
 
-        // // Check if extrapolating across boundary
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             q_minus[i] = 0.0;
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
-        //         {
-        //             q_minus[i] = 0.0;
-        //         }
-        //     }
-        // }
+        // Check if extrapolating across boundary
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    q_minus[i] = 0.0;
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                {
+                    q_minus[i] = 0.0;
+                }
+            }
+        }
     }
 
     // // Naive method
@@ -1123,27 +1123,27 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
         K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
-        // // Check if extrapolating across boundary
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             u_plus = u[i];
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-        //             {
-        //                 u_plus = u[i];
-        //             }
-        //         }
-        //     }
-        // }
+        // Check if extrapolating across boundary
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    u_plus = u[i];
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    {
+                        u_plus = u[i];
+                    }
+                }
+            }
+        }
 
         // result[i] = K_par[i] * (u_plus - u[i]) / ds;
         result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
@@ -1258,27 +1258,27 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
         K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
-        // // Check if extrapolating across boundary
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             u_minus = u[i];
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-        //             {
-        //                 u_minus = u[i];
-        //             }
-        //         }   
-        //     }
-        // }
+        // Check if extrapolating across boundary
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    u_minus = u[i];
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    {
+                        u_minus = u[i];
+                    }
+                }   
+            }
+        }
 
         // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
         result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
@@ -1576,7 +1576,7 @@ Field3D Churn::calculate_q_out(const Field3D &T, const Field3D &kappa_par, const
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
                 dTdy = (T(ix,iy,iz) - T(ix,iy-1,iz)) / (coord->dy(ix,iy,iz));
-                dTdx = 0.5 * (((T(ix+1,iy,iz) - T(ix,iy,iz)) / (2.0*coord->dy(ix-1,iy,iz))) + ((T(ix+1,iy-1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dy(ix,iy-1,iz))));
+                dTdx = 0.5 * (((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))) + ((T(ix+1,iy-1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dx(ix,iy-1,iz))));
                 bx = 0.5 * (b.x(ix,iy-1,iz) + b.x(ix,iy,iz));
                 by = 0.5 * (b.y(ix,iy-1,iz) + b.y(ix,iy,iz));
                 k_par = 0.5 * (kappa_par(ix,iy-1,iz) + kappa_par(ix,iy,iz));
@@ -1598,16 +1598,20 @@ Field3D Churn::calculate_q_out(const Field3D &T, const Field3D &kappa_par, const
             for (int iz = 0; iz < mesh->LocalNz; iz++)
             {
                 dTdy = (T(ix,iy+1,iz) - T(ix,iy,iz)) / (coord->dy(ix,iy,iz));
-                dTdx = 0.5 * (((T(ix+1,iy+1,iz) - T(ix,iy+1,iz)) / (2.0*coord->dy(ix-1,iy+1,iz))) + ((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dy(ix,iy,iz))));
+                dTdx = 0.5 * (((T(ix+1,iy+1,iz) - T(ix-1,iy+1,iz)) / (2.0*coord->dx(ix,iy+1,iz))) + ((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))));
                 bx = 0.5 * (b.x(ix,iy,iz) + b.x(ix,iy+1,iz));
                 by = 0.5 * (b.y(ix,iy,iz) + b.y(ix,iy+1,iz));
                 k_par = 0.5 * (kappa_par(ix,iy,iz) + kappa_par(ix,iy+1,iz));
                 k_perp = 0.5 * (kappa_perp(ix,iy,iz) + kappa_perp(ix,iy+1,iz));
                 gradT_par = (bx * dTdx) + (by * dTdy);
 
-                // result(ix,iy,iz) = T(ix,iy-1,iz);
+                // result(ix,iy,iz) = T(ix,iy+1,iz);
                 result(ix,iy,iz) = -k_par * by * gradT_par;
-                result(ix,iy,iz) += k_perp * (by * gradT_par - dTdy);
+                if (fixed_Q_in)
+                {
+                    // Don't include perp contribution as it's usually set to zero in the div_q_perp operator
+                    result(ix,iy,iz) += k_perp * (by * gradT_par - dTdy); 
+                }
             }
         }
     }
