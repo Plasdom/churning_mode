@@ -30,24 +30,24 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         A_plus_half = (0.5 * (K_par[i] * (pow(b.y[i], 2.0)) + K_par[i.yp()] * (pow(b.y[i.yp()], 2.0))));
         A_minus_half = (0.5 * (K_par[i] * (pow(b.y[i], 2.0)) + K_par[i.ym()] * (pow(b.y[i.ym()], 2.0))));
 
-        // // Apply grad_perp P = 0 BC if using fixed Q_in
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             A_plus_half = 0.0;
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-        //         {
-        //             A_plus_half = 0.0;
-        //         }
-        //     }
-        // }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    A_plus_half = 0.0;
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    A_plus_half = 0.0;
+                }
+            }
+        }
 
         result[i] += (1.0 / (pow(coord->dy[i], 2.0))) * (A_plus_half * (T[i.yp()] - T[i]) - A_minus_half * (T[i] - T[i.ym()]));
     }
@@ -59,26 +59,26 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         ddy_plus = (0.5 / (coord->dy[i])) * (T[i.xp().yp()] - T[i.xp().ym()]);
         ddy_minus = (0.5 / (coord->dy[i])) * (T[i.xm().yp()] - T[i.xm().ym()]);
 
-        // // Apply grad_perp P = 0 BC if using fixed Q_in
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-        //             ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-        //         {
-        //             ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
-        //             ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
-        //         }
-        //     }
-        // }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
+                    ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
+                }
+            }
+        }
 
         result[i] += (0.5 / (coord->dx[i])) * (K_par[i.xp()] * b.x[i.xp()] * b.y[i.xp()] * ddy_plus - K_par[i.xm()] * b.x[i.xm()] * b.y[i.xm()] * ddy_minus);
     }
@@ -90,24 +90,24 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
         ddx_plus = (0.5 / (coord->dx[i])) * (T[i.yp().xp()] - T[i.yp().xm()]);
         ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
 
-        // // Apply grad_perp P = 0 BC if using fixed Q_in
-        // if (mesh->lastY(i.x()))
-        // {
-        //     if (fixed_Q_in)
-        //     {
-        //         if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
-        //         {
-        //             ddx_plus = 0.0;
-        //         }
-        //     }
-        //     else if (disable_qin_outside_core)
-        //     {
-        //         if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
-        //         {
-        //             ddx_plus = 0.0;
-        //         }
-        //     }
-        // }
+        // Apply grad_perp P = 0 BC if using fixed Q_in
+        if (mesh->lastY(i.x()))
+        {
+            if (fixed_Q_in)
+            {
+                if (mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1)
+                {
+                    ddx_plus = 0.0;
+                }
+            }
+            else if (disable_qin_outside_core)
+            {
+                if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                {
+                    ddx_plus = 0.0;
+                }
+            }
+        }
 
         result[i] += (0.5 / (coord->dy[i])) * (K_par[i.yp()] * b.x[i.yp()] * b.y[i.yp()] * ddx_plus - K_par[i.ym()] * b.x[i.ym()] * b.y[i.ym()] * ddx_minus);
     }
@@ -267,26 +267,26 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
     q_parx_corners = K_par_corners * bx_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
     q_pary_corners = K_par_corners * by_corners * (bx_corners * DTDX_corners + by_corners * DTDY_corners);
 
-    // if (fixed_Q_in)
-    // {
-    //     for (int i = 0; i < mesh->LocalNx; i++)
-    //     {
-    //         if (mesh->lastY(i))
-    //         {
-    //             q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
-    //         }
-    //     }
-    // }
-    // else if (disable_qin_outside_core)
-    // {
-    //     for (int i = 0; i < mesh->LocalNx; i++)
-    //     {
-    //         if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
-    //         {
-    //             q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
-    //         }
-    //     }
-    // }
+    if (fixed_Q_in)
+    {
+        for (int i = 0; i < mesh->LocalNx; i++)
+        {
+            if (mesh->lastY(i))
+            {
+                q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
+            }
+        }
+    }
+    else if (disable_qin_outside_core)
+    {
+        for (int i = 0; i < mesh->LocalNx; i++)
+        {
+            if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
+            {
+                q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
+            }
+        }
+    }
 
     result.allocate();
     // for (auto i : result)

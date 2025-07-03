@@ -106,8 +106,8 @@ int Churn::rhs(BoutReal t)
         {
             if (mesh->StaggerGrids)
             {
-                // ddt(P) = -V_dot_Grad(u, P);   
-                ddt(P) = -V_dot_grad_no_bndry_flow(u, P);
+                ddt(P) = -V_dot_Grad(u, P);   
+                // ddt(P) = -V_dot_grad_no_bndry_flow(u, P);
             }
             else
             {
