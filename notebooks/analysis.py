@@ -75,12 +75,14 @@ def read_boutdata(
 
     # Calculate conductive, convective and total heat fluxes
     q_prefactor = ds.metadata["P_0"] * ds.metadata["C_s0"]
-    ds["q_conv_x"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
-        "u_x"
-    ]
-    ds["q_conv_y"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
-        "u_y"
-    ]
+    # ds["q_conv_x"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
+    #     "u_x"
+    # ]
+    # ds["q_conv_y"] = (1.5 * ds["P"] + 0.5 * (ds["u_x"] ** 2 + ds["u_y"] ** 2)) * ds[
+    #     "u_y"
+    # ]
+    ds["q_conv_x"] = ds["P"] * ds["u_x"]
+    ds["q_conv_y"] = ds["P"] * ds["u_y"]
     if hasattr(ds, "q_perp_x") is False:
         ds["q_perp_x"] = 0.0
         ds["q_perp_y"] = 0.0
@@ -624,11 +626,12 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
     M, K, Pi = get_tot_energy(ds)
 
     fig, ax = plt.subplots(3, sharex=True)
-    ax[0].plot(ds[r"t"], tot_pol_flux)
+    t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
+    ax[0].plot(t, tot_pol_flux)
     ax[0].set_title(r"$\int \psi dxdy$")
     ax[0].set_ylabel(r"[$\psi_0 a_{mid}^2$]")
 
-    ax[1].plot(ds[r"t"], tot_pressure)
+    ax[1].plot(t, tot_pressure)
     ax[1].set_title(r"$\int Pdxdy$")
     ax[1].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
@@ -637,11 +640,11 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
     # ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
     if relative:
-        ax[2].plot(ds[r"t"], M - M[0], "-", label=r"$M-M_0$")
-        ax[2].plot(ds[r"t"], K - K[0], "-", label=r"$K-K_0$")
-        ax[2].plot(ds[r"t"], Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
+        ax[2].plot(t, M - M[0], "-", label=r"$M-M_0$")
+        ax[2].plot(t, K - K[0], "-", label=r"$K-K_0$")
+        ax[2].plot(t, Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
         ax[2].plot(
-            ds[r"t"],
+            t,
             (M - M[0]) + (K - K[0]) + (Pi - Pi[0]),
             "--",
             color=r"black",
@@ -649,16 +652,16 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True):
         )
         # ax[2].plot(ds[r"t"], (K-K[0]) + (Pi-Pi[0]), "--", color=r"black", label=r"$E-E(t=0)$")
     else:
-        ax[2].plot(ds[r"t"], M, "-", label=r"$M-M(t=0)$")
-        ax[2].plot(ds[r"t"], K, "-", label=r"$K-K(t=0)$")
-        ax[2].plot(ds[r"t"], Pi, "-", label=r"$\Pi-\Pi(t=0)$")
-        ax[2].plot(ds[r"t"], M + K + Pi, "--", color=r"black", label=r"$E-E(t=0)$")
+        ax[2].plot(t, M, "-", label=r"$M-M(t=0)$")
+        ax[2].plot(t, K, "-", label=r"$K-K(t=0)$")
+        ax[2].plot(t, Pi, "-", label=r"$\Pi-\Pi(t=0)$")
+        ax[2].plot(t, M + K + Pi, "--", color=r"black", label=r"$E-E(t=0)$")
 
     ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
     ax[2].set_title(r"$E=M+K+\Pi$")
 
-    [ax[i].legend(loc="lower left") for i in range(len(ax))]
-    ax[-1].set_xlabel(r"$t\ [t_0]$")
+    ax[-1].legend(loc="lower left")
+    ax[-1].set_xlabel(r"$t\ [ms]$")
     [a.grid() for a in ax]
     fig.tight_layout()
 
@@ -974,6 +977,7 @@ def plot_q_targets(
 
 def plot_Q_target_proportions(
     ds: xr.Dataset,
+    heat_flux: str = "conductive",
     normalise: bool = True,
     savepath: str | None = None,
     ylim: list | tuple | None = None,
@@ -984,7 +988,10 @@ def plot_Q_target_proportions(
     :param normalise: whether to normalise heat flow to Q_tot, defaults to True
     :param savepath: where to save figure
     """
-    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    if heat_flux == "conductive":
+        qin, q1, q2, q3, q4 = get_q_legs(ds)
+    elif heat_flux == "convective":
+        qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
     if ds.metadata["grid_units"] == "cm":
         Q_prefactor = 1 / 100.0
     elif ds.metadata["grid_units"] == "m":
@@ -1052,8 +1059,10 @@ def plot_Q_target_proportions(
 
 def plot_Q_targets(
     ds: xr.Dataset,
+    heat_flux: str = "conductive",
     normalise: bool = True,
     savepath: str | None = None,
+    plot_qin: bool = False,
     ylim: list | tuple | None = None,
     ylog: bool = False,
 ):
@@ -1063,7 +1072,10 @@ def plot_Q_targets(
     :param normalise: whether to normalise heat flow to Q_tot, defaults to True
     :param savepath: where to save figure
     """
-    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    if heat_flux == "conductive":
+        qin, q1, q2, q3, q4 = get_q_legs(ds)
+    elif heat_flux == "convective":
+        qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
     if ds.metadata["grid_units"] == "cm":
         Q_prefactor = 1 / 100.0
     elif ds.metadata["grid_units"] == "m":
@@ -1085,12 +1097,18 @@ def plot_Q_targets(
         ax.plot(x, q2 / q_tot, linestyle="-", label="Leg 2 (E)")
         ax.plot(x, q3 / q_tot, linestyle="-", label="Leg 3 (E)")
         ax.plot(x, q4 / q_tot, linestyle="-", label="Leg 4 (E)")
+        if plot_qin:
+            ax.plot(
+                x, qin / q_tot, linestyle="-", label="Upper Y boundary", color="black"
+            )
         ax.set_ylabel(r"$P_{l} / P_{tot}$")
     else:
         ax.plot(x, q1, linestyle="-", label="Leg 1 (E)")
         ax.plot(x, q2, linestyle="-", label="Leg 2 (E)")
         ax.plot(x, q3, linestyle="-", label="Leg 3 (E)")
         ax.plot(x, q4, linestyle="-", label="Leg 4 (E)")
+        if plot_qin:
+            ax.plot(x, qin, linestyle="-", label="Upper Y boundary", color="black")
         ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
 
     ax.legend(loc="upper left")
@@ -1113,6 +1131,13 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     :return: qin, q1, q2, q3, q4
     """
     q_prefactor = 1e-6 * (ds.metadata["P_0"] * ds.metadata["C_s0"])
+    # if ds.metadata["grid_units"] == "cm":
+    #     q_prefactor /= 1 / 100.0
+    # elif ds.metadata["grid_units"] == "m":
+    #     q_prefactor /= 1.0
+    # elif ds.metadata["grid_units"] == "a_mid":
+    #     q_prefactor /= ds.metadata["a_mid"]
+
     nx = len(ds.x)
     ny = len(ds.y)
     x0 = range(len(ds.x))
@@ -1143,6 +1168,38 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     return qin, q1, q2, q3, q4
 
 
+def get_q_legs_conv(ds: xr.Dataset) -> tuple[xr.DataArray]:
+    """Get the heat flux into each divertor leg, assuming snowflake configuration. Note that numbering here is leg 1 = east-most leg, counting up anticlockwise
+
+    :param ds: Dataset output from BOUT++ simulation
+    :return: qin, q1, q2, q3, q4
+    """
+    q_prefactor = 1e-6 * (ds.metadata["P_0"] * ds.metadata["C_s0"])
+
+    nx = len(ds.x)
+    ny = len(ds.y)
+    x0 = range(len(ds.x))
+    y1 = range(ny)
+    x2 = range(int(nx / 2), nx)
+    x3 = range(int(nx / 2))
+    y4 = range(ny)
+
+    if "q_out_conv" in list(ds.variables):
+        qin = -q_prefactor * (ds["q_out_conv"]).isel(y=-1, x=x0)
+        q1 = q_prefactor * (ds["q_out_conv"]).isel(x=-1, y=y1)
+        q2 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x2)
+        q3 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x3)
+        q4 = -q_prefactor * (ds["q_out_conv"]).isel(x=0, y=y4)
+    else:
+        qin = -q_prefactor * (ds["q_conv_y"]).isel(y=-1, x=x0)
+        q1 = q_prefactor * (ds["q_conv_x"]).isel(x=-1, y=y1)
+        q2 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x2)
+        q3 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x3)
+        q4 = -q_prefactor * (ds["q_conv_x"]).isel(x=0, y=y4)
+
+    return qin, q1, q2, q3, q4
+
+
 def get_Q_legs(ds: xr.Dataset):
     """Get line-integrated heat flux going into each divertor leg, assuming snowflake configuration
 
@@ -1150,6 +1207,28 @@ def get_Q_legs(ds: xr.Dataset):
     :return: Qin, Q1 Q2, Q3, Q4
     """
     qin, q1, q2, q3, q4 = get_q_legs(ds)
+    if ds.metadata["grid_units"] == "cm":
+        Q_prefactor = 1 / 100.0
+    elif ds.metadata["grid_units"] == "m":
+        Q_prefactor = 1.0
+    elif ds.metadata["grid_units"] == "a_mid":
+        Q_prefactor = ds.metadata["a_mid"]
+    Qin = qin.integrate(coord="x") * Q_prefactor
+    Q1 = q1.integrate(coord="y") * Q_prefactor
+    Q2 = q2.integrate(coord="x") * Q_prefactor
+    Q3 = q3.integrate(coord="x") * Q_prefactor
+    Q4 = q4.integrate(coord="y") * Q_prefactor
+
+    return Qin, Q1, Q2, Q3, Q4
+
+
+def get_Q_legs_conv(ds: xr.Dataset):
+    """Get line-integrated heat flux going into each divertor leg, assuming snowflake configuration
+
+    :param ds: xarray dataset
+    :return: Qin, Q1 Q2, Q3, Q4
+    """
+    qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
     if ds.metadata["grid_units"] == "cm":
         Q_prefactor = 1 / 100.0
     elif ds.metadata["grid_units"] == "m":
@@ -1585,6 +1664,7 @@ def plot_sepx_psis(ds, n_psi=1000):
     ax.legend()
     ax.set_xlabel(r"$t$ [ms]")
     ax.set_ylabel(r"$\psi_{sepx}$ [$\psi_0$]")
+    # ax.set_ylim([-0.01, 0.01])
     fig.tight_layout()
 
 
@@ -1594,6 +1674,7 @@ def animate_nulls(
     fps: int = 10,
     savepath: str | None = None,
     refind_nulls_each_timestep: bool = True,
+    show_t0: bool = False,
     **mpl_kwargs,
 ):
     """Animate hte position of both nulls over time
@@ -1647,13 +1728,17 @@ def animate_nulls(
         ds, timestep=0, psi_range_frac=0.1, n_psi=10000
     )
 
+    if show_t0:
+        psi1_t0 = psi1
+        psi2_t0 = psi2
+
     def animate(i, refind_nulls_each_timestep, psi1=None, psi2=None):
         if refind_nulls_each_timestep:
             x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
                 ds,
                 timestep=i * plot_every,
-                psi_range_frac=0.05,
-                n_psi=500,
+                psi_range_frac=0.1,
+                n_psi=2000,
                 psi_guess1=psi1,
                 psi_guess2=psi2,
             )
@@ -1689,6 +1774,16 @@ def animate_nulls(
                 linestyles=["-", "-"],
                 zorder=998,
             )
+            if show_t0:
+                ax[j].contour(
+                    ds_plot.x,
+                    ds_plot.y,
+                    ds_plot["psi"].isel(t=0).values.T,
+                    levels=np.sort([psi1_t0, psi2_t0]),
+                    colors="gray",
+                    linestyles=["--", "--"],
+                    zorder=99,
+                )
             if refind_nulls_each_timestep:
                 ax[j].scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
 
@@ -2521,3 +2616,57 @@ def get_p_null(ds, t: int = 0):
     ).transpose()
     p_null = lineslice(ds, "P", null_region_line, timestep=0).max() * ds.metadata["P_0"]
     return p_null
+
+
+def plot_power_balance(ds, P_in):
+    """Plot conductive and convective power balance. Assumes simulation uses fixed P_in
+
+    :param ds: xarray Dataset
+    :param P_in: P_in setting used in simulation [MW] (this will be divided by 2*pi*R_0 as in the code)
+    """
+    q_cond = get_q_legs(ds)
+    q_conv = get_q_legs_conv(ds)
+
+    if ds.metadata["grid_units"] == "cm":
+        Q_prefactor = 1 / 100.0
+    elif ds.metadata["grid_units"] == "m":
+        Q_prefactor = 1.0
+    elif ds.metadata["grid_units"] == "a_mid":
+        Q_prefactor = ds.metadata["a_mid"]
+
+    P_cond = [None] * 5
+    P_cond[0] = q_cond[0].integrate(coord="x") * Q_prefactor
+    P_cond[1] = q_cond[1].integrate(coord="y") * Q_prefactor
+    P_cond[2] = q_cond[2].integrate(coord="x") * Q_prefactor
+    P_cond[3] = q_cond[3].integrate(coord="x") * Q_prefactor
+    P_cond[4] = q_cond[4].integrate(coord="y") * Q_prefactor
+
+    P_conv = [None] * 5
+    P_conv[0] = q_conv[0].integrate(coord="x") * Q_prefactor
+    P_conv[1] = q_conv[1].integrate(coord="y") * Q_prefactor
+    P_conv[2] = q_conv[2].integrate(coord="x") * Q_prefactor
+    P_conv[3] = q_conv[3].integrate(coord="x") * Q_prefactor
+    P_conv[4] = q_conv[4].integrate(coord="y") * Q_prefactor
+
+    P_cond_in = 0 * P_cond[0] + P_in / (2 * np.pi * ds.metadata["R_0"])
+    P_cond_out = P_cond[1] + P_cond[2] + P_cond[3] + P_cond[4]
+
+    P_conv_in = P_conv[0]
+    P_conv_out = P_conv[1] + P_conv[2] + P_conv[3] + P_conv[4]
+
+    fig, ax = plt.subplots(1)
+
+    t = 1e3 * (ds.t - ds.t[0]) * ds.metadata["t_0"]
+
+    P_balance = P_cond_out + P_conv_out - P_conv_in - P_cond_in
+
+    ax.plot(t, P_cond_in, label=r"$P_{in}$")
+    ax.plot(t, P_cond_out, label=r"$P_{out}^{cond}$ downstream")
+    ax.plot(t, P_conv_out, label=r"$P_{out}^{conv}$ downstream")
+    ax.plot(t, -P_conv_in, label=r"$P_{out}^{conv}$ upstream")
+    ax.plot(t, P_balance, label=r"$P_{out} - P_{in}$")
+
+    ax.set_xlabel("t [ms]")
+    ax.set_ylabel("$P$ [MWm$^{-1}$]")
+    ax.grid()
+    ax.legend()

@@ -205,9 +205,11 @@ Field3D Churn::V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f){
     TRACE("V_dot_grad_no_bndry_flow");
 
     Field3D vdx, vdy, result;
+    int iz = 0;
+    Coordinates *coord = mesh->getCoordinates();
     
     // Get v dot grad(f)
-    vdx = VDDX(v.x, f);
+    vdx = VDDX(v.x,f);
     vdy = VDDY(v.y,f);
 
     // Apply no flow boundary condition
@@ -216,11 +218,7 @@ Field3D Churn::V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f){
         int ix = ngcx_tot;
         for (int iy = 0; iy < mesh->LocalNy; iy++)
         {
-            int iz = 0;
-            if (u.x(ix,iy,iz) > 0.0)
-            {
-                vdx(ix,iy,iz) = 0.0;
-            }
+            vdx(ix,iy,iz) = 0.5 * 0.5*(u.x(ix,iy,iz) + u.x(ix+1,iy,iz)) * (P(ix+1,iy,iz) - P(ix,iy,iz)) / coord->dx(ix,iy,iz);
         }
     }
     if (mesh->lastX())
@@ -228,32 +226,20 @@ Field3D Churn::V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f){
         int ix = mesh->LocalNx - ngcx_tot-1;
         for (int iy = 0; iy < mesh->LocalNy; iy++)
         {
-            int iz=0;
-            if (u.x(ix,iy,iz) < 0.0)
-            {
-                vdx(ix,iy,iz) = 0.0;
-            }
+            vdx(ix,iy,iz) = 0.5 * 0.5*(u.x(ix-1,iy,iz) + u.x(ix,iy,iz)) * (P(ix,iy,iz) - P(ix-1,iy,iz)) / coord->dx(ix,iy,iz);
         }
     }
     for (itu.first(); !itu.isDone(); itu++)
     {
         // itu.ind contains the x index
         int iy = mesh->LocalNy - ngcy_tot-1;
-        int iz = 0;
-        if (u.y(itu.ind,iy,iz) < 0.0)
-        {
-            vdy(itu.ind,iy,iz) = 0.0;
-        }
+        vdy(itu.ind,iy,iz) = 0.5 * 0.5*(u.y(itu.ind,iy-1,iz) + u.y(itu.ind,iy,iz)) * (P(itu.ind,iy,iz) - P(itu.ind,iy-1,iz)) / coord->dy(itu.ind,iy,iz);
     }
     for (itl.first(); !itl.isDone(); itl++)
     {
         // itl.ind contains the x index
         int iy = ngcy_tot;
-        int iz = 0;
-        if (u.y(itl.ind,iy,iz) > 0.0)
-        {
-            vdy(itl.ind,iy,iz) = 0.0;
-        }
+        vdy(itu.ind,iy,iz) = 0.5 * 0.5*(u.y(itu.ind,iy,iz) + u.y(itu.ind,iy+1,iz)) * (P(itu.ind+1,iy,iz) - P(itu.ind,iy,iz)) / coord->dy(itu.ind,iy,iz);
     }
 
     result = vdy+vdx;
