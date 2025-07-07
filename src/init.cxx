@@ -210,7 +210,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_ONCE(kappa_perp);
         SAVE_REPEAT(q_perp);
     }
-    SAVE_REPEAT(q_out);
+    SAVE_REPEAT(q_out, q_out_conv);
 
     // if (fixed_Q_in)
     // {

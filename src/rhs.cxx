@@ -59,7 +59,7 @@ int Churn::rhs(BoutReal t)
     // Calculate velocity
     // phi.applyBoundary("neumann");
     u = b0 * cross(e_z, Grad(phi));
-    u.applyBoundary("dirichlet");
+    // u.applyBoundary("dirichlet");
 
     if (evolve_density)
     {
@@ -184,8 +184,9 @@ int Churn::rhs(BoutReal t)
                 }  
             }
 
-            // Find the heat flux across the "downstream" boundaries
+            // Find the heat flux across the boundaries
             q_out = calculate_q_out(T, kappa_par, kappa_perp, B/B_mag);
+            q_out_conv = calculate_q_out_conv(P, u);
         }
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
         {

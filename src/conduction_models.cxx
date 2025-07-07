@@ -1511,7 +1511,7 @@ Field3D Churn::spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_li
 
 Field3D Churn::calculate_q_out(const Field3D &T, const Field3D &kappa_par, const Field3D &kappa_perp, const Vector3D &b)
 {
-    // Calculate the total conductive heat flux out of the "downstream" boundaries
+    // Calculate the total conductive heat flux out of all boundaries
     TRACE("calculate_q_out");
 
     Field3D result;
@@ -1570,47 +1570,131 @@ Field3D Churn::calculate_q_out(const Field3D &T, const Field3D &kappa_par, const
     for (int ix = 0; ix < mesh->LocalNx; ix++)
     {
         if (mesh->firstY(ix))
-        // it.ind contains the x index
-        for (int iy = ngcy_tot; iy < ngcy_tot+1; iy++)
         {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            // it.ind contains the x index
+            for (int iy = ngcy_tot; iy < ngcy_tot+1; iy++)
             {
-                dTdy = (T(ix,iy,iz) - T(ix,iy-1,iz)) / (coord->dy(ix,iy,iz));
-                dTdx = 0.5 * (((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))) + ((T(ix+1,iy-1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dx(ix,iy-1,iz))));
-                bx = 0.5 * (b.x(ix,iy-1,iz) + b.x(ix,iy,iz));
-                by = 0.5 * (b.y(ix,iy-1,iz) + b.y(ix,iy,iz));
-                k_par = 0.5 * (kappa_par(ix,iy-1,iz) + kappa_par(ix,iy,iz));
-                k_perp = 0.5 * (kappa_perp(ix,iy-1,iz) + kappa_perp(ix,iy,iz));
-                gradT_par = (bx * dTdx) + (by * dTdy);
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    dTdy = (T(ix,iy,iz) - T(ix,iy-1,iz)) / (coord->dy(ix,iy,iz));
+                    dTdx = 0.5 * (((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))) + ((T(ix+1,iy-1,iz) - T(ix-1,iy-1,iz)) / (2.0*coord->dx(ix,iy-1,iz))));
+                    bx = 0.5 * (b.x(ix,iy-1,iz) + b.x(ix,iy,iz));
+                    by = 0.5 * (b.y(ix,iy-1,iz) + b.y(ix,iy,iz));
+                    k_par = 0.5 * (kappa_par(ix,iy-1,iz) + kappa_par(ix,iy,iz));
+                    k_perp = 0.5 * (kappa_perp(ix,iy-1,iz) + kappa_perp(ix,iy,iz));
+                    gradT_par = (bx * dTdx) + (by * dTdy);
 
-                // result(ix,iy,iz) = T(ix,iy-1,iz);
-                result(ix,iy,iz) = k_par * by * gradT_par;
-                result(ix,iy,iz) -= k_perp * (by * gradT_par - dTdy);
+                    // result(ix,iy,iz) = T(ix,iy-1,iz);
+                    result(ix,iy,iz) = k_par * by * gradT_par;
+                    result(ix,iy,iz) -= k_perp * (by * gradT_par - dTdy);
+                }
             }
         }
     }
     for (int ix = 0; ix < mesh->LocalNx; ix++)
     {
         if (mesh->lastY(ix))
-        // it.ind contains the x index
-        for (int iy = mesh->LocalNy - ngcy_tot - 1; iy < mesh->LocalNy - ngcy_tot; iy++)
         {
-            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            // it.ind contains the x index
+            for (int iy = mesh->LocalNy - ngcy_tot - 1; iy < mesh->LocalNy - ngcy_tot; iy++)
             {
-                dTdy = (T(ix,iy+1,iz) - T(ix,iy,iz)) / (coord->dy(ix,iy,iz));
-                dTdx = 0.5 * (((T(ix+1,iy+1,iz) - T(ix-1,iy+1,iz)) / (2.0*coord->dx(ix,iy+1,iz))) + ((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))));
-                bx = 0.5 * (b.x(ix,iy,iz) + b.x(ix,iy+1,iz));
-                by = 0.5 * (b.y(ix,iy,iz) + b.y(ix,iy+1,iz));
-                k_par = 0.5 * (kappa_par(ix,iy,iz) + kappa_par(ix,iy+1,iz));
-                k_perp = 0.5 * (kappa_perp(ix,iy,iz) + kappa_perp(ix,iy+1,iz));
-                gradT_par = (bx * dTdx) + (by * dTdy);
-
-                // result(ix,iy,iz) = T(ix,iy+1,iz);
-                result(ix,iy,iz) = -k_par * by * gradT_par;
-                if (fixed_Q_in)
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
                 {
-                    // Don't include perp contribution as it's usually set to zero in the div_q_perp operator
-                    result(ix,iy,iz) += k_perp * (by * gradT_par - dTdy); 
+                    dTdy = (T(ix,iy+1,iz) - T(ix,iy,iz)) / (coord->dy(ix,iy,iz));
+                    dTdx = 0.5 * (((T(ix+1,iy+1,iz) - T(ix-1,iy+1,iz)) / (2.0*coord->dx(ix,iy+1,iz))) + ((T(ix+1,iy,iz) - T(ix-1,iy,iz)) / (2.0*coord->dx(ix,iy,iz))));
+                    bx = 0.5 * (b.x(ix,iy,iz) + b.x(ix,iy+1,iz));
+                    by = 0.5 * (b.y(ix,iy,iz) + b.y(ix,iy+1,iz));
+                    k_par = 0.5 * (kappa_par(ix,iy,iz) + kappa_par(ix,iy+1,iz));
+                    k_perp = 0.5 * (kappa_perp(ix,iy,iz) + kappa_perp(ix,iy+1,iz));
+                    gradT_par = (bx * dTdx) + (by * dTdy);
+
+                    if (fixed_Q_in)
+                    {
+                        // Don't include perp contribution as it's usually set to zero in the div_q_perp operator
+                        //TODO: Handle fixed_P_core cases
+                    }
+                    else
+                    {
+                        result(ix,iy,iz) = -k_par * by * gradT_par;
+                        result(ix,iy,iz) += k_perp * (by * gradT_par - dTdy); 
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+Field3D Churn::calculate_q_out_conv(const Field3D &P, const Vector3D &u)
+{
+    // Calculate the total convective heat flux out of the boundaries
+    TRACE("calculate_q_out_conv");
+
+    Field3D result;
+    BoutReal P_boundary, u_boundary;
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+
+    // X boundaries
+    if (mesh->firstX())
+    {
+        for (int ix = ngcx_tot; ix < ngcx_tot+1; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    P_boundary = 0.5 * (P(ix-1,iy,iz) + P(ix,iy,iz));
+                    u_boundary = 0.5 * (u.x(ix-1,iy,iz) + u.x(ix,iy,iz));
+                    result(ix,iy,iz) = P_boundary * u_boundary;
+                }
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        for (int ix = mesh->LocalNx - ngcx_tot - 1; ix < mesh->LocalNx - ngcx_tot; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    P_boundary = 0.5 * (P(ix+1,iy,iz) + P(ix,iy,iz));
+                    u_boundary = 0.5 * (u.x(ix+1,iy,iz) + u.x(ix,iy,iz));
+                    result(ix,iy,iz) = P_boundary * u_boundary;
+                }
+            }
+        }
+    }
+    // Y boundaries
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
+    {
+        if (mesh->firstY(ix))
+        {
+            for (int iy = ngcy_tot; iy < ngcy_tot+1; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    P_boundary = 0.5 * (P(ix,iy-1,iz) + P(ix,iy,iz));
+                    u_boundary = 0.5 * (u.y(ix,iy-1,iz) + u.y(ix,iy,iz));
+                    result(ix,iy,iz) = P_boundary * u_boundary;
+                }
+            }
+        }
+    }
+    for (int ix = 0; ix < mesh->LocalNx; ix++)
+    {
+        if (mesh->lastY(ix))
+        {
+            for (int iy = mesh->LocalNy - ngcy_tot - 1; iy < mesh->LocalNy - ngcy_tot; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    P_boundary = 0.5 * (P(ix,iy+1,iz) + P(ix,iy,iz));
+                    u_boundary = 0.5 * (u.y(ix,iy+1,iz) + u.y(ix,iy,iz));
+                    result(ix,iy,iz) = P_boundary * u_boundary;
                 }
             }
         }
