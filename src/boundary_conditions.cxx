@@ -28,43 +28,44 @@ void Churn::fixed_P_core_BC(const BoutReal &P_core_set, const Vector3D &b)
                         // P(ix, iy, iz) = P_core_set * exp(-pow((sqrt((psi(ix, iy, iz) - 1.0) / (-1.0)) - 1.0) / lambda_SOL_rho, 2.0));
                         // P(ix, iy, iz) = T_down / T_sepx;
                         
-                        // Apply parallel neumann BC on input field
-                        x_plus = coord->dy(ix, iy, iz) * abs(b.x(ix, iy, iz) / b.y(ix, iy, iz));
-                        x_plus = std::min(static_cast<double>(coord->dx(ix, iy, iz)), x_plus);
-                        y_plus = coord->dx(ix, iy, iz) * abs(b.y(ix, iy, iz) / b.x(ix, iy, iz));
-                        y_plus = std::min(static_cast<double>(coord->dy(ix, iy, iz)), y_plus);
-                        if (b.x(ix, iy, iz) >= 0)
-                        {
-                            n_x = 0;
-                        }
-                        else
-                        {
-                            n_x = -1;
-                            x_plus = -x_plus;
-                        }
-                        if (b.y(ix, iy, iz) >= 0)
-                        {
-                            n_y = 0;
-                        }
-                        else
-                        {
-                            n_y = -1;
-                            y_plus = -y_plus;
-                        }
-                        f_x = (x_plus - n_x * coord->dx(ix, iy, iz)) / coord->dx(ix, iy, iz);
-                        f_y = (y_plus - n_y * coord->dy(ix, iy, iz)) / coord->dy(ix, iy, iz);
+                        // // Apply parallel neumann BC on input field
+                        // x_plus = coord->dy(ix, iy, iz) * abs(b.x(ix, iy, iz) / b.y(ix, iy, iz));
+                        // x_plus = std::min(static_cast<double>(coord->dx(ix, iy, iz)), x_plus);
+                        // y_plus = coord->dx(ix, iy, iz) * abs(b.y(ix, iy, iz) / b.x(ix, iy, iz));
+                        // y_plus = std::min(static_cast<double>(coord->dy(ix, iy, iz)), y_plus);
+                        // if (b.x(ix, iy, iz) >= 0)
+                        // {
+                        //     n_x = 0;
+                        // }
+                        // else
+                        // {
+                        //     n_x = -1;
+                        //     x_plus = -x_plus;
+                        // }
+                        // if (b.y(ix, iy, iz) >= 0)
+                        // {
+                        //     n_y = 0;
+                        // }
+                        // else
+                        // {
+                        //     n_y = -1;
+                        //     y_plus = -y_plus;
+                        // }
+                        // f_x = (x_plus - n_x * coord->dx(ix, iy, iz)) / coord->dx(ix, iy, iz);
+                        // f_y = (y_plus - n_y * coord->dy(ix, iy, iz)) / coord->dy(ix, iy, iz);
                         
-                        if (b.y(ix, iy, iz) >= 0)
-                        {
-                            u_plus = (1.0 - f_y) * ((1 - f_x) * P(ix - n_x, iy - n_y, iz) + f_x * P(ix - n_x - 1, iy - n_y, iz)) + f_y * ((1 - f_x) * P(ix - n_x, iy - n_y - 1, iz) + f_x * P(ix - n_x - 1, iy - n_y - 1, iz));
-                        }
-                        else 
-                        {
-                            u_plus = (1.0 - f_y) * ((1 - f_x) * P(ix + n_x, iy + n_y, iz) + f_x * P(ix + n_x + 1, iy + n_y, iz)) + f_y * ((1 - f_x) * P(ix + n_x, iy + n_y + 1, iz) + f_x * P(ix + n_x + 1, iy + n_y + 1, iz));
-                        }
+                        // if (b.y(ix, iy, iz) >= 0)
+                        // {
+                        //     u_plus = (1.0 - f_y) * ((1 - f_x) * P(ix - n_x, iy - n_y, iz) + f_x * P(ix - n_x - 1, iy - n_y, iz)) + f_y * ((1 - f_x) * P(ix - n_x, iy - n_y - 1, iz) + f_x * P(ix - n_x - 1, iy - n_y - 1, iz));
+                        // }
+                        // else 
+                        // {
+                        //     u_plus = (1.0 - f_y) * ((1 - f_x) * P(ix + n_x, iy + n_y, iz) + f_x * P(ix + n_x + 1, iy + n_y, iz)) + f_y * ((1 - f_x) * P(ix + n_x, iy + n_y + 1, iz) + f_x * P(ix + n_x + 1, iy + n_y + 1, iz));
+                        // }
 
-                        // Set the boundary value
-                        P(ix, iy, iz) = u_plus;
+                        // // Set the boundary value
+                        // P(ix, iy, iz) = u_plus;
+                        P(ix,iy,iz) = P(ix, mesh->LocalNy - ngcy_tot - 1, iz);
                     }
                 }
             }
