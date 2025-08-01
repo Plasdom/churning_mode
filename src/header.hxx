@@ -209,6 +209,7 @@ private:
     void dPdy0_BC_outside_core();
     void apply_P_core_density_source();
     void parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_core_only = false);
+    void zero_flow_BC();
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();
 

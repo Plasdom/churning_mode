@@ -15,3 +15,5 @@ umanksy_code
 *.log*
 *.settings*
 *.pyc
+BOUT.inp 
+!data/BOUT.inp

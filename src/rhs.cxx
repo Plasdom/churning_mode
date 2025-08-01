@@ -20,8 +20,8 @@ int Churn::rhs(BoutReal t)
     }
     else if (fixed_Q_in)
     {
-        dPdy0_BC();
-        // parallel_neumann_yup(B / B_mag);
+        // dPdy0_BC();
+        parallel_neumann_yup(B / B_mag);
     }
     else if (disable_qin_outside_core)
     {
@@ -59,7 +59,7 @@ int Churn::rhs(BoutReal t)
     // Calculate velocity
     // phi.applyBoundary("neumann");
     u = b0 * cross(e_z, Grad(phi));
-    // u.applyBoundary("dirichlet");
+    u.applyBoundary("dirichlet");
 
     if (evolve_density)
     {

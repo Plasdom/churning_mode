@@ -308,6 +308,67 @@ void Churn::ddt0_BCs()
     return;
 }
 
+void Churn::zero_flow_BC()
+{
+    TRACE("zero_flow_BC");
+
+    // X boundaries
+    if (mesh->firstX())
+    {
+        for (int ix = 0; ix < ngcx_tot+1; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    u.x(ix,iy,iz) = 0.0;
+                    u.y(ix,iy,iz) = 0.0;
+                }
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        for (int ix = mesh->LocalNx - ngcx_tot - 1; ix < mesh->LocalNx; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    u.x(ix,iy,iz) = 0.0;
+                    u.y(ix,iy,iz) = 0.0;
+                }
+            }
+        }
+    }
+    // Y boundaries
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+        // it.ind contains the x index
+        for (int iy = 0; iy < ngcy_tot+1; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                u.x(itl.ind,iy,iz) = 0.0;
+                u.y(itl.ind,iy,iz) = 0.0;
+            }
+        }
+    }
+    for (itu.first(); !itu.isDone(); itu++)
+    {
+        // it.ind contains the x index
+        for (int iy = mesh->LocalNy - ngcy_tot-1; iy < mesh->LocalNy; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                u.x(itu.ind,iy,iz) = 0.0;
+                u.y(itu.ind,iy,iz) = 0.0;
+            }
+        }
+    }
+    return;
+}
+
 // struct ordering
 // {
 //     bool operator()(std::pair<BoutReal, int> const &a,
