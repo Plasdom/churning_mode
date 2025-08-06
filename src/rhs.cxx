@@ -26,7 +26,7 @@ int Churn::rhs(BoutReal t)
     else if (disable_qin_outside_core)
     {
     //     // dPdy0_BC_outside_core();
-        parallel_neumann_yup(B / B_mag, true);
+        // parallel_neumann_yup(B / B_mag, true);
     }
 
     // Solve phi
