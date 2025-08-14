@@ -224,8 +224,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     //     Options::root()["model:q_in_yup"].setConditionallyUsed();
     // }
 
-    // SAVE_REPEAT(debugvar);
-    // debugvar = 0.0;
+    // SAVE_REPEAT(debugvar, debugvar2);
     // SAVE_REPEAT(div_q, div_q2);
     // SAVE_REPEAT(thermal_force_term);
     thermal_force_term = 0.0;

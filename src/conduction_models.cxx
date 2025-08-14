@@ -1084,7 +1084,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
     TRACE("Q_plus");
 
     Field3D result, q_fs;
-    BoutReal f_x, f_y;
+    BoutReal f_x, f_y, psi_plus;
     double y_plus, x_plus, ds_p, ds, u_plus, K_par_plus;
     int n_x, n_y;
 
@@ -1123,30 +1123,52 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b)
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
         K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
+        // result[i] = K_par[i] * (u_plus - u[i]) / ds;
+        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
+
         // Check if extrapolating across boundary
         if (mesh->lastY(i.x()))
         {
             if (fixed_Q_in)
             {
-                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                // Prevent heat crossing the upstream boundary
+                if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                 {
-                    u_plus = u[i];
+                    if (y_plus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == mesh->LocalNy - ngcy_tot)
+                {
+                    if (y_plus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    } 
                 }
             }
-            else if (disable_qin_outside_core)
+            else if (disable_qin_outside_core || fixed_P_core)
             {
-                if (mesh->getGlobalYIndex(i.y() + n_y + 1) > mesh->GlobalNy - ngcy_tot - 1)
+                // Prevent heat crossing the upstream boundary outside the 'core'
+                if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
                 {
-                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                     {
-                        u_plus = u[i];
+                        if (y_plus > 0.0)
+                        {
+                            result[i] = 0.0;
+                        }                    
+                    }
+                    else if (i.y() == mesh->LocalNy - ngcy_tot)
+                    {
+                        if (y_plus < 0.0)
+                        {
+                            result[i] = 0.0;
+                        } 
                     }
                 }
             }
         }
-
-        // result[i] = K_par[i] * (u_plus - u[i]) / ds;
-        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
     }
 
     if (use_flux_limiter)
@@ -1219,7 +1241,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
     TRACE("Q_minus");
 
     Field3D result, q_fs;
-    BoutReal f_x, f_y;
+    BoutReal f_x, f_y, psi_minus;
     double y_minus, x_minus, ds_p, ds, u_minus, K_par_minus;
     int n_x, n_y;
 
@@ -1258,30 +1280,52 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
         K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
+        // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
+        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
+
         // Check if extrapolating across boundary
         if (mesh->lastY(i.x()))
         {
             if (fixed_Q_in)
             {
-                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                // Prevent heat crossing the upstream boundary
+                if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                 {
-                    u_minus = u[i];
+                    if (y_minus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == mesh->LocalNy - ngcy_tot)
+                {
+                    if (y_minus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    } 
                 }
             }
-            else if (disable_qin_outside_core)
+            else if (disable_qin_outside_core || fixed_P_core)
             {
-                if (mesh->getGlobalYIndex(i.y() - n_y) > mesh->GlobalNy - ngcy_tot - 1)
+                // Prevent heat crossing the upstream boundary outside the 'core'
+                if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
                 {
-                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                     {
-                        u_minus = u[i];
+                        if (y_minus < 0.0)
+                        {
+                            result[i] = 0.0;
+                        }                    
                     }
-                }   
+                    else if (i.y() == mesh->LocalNy - ngcy_tot)
+                    {
+                        if (y_minus > 0.0)
+                        {
+                            result[i] = 0.0;
+                        } 
+                    }
+                }
             }
         }
-
-        // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
-        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
     }
 
     if (use_flux_limiter)
@@ -1363,6 +1407,8 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
     q_par = -0.5 * (q_par_plus + q_par_minus) * b;
     // q_par = -q_par_plus * b;
     result = -0.5 * (Q_plus_T(q_par_plus, b) + Q_minus_T(q_par_minus, b));
+    // result = -Q_plus_T(q_par_plus, b);
+    // result = -Q_minus_T(q_par_minus, b);
 
     return result;
 }
