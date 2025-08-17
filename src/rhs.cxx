@@ -21,7 +21,7 @@ int Churn::rhs(BoutReal t)
     else if (fixed_Q_in)
     {
         // dPdy0_BC();
-        parallel_neumann_yup(B / B_mag);
+        // parallel_neumann_yup(B / B_mag);
     }
     else if (disable_qin_outside_core)
     {
@@ -317,13 +317,13 @@ int Churn::rhs(BoutReal t)
     {
         if (evolve_density)
         {
-            ddt(omega) -= (cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) / n;
-            ddt(omega) += (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P)) / n;
+            Field3D curv_drive = (-(cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) / n) + ((sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P)) / n);
+            ddt(omega) += curv_drive;
         }
         else 
         {
-            ddt(omega) -= cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P);
-            ddt(omega) += sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P);
+            Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
+            ddt(omega) += curv_drive;
         }
     }
     
@@ -391,7 +391,7 @@ int Churn::rhs(BoutReal t)
     }
 
     // Apply ddt = 0 BCs
-    ddt0_BCs();
+    // ddt0_BCs();
 
     return 0;
 }
