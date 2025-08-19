@@ -273,6 +273,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
         {
             if (mesh->lastY(i))
             {
+                q_parx_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
                 q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
             }
         }
@@ -283,6 +284,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
         {
             if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
             {
+                q_parx_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
                 q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
             }
         }
