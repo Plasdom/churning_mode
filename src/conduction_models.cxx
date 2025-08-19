@@ -344,6 +344,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
             {
                 for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
                 {
+                    q_perpx_corners(i, j, k) = 0.0;
                     q_perpy_corners(i, j, k) = 0.0;
                 }
             }
@@ -358,6 +359,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
             {
                 for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
                 {
+                    q_perpx_corners(i, j, k) = 0.0;
                     q_perpy_corners(i, j, k) = 0.0;
                 }
             }
