@@ -60,9 +60,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_advection = options["include_advection"]
                             .doc("Include advection terms or not")
                             .withDefault(true);
-    fixed_T_down = options["fixed_T_down"]
-                       .doc("Use a constant value for P on downstream boundaries")
-                       .withDefault(false);
     fixed_P_core = options["fixed_P_core"]
                        .doc("Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)")
                        .withDefault(true);
@@ -236,63 +233,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     }
 
     // Set downstream pressure boundaries
-    // TODO: Find out why this is needed instead of just setting bndry_xin=dirichlet, etc
-    if (fixed_T_down)
-    {
-        // X boundaries
-        if (mesh->firstX())
-        {
-            for (int ix = 0; ix < ngcx_tot; ix++)
-            {
-                for (int iy = 0; iy < mesh->LocalNy; iy++)
-                {
-                    for (int iz = 0; iz < mesh->LocalNz; iz++)
-                    {
-                        P(ix, iy, iz) = T_down / T_sepx;
-                        // P(ix, iy, iz) = 0.0;
-                    }
-                }
-            }
-        }
-        if (mesh->lastX())
-        {
-            for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
-            {
-                for (int iy = 0; iy < mesh->LocalNy; iy++)
-                {
-                    for (int iz = 0; iz < mesh->LocalNz; iz++)
-                    {
-                        P(ix, iy, iz) = T_down / T_sepx;
-                        // P(ix, iy, iz) = 0.0;
-                    }
-                }
-            }
-        }
-        // Y boundaries
-        for (itl.first(); !itl.isDone(); itl++)
-        {
-            // it.ind contains the x index
-            for (int iy = 0; iy < ngcy_tot; iy++)
-            {
-                for (int iz = 0; iz < mesh->LocalNz; iz++)
-                {
-                    P(itl.ind, iy, iz) = T_down / T_sepx;
-                    // P(itl.ind, iy, iz) = 0.0;
-                }
-            }
-        }
-        // for (itu.first(); !itu.isDone(); itu++)
-        // {
-        //   for (int iy = mesh->LocalNy - ngcy_tot; iy < mesh->LocalNy; iy++)
-        //   {
-        //     for (int iz = 0; iz < mesh->LocalNz; iz++)
-        //     {
-        //       P(itu.ind, iy, iz) = T_down / T_sepx;
-        //     //   P(itu.ind, iy, iz) = 1.0;
-        //     }
-        //   }
-        // }
-    }
     if (fixed_P_core)
     {
         // TODO: use the BC function for this

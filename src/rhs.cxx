@@ -104,15 +104,7 @@ int Churn::rhs(BoutReal t)
         // TODO: we still have convection across the boundaries even though u should be zero - need to revisit the convection term or calculation of u. Then we can redo some energy analysis stuff
         if (include_advection)
         {
-            if (mesh->StaggerGrids)
-            {
-                ddt(P) = -V_dot_Grad(u, P);   
-                // ddt(P) = -V_dot_grad_no_bndry_flow(u, P);
-            }
-            else
-            {
-                ddt(P) = -(DDX(P) * u.x + u.y * DDY(P));
-            }
+            ddt(P) = -V_dot_Grad(u, P); 
         }
         else
         {
@@ -263,14 +255,7 @@ int Churn::rhs(BoutReal t)
     {
         if (include_advection)
         {
-            if (mesh->StaggerGrids)
-            {
-                ddt(psi) = -V_dot_Grad(u, psi);
-            }
-            else
-            {
-                ddt(psi) = -(DDX(psi) * u.x + u.y * DDY(psi));
-            }
+            ddt(psi) = -V_dot_Grad(u, psi);
         }
         else
         {
@@ -295,14 +280,7 @@ int Churn::rhs(BoutReal t)
     // Advection
     if (include_advection)
     {
-        if (mesh->StaggerGrids)
-        {
-            ddt(omega) = -V_dot_Grad(u, omega);
-        }
-        else
-        {
-            ddt(omega) = -(DDX(omega) * u.x + u.y * DDY(omega));
-        }
+        ddt(omega) = -V_dot_Grad(u, omega);
     }
     else
     {
