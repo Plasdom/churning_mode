@@ -432,7 +432,7 @@ def animate_vector(
             Y,
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
-            color="white",
+            color="red",
             linewidth=lw,
             # linewidth=0.25,
             integration_direction="both",
@@ -576,6 +576,8 @@ def integrate_dxdy(ds: xr.Dataset, var: str):
 def get_tot_pol_flux(ds):
     # [psi_0 a_mid^2]
     tot_pol_flux = integrate_dxdy(ds, ds["psi"])
+    # tot_pol_flux = integrate_dxdy(ds, ds["psi"] + 1.0)
+    # tot_pol_flux = integrate_dxdy(ds, abs(ds["psi"]))
     return tot_pol_flux
 
 
@@ -615,55 +617,109 @@ def get_tot_energy(ds):
     )
 
 
-def plot_conservation(ds: xr.Dataset, relative: bool = True):
+def plot_conservation(ds: xr.Dataset, relative: bool = True, include: str = "all"):
     """Plot conserved quantities over time
 
     :param ds: Bout dataset
+    :param relative: Plot energy conservation terms relative to values at t=0
+    :param include: Which quantity to plot: "P", "psi", "energy" or all
     """
 
-    tot_pol_flux = get_tot_pol_flux(ds)
-    tot_pressure = get_tot_pressure(ds)
-    M, K, Pi = get_tot_energy(ds)
+    if include == "all":
 
-    fig, ax = plt.subplots(3, sharex=True)
-    t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
-    ax[0].plot(t, tot_pol_flux)
-    ax[0].set_title(r"$\int \psi dxdy$")
-    ax[0].set_ylabel(r"[$\psi_0 a_{mid}^2$]")
+        tot_pol_flux = get_tot_pol_flux(ds)
+        tot_pressure = get_tot_pressure(ds)
+        M, K, Pi = get_tot_energy(ds)
 
-    ax[1].plot(t, tot_pressure)
-    ax[1].set_title(r"$\int Pdxdy$")
-    ax[1].set_ylabel(r"[$P_0 a_{mid}^2$]")
+        fig, ax = plt.subplots(3, sharex=True)
+        t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
+        ax[0].plot(t, tot_pol_flux)
+        ax[0].set_title(r"$\int \psi dxdy$")
+        ax[0].set_ylabel(r"[$\psi_0 a_{mid}^2$]")
 
-    # ax[2].plot(ds_trimmed[r"t"], (M) + (K) + (Pi), "-", color=r"black")
-    # ax[2].set_title(r"$E=M+K+\Pi$")
-    # ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
+        ax[1].plot(t, tot_pressure)
+        ax[1].set_title(r"$\int Pdxdy$")
+        ax[1].set_ylabel(r"[$P_0 a_{mid}^2$]")
 
-    if relative:
-        ax[2].plot(t, M - M[0], "-", label=r"$M-M_0$")
-        ax[2].plot(t, K - K[0], "-", label=r"$K-K_0$")
-        ax[2].plot(t, Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
-        ax[2].plot(
-            t,
-            (M - M[0]) + (K - K[0]) + (Pi - Pi[0]),
-            "--",
-            color=r"black",
-            label=r"$E-E(t=0)$",
-        )
-        # ax[2].plot(ds[r"t"], (K-K[0]) + (Pi-Pi[0]), "--", color=r"black", label=r"$E-E(t=0)$")
-    else:
-        ax[2].plot(t, M, "-", label=r"$M-M(t=0)$")
-        ax[2].plot(t, K, "-", label=r"$K-K(t=0)$")
-        ax[2].plot(t, Pi, "-", label=r"$\Pi-\Pi(t=0)$")
-        ax[2].plot(t, M + K + Pi, "--", color=r"black", label=r"$E-E(t=0)$")
+        if relative:
+            ax[2].plot(t, M - M[0], "-", label=r"$M-M_0$")
+            ax[2].plot(t, K - K[0], "-", label=r"$K-K_0$")
+            ax[2].plot(t, Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
+            ax[2].plot(
+                t,
+                (M - M[0]) + (K - K[0]) + (Pi - Pi[0]),
+                "--",
+                color=r"black",
+                label=r"$E-E(t=0)$",
+            )
+        else:
+            ax[2].plot(t, M, "-", label=r"$M-M(t=0)$")
+            ax[2].plot(t, K, "-", label=r"$K-K(t=0)$")
+            ax[2].plot(t, Pi, "-", label=r"$\Pi-\Pi(t=0)$")
+            ax[2].plot(t, M + K + Pi, "--", color=r"black", label=r"$E-E(t=0)$")
 
-    ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
-    ax[2].set_title(r"$E=M+K+\Pi$")
+        ax[2].set_ylabel(r"[$P_0 a_{mid}^2$]")
+        ax[2].set_title(r"$E=M+K+\Pi$")
 
-    ax[-1].legend(loc="lower left")
-    ax[-1].set_xlabel(r"$t\ [ms]$")
-    [a.grid() for a in ax]
-    fig.tight_layout()
+        ax[-1].legend(loc="lower left")
+        ax[-1].set_xlabel(r"$t\ [ms]$")
+        [a.grid() for a in ax]
+        fig.tight_layout()
+
+    elif include == "psi":
+
+        tot_pol_flux = get_tot_pol_flux(ds)
+
+        fig, ax = plt.subplots(1)
+        t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
+        ax.plot(t, tot_pol_flux)
+        ax.set_title(r"$\int \psi dxdy$")
+        ax.set_ylabel(r"[$\psi_0 a_{mid}^2$]")
+        ax.set_xlabel(r"$t\ [ms]$")
+        ax.grid()
+        fig.tight_layout()
+
+    elif include == "P":
+
+        tot_pressure = get_tot_pressure(ds)
+
+        fig, ax = plt.subplots(1)
+        t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
+        ax.plot(t, tot_pressure)
+        ax.set_title(r"$\int Pdxdy$")
+        ax.set_ylabel(r"[$P_0 a_{mid}^2$]")
+        ax.set_xlabel(r"$t\ [ms]$")
+        ax.grid()
+        fig.tight_layout()
+
+    elif include == "energy":
+
+        M, K, Pi = get_tot_energy(ds)
+
+        fig, ax = plt.subplots(1)
+        t = 1000 * (ds["t"] - ds["t"].isel(t=0)) * ds.metadata["t_0"]
+        if relative:
+            ax.plot(t, M - M[0], "-", label=r"$M-M_0$")
+            ax.plot(t, K - K[0], "-", label=r"$K-K_0$")
+            ax.plot(t, Pi - Pi[0], "-", label=r"$\Pi-\Pi_0$")
+            ax.plot(
+                t,
+                (M - M[0]) + (K - K[0]) + (Pi - Pi[0]),
+                "--",
+                color=r"black",
+                label=r"$E-E(t=0)$",
+            )
+        else:
+            ax.plot(t, M, "-", label=r"$M-M(t=0)$")
+            ax.plot(t, K, "-", label=r"$K-K(t=0)$")
+            ax.plot(t, Pi, "-", label=r"$\Pi-\Pi(t=0)$")
+            ax.plot(t, M + K + Pi, "--", color=r"black", label=r"$E-E(t=0)$")
+
+        ax.set_ylabel(r"[$P_0 a_{mid}^2$]")
+        ax.set_title(r"$E=M+K+\Pi$")
+        ax.set_xlabel(r"$t\ [ms]$")
+        ax.grid()
+        fig.tight_layout()
 
     return ax
 
@@ -980,6 +1036,7 @@ def plot_Q_target_proportions(
     heat_flux: str = "conductive",
     normalise: bool = True,
     savepath: str | None = None,
+    plot_qin: bool = False,
     ylim: list | tuple | None = None,
 ):
     """Plot total heat flow to each divertor leg as a stacked plot (assuming snowflake config)
@@ -1024,13 +1081,15 @@ def plot_Q_target_proportions(
         # ax.stackplot(
         #     (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
         #     [qin, q1, q2, q3, q4],
-        #     labels=["$Q_{in}$","Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
+        #     labels=["$Q_{in}$", "Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
         # )
-        # ax.plot(ds.t - ds.t[0], -qin)
-        ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
+        if plot_qin:
+            ax.plot((ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000, -qin)
+        # ax.set_ylabel(r"$P_{l}$ [MWm$^{-1}$]")
 
     ax.legend(loc="upper left")
     ax.set_xlabel("$t$ [ms]")
+    ax.set_ylabel("$P_{out}$ [MWm$^{-1}$]")
     ax.grid()
     if ylim is not None:
         ax.set_ylim(ylim)
@@ -1146,12 +1205,6 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     x3 = range(int(nx / 2))
     y4 = range(ny)
 
-    # qin = -q_prefactor * (ds["q_tot_y"] ).isel(y=-1, x=x0)
-    # q1 = q_prefactor * (ds["q_tot_x"] ).isel(x=-1, y=y1)
-    # q2 = -q_prefactor * (ds["q_tot_y"] ).isel(y=0, x=x2)
-    # q3 = -q_prefactor * (ds["q_tot_y"] ).isel(y=0, x=x3)
-    # q4 = -q_prefactor * (ds["q_tot_x"] ).isel(x=0, y=y4)
-
     if "q_out" in list(ds.variables):
         qin = q_prefactor * (ds["q_out"]).isel(y=-1, x=x0)
         q1 = q_prefactor * (ds["q_out"]).isel(x=-1, y=y1)
@@ -1184,18 +1237,18 @@ def get_q_legs_conv(ds: xr.Dataset) -> tuple[xr.DataArray]:
     x3 = range(int(nx / 2))
     y4 = range(ny)
 
-    if "q_out_conv" in list(ds.variables):
-        qin = -q_prefactor * (ds["q_out_conv"]).isel(y=-1, x=x0)
-        q1 = q_prefactor * (ds["q_out_conv"]).isel(x=-1, y=y1)
-        q2 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x2)
-        q3 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x3)
-        q4 = -q_prefactor * (ds["q_out_conv"]).isel(x=0, y=y4)
-    else:
-        qin = -q_prefactor * (ds["q_conv_y"]).isel(y=-1, x=x0)
-        q1 = q_prefactor * (ds["q_conv_x"]).isel(x=-1, y=y1)
-        q2 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x2)
-        q3 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x3)
-        q4 = -q_prefactor * (ds["q_conv_x"]).isel(x=0, y=y4)
+    # if "q_out_conv" in list(ds.variables):
+    #     qin = -q_prefactor * (ds["q_out_conv"]).isel(y=-1, x=x0)
+    #     q1 = q_prefactor * (ds["q_out_conv"]).isel(x=-1, y=y1)
+    #     q2 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x2)
+    #     q3 = -q_prefactor * (ds["q_out_conv"]).isel(y=0, x=x3)
+    #     q4 = -q_prefactor * (ds["q_out_conv"]).isel(x=0, y=y4)
+    # else:
+    qin = -q_prefactor * (ds["q_conv_y"]).isel(y=-1, x=x0)
+    q1 = q_prefactor * (ds["q_conv_x"]).isel(x=-1, y=y1)
+    q2 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x2)
+    q3 = -q_prefactor * (ds["q_conv_y"]).isel(y=0, x=x3)
+    q4 = -q_prefactor * (ds["q_conv_x"]).isel(x=0, y=y4)
 
     return qin, q1, q2, q3, q4
 
@@ -2139,7 +2192,7 @@ def explore_nulls(
     t: int = 0,
     colorbar: bool = False,
     psi_range_frac: float = 0.1,
-    n_psi: int = 1000,
+    n_psi: int = 5000,
     **contour_kwargs,
 ):
     """Interactive plot with sliders for two surfaces of constant psi
@@ -2384,11 +2437,20 @@ def extract_rundeck_data(
         # D_x_emp[i] = 0.00465 * ds.metadata["a_mid"] ** 5.62582 * epsilon[i] ** -3.43687 * beta_p[i] ** 3.51383 * d_sol[i] ** -8.91759
         # D_x_emp[i] = 0.00222 * ds.metadata["a_mid"] ** 5.91882 * epsilon[i] ** -3.60804 * beta_p[i] ** 3.52131 * d_sol[i] ** -9.24380
         lambda_q[i] = (d_sol[i] / (a[i] ** (2 / 3))) ** 3
+        # D_x_emp[i] = (
+        #     1.8972
+        #     * epsilon[i] ** -3.09988
+        #     * beta_p[i] ** 2.90471
+        #     * lambda_q[i] ** -1.74379
+        # )
+        # D_x_emp[i] = (
+        #     0.07416
+        #     * epsilon[i] ** -3.61135
+        #     * beta_p[i] ** 3.43607
+        #     * lambda_q[i] ** -2.56898
+        # )
         D_x_emp[i] = (
-            1.8972
-            * epsilon[i] ** -3.09988
-            * beta_p[i] ** 2.90471
-            * lambda_q[i] ** -1.74379
+            1.0 * epsilon[i] ** -3.31309 * beta_p[i] ** 3.23046 * lambda_q[i] ** -2.0617
         )
 
         f_inner[i] = (P_legs_w[i][2] + P_legs_w[i][3]) / np.sum(P_legs_w[i])
