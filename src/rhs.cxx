@@ -18,16 +18,6 @@ int Churn::rhs(BoutReal t)
     {
         fixed_P_core_BC(P_core, B / B_mag);
     }
-    else if (fixed_Q_in)
-    {
-        // dPdy0_BC();
-        // parallel_neumann_yup(B / B_mag);
-    }
-    else if (disable_qin_outside_core)
-    {
-    //     // dPdy0_BC_outside_core();
-        // parallel_neumann_yup(B / B_mag, true);
-    }
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
@@ -35,7 +25,7 @@ int Churn::rhs(BoutReal t)
     {
         //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model
         mesh->communicate(omega);
-        phi = mySolver.invert(omega);
+        phi = mySolver.invert(omega, phi);
         try
         {
             for (int i = 0; i < nits_inv_extra; i++)
@@ -57,9 +47,7 @@ int Churn::rhs(BoutReal t)
     mesh->communicate(phi);
 
     // Calculate velocity
-    // phi.applyBoundary("neumann");
     u = b0 * cross(e_z, Grad(phi));
-    u.applyBoundary("dirichlet");
 
     if (evolve_density)
     {
@@ -194,6 +182,7 @@ int Churn::rhs(BoutReal t)
                 {
                     ddt(P) += (2.0 / 3.0) * div_q_perp_classic(T, kappa_perp, B / B_mag);
                     // ddt(P) += (2.0/3.0) * D2DX2_DIFF(P, kappa_perp) + D2DY2_DIFF(P, kappa_perp);
+                    // ddt(P) += (2.0 / 3.0) * kappa_perp * Laplace(T);
                     q_perp = -kappa_perp * (Grad(T) - ((Grad(T) * (B/B_mag)) * (B/B_mag)));
                 }
                 

@@ -36,6 +36,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     alpha_fl = options["alpha_fl"].doc("Flux limiter").withDefault(0.2);
     alpha_rot = options["alpha_rot"].doc("Rotation angle of initial poloidal flux").withDefault(0.0);
     density_source = options["density_source"].doc("Volumetric particle source [m^3 s^-1] if performing a density ramp").withDefault(0.0);
+    phi_BC_width = options["phi_BC_width"].doc("Width of the dirichlet BC on phi (must be the same as that used for omega). If  = 0, then no width will be specified.").withDefault(0);
     // thermal_force_b0_factor = options["thermal_force_b0_factor"].doc("b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)").withDefault(1.0);
 
     // Model option switches
@@ -153,6 +154,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         phi_init_options.setConditionallyUsed();
         mm.A = 0.0;
         mm.D = 1.0;
+        mm.BC_width = phi_BC_width;
         mm.ngcx_tot = ngcx_tot;
         mm.ngcy_tot = ngcy_tot;
         mm.nx_tot = nx_tot;
