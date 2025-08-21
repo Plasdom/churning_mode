@@ -196,20 +196,27 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         SAVE_REPEAT(u, B);
     }
 
-    if (chi_par > 0.0)
+    if (evolve_pressure)
     {
-        if (T_dependent_q_par)
+        // if (chi_par > 0.0)
+        if (use_classic_div_q_par || use_gunter_div_q_par || use_modified_stegmeir_div_q_par || use_linetrace_div_q_par)
         {
-            SAVE_REPEAT(kappa_par);
+            if (T_dependent_q_par)
+            {
+                SAVE_REPEAT(kappa_par);
+            }
+            SAVE_REPEAT(q_par);
         }
-        SAVE_REPEAT(q_par);
+        // if ((chi_perp + D_x) > 0.0)
+        if (use_classic_div_q_perp || use_gunter_div_q_perp)
+        {
+            SAVE_ONCE(kappa_perp);
+            SAVE_REPEAT(q_perp);
+        }
+        SAVE_REPEAT(q_out, q_out_conv);
     }
-    if ((chi_perp + D_x) > 0.0)
-    {
-        SAVE_ONCE(kappa_perp);
-        SAVE_REPEAT(q_perp);
-    }
-    SAVE_REPEAT(q_out, q_out_conv);
+    SAVE_REPEAT(q_par);
+
 
     // if (fixed_Q_in)
     // {
@@ -264,19 +271,31 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     e_z.z = 1.0;
 
     // Initialise heat flow
-    q_par = 0.0;
-    q_perp = 0.0;
-    kappa_par = 0.0;
-    kappa_perp = 0.0;
-    // div_q = 0.0;
-    // div_q2 = 0.0;
+    if (evolve_pressure)
+    {
+        if (use_classic_div_q_par || use_gunter_div_q_par || use_modified_stegmeir_div_q_par || use_linetrace_div_q_par)
+        {
+            SAVE_ONCE(chi_par);
+        }
+        if (use_classic_div_q_perp || use_gunter_div_q_perp)
+        {
+
+            SAVE_ONCE(chi_perp, chi_perp_eff);
+        }
+    }
     q_out = 0.0;
+    q_out_conv = 0.0;
+    q_par = 0.0;
+    kappa_par = 0.0;
+    q_perp = 0.0;
+    kappa_perp = 0.0;
+
 
     // Output constants, input options and derived parameters
     SAVE_ONCE(e, m_i, m_e, chi_diff, D_m, mu, epsilon, beta_p, rho, P_0);
     SAVE_ONCE(C_s0, t_0, D_0, psi_0, phi_0, R_0, a_mid, n_sepx);
     SAVE_ONCE(T_sepx, B_t0, B_pmid, evolve_pressure, include_churn_drive_term, include_mag_restoring_term, P_grad_0);
-    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot, chi_perp, chi_perp_eff, chi_par);
+    SAVE_ONCE(ngcx, ngcx_tot, ngcy, ngcy_tot);
     SAVE_ONCE(x_c, y_c, delta, b0, Omega_i0, nu);
 
     Coordinates *coord = mesh->getCoordinates();
@@ -302,20 +321,33 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     }
 
     // chi_perp_eff
-    chi_perp_eff = D_x * exp(-pow(((x_c - x_1) / r_star), 2.0) - pow(((y_c - y_1) / r_star), 2.0));
-    chi_perp_eff += D_x * exp(-pow(((x_c - x_2) / r_star), 2.0) - pow(((y_c - y_2) / r_star), 2.0));
+    if (evolve_pressure){
+        if (use_classic_div_q_perp || use_gunter_div_q_perp)
+        {
+            chi_perp_eff = D_x * exp(-pow(((x_c - x_1) / r_star), 2.0) - pow(((y_c - y_1) / r_star), 2.0));
+            chi_perp_eff += D_x * exp(-pow(((x_c - x_2) / r_star), 2.0) - pow(((y_c - y_2) / r_star), 2.0));
+        }
+    }
 
     // Initialise perpendicular conductivity
-    kappa_perp = (chi_perp / D_0);
-    if (D_x > 0.0)
-    {
-        kappa_perp += (chi_perp_eff / D_0);
+    if (evolve_pressure){
+        if (use_classic_div_q_perp || use_gunter_div_q_perp)
+        {
+            kappa_perp = (chi_perp / D_0);
+            if (D_x > 0.0)
+            {
+                kappa_perp += (chi_perp_eff / D_0);
+            }
+        }
+        if (use_classic_div_q_par || use_gunter_div_q_par || use_modified_stegmeir_div_q_par || use_linetrace_div_q_par)
+        {
+            if (T_dependent_q_par == false)
+            {
+                kappa_par = chi_par / D_0;
+            }
+        }
     }
 
-    if (T_dependent_q_par == false)
-    {
-        kappa_par = chi_par / D_0;
-    }
 
     // Initialise B field
     B.x = 0.0;
