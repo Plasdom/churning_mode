@@ -45,6 +45,7 @@ struct customLaplaceInverter
     BoutReal D = 1.0, A = 0.0;
     int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
     int BC_width;
+    Field3D result;
 
     Field3D operator()(const Field3D &input);
 };

@@ -10,6 +10,7 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
     // result.setBoundaryTo(input);
 
     // Apply the boundary condition
+    //TODO: Find out why setting anything other than BC_width=0 results in memory leak
     if (BC_width == 0)
     {
         result.applyBoundary("dirichlet(0)");
