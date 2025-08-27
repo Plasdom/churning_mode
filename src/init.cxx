@@ -103,6 +103,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_resistive_heating = options["include_resistive_heating"]
                                    .doc("Include the (parallel) resistive heating term in the pressure equation.")
                                    .withDefault(false);
+    phi_constraint_prefactor = options["phi_constraint_prefactor"]
+                                   .doc("If invert_laplace is Flase, prefactor for RHS of ddt(phi) = Laplace(phi) - omega.")
+                                   .withDefault(1.0e6);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);

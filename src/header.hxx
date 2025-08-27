@@ -117,6 +117,7 @@ private:
     BoutReal psi_bndry_P_core_BC; ///< When fixed_P_core=true, set P_core to the specified value within field lines where psi is greater than this value
     BoutReal alpha_rot;           ///< Rotation angle of initial poloidal flux
     BoutReal density_source; ///< Volumetric particle source [m^3 s^-1] if performing a density ramp
+    BoutReal phi_constraint_prefactor; ///< If invert Laplace = False, prefactor to apply to RHS of ddt(phi) = Laplace(phi) - omega
 
     // Other parameters
     BoutReal mu_0;        ///< Vacuum permeability [N A^-2]

@@ -42,7 +42,7 @@ int Churn::rhs(BoutReal t)
     {
         //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
         mesh->communicate(omega, phi);
-        ddt(phi) = (D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega;
+        ddt(phi) = phi_constraint_prefactor * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega);
     }
     mesh->communicate(phi);
 
