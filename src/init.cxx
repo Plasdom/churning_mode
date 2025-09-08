@@ -38,6 +38,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     density_source = options["density_source"].doc("Volumetric particle source [m^3 s^-1] if performing a density ramp").withDefault(0.0);
     phi_BC_width = options["phi_BC_width"].doc("Width of the dirichlet BC on phi (must be the same as that used for omega). If  = 0, then no width will be specified.").withDefault(0);
     // thermal_force_b0_factor = options["thermal_force_b0_factor"].doc("b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)").withDefault(1.0);
+    phi_constraint_prefactor = options["phi_constraint_prefactor"].doc("If invert_laplace is Flase, prefactor for RHS of ddt(phi) = Laplace(phi) - omega.").withDefault(1.0e6);
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -103,9 +104,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_resistive_heating = options["include_resistive_heating"]
                                    .doc("Include the (parallel) resistive heating term in the pressure equation.")
                                    .withDefault(false);
-    phi_constraint_prefactor = options["phi_constraint_prefactor"]
-                                   .doc("If invert_laplace is Flase, prefactor for RHS of ddt(phi) = Laplace(phi) - omega.")
-                                   .withDefault(1.0e6);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);

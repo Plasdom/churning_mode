@@ -48,6 +48,10 @@ int Churn::rhs(BoutReal t)
 
     // Calculate velocity
     u = b0 * cross(e_z, Grad(phi));
+    if (phi_BC_width == 0)
+    {
+        u.applyBoundary("dirichlet");
+    }
 
     if (evolve_density)
     {
