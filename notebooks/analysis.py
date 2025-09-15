@@ -235,7 +235,7 @@ def animate_contour_list(
     savepath: str | None = None,
     plot_every: int = 1,
     fps: int | float = 24,
-    plot_r_cz: bool = True,
+    plot_r_cz: bool = False,
     min_timestep: int | None = None,
     max_timestep: int | None = None,
     trim_cells: int | None = None,
@@ -365,11 +365,12 @@ def animate_vector(
     vec_var: str,
     scalar: str = "P",
     savepath: str | None = None,
-    lw_prefactor: float | None = None,
     density: float = 0.25,
     plot_every: int = 1,
     fps: int = 20,
-    const_lw: bool = False,
+    linewidth: str = "magnitude",
+    logscale_linewidth: bool = False,
+    linewidth_mult: float = 1.0,
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -388,6 +389,7 @@ def animate_vector(
     vec_y = ds[vec_var + "_y"]
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     scalar = ds["P"]
+    lw_setting = linewidth
 
     # fig = plt.figure(figsize=(3.5, 3.5))
     fig = plt.figure()
@@ -415,17 +417,20 @@ def animate_vector(
         )
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
-        if const_lw:
-            if lw_prefactor is None:
-                lw = 1.0
-            else:
-                lw = lw_prefactor
+        if lw_setting == "magnitude":
+            linewidth = vec_mag.isel(t=i).values.T
+            maxwidth = linewidth.max()
+            linewidth /= maxwidth
+            linewidth *= linewidth_mult
+            if logscale_linewidth:
+                linewidth = np.log(linewidth + 1)
+        elif lw_setting == "absolute":
+            linewidth = vec_mag.isel(t=i).values.T
+            linewidth *= linewidth_mult
+            if logscale_linewidth:
+                linewidth = np.log(linewidth + 1)
         else:
-            if lw_prefactor is None:
-                # lw = vec_mag.isel(t=i).values.T / vec_mag.isel(t=0).values.max()
-                lw = vec_mag.isel(t=i).values.T / vec_mag.values.max()
-            else:
-                lw = lw_prefactor * vec_mag.isel(t=i).values.T
+            linewidth *= linewidth_mult
 
         cont = ax.streamplot(
             X,
@@ -433,7 +438,7 @@ def animate_vector(
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
             color="red",
-            linewidth=lw,
+            linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
             density=density,
@@ -469,10 +474,11 @@ def plot_vector(
     vec_var: str,
     scalar: str = "P",
     t: int = 1,
-    lw_prefactor: float | None = None,
-    const_lw: bool = False,
     savepath: str | None = None,
     use_seed_points: bool = False,
+    linewidth: str = "magnitude",
+    logscale_linewidth: bool = False,
+    linewidth_mult: float = 1.0,
     ax: Axes | None = None,
     **kwargs,
 ):
@@ -486,6 +492,7 @@ def plot_vector(
     :param use_seed_points: Launch streamlines from top of domain (should be used with broken_streamlines=False, and will generally require some fine tuning)
     :return: Animation
     """
+    lw_setting = linewidth
 
     # Generate grid for plotting
     X, Y = np.meshgrid(ds["x"], ds["y"])
@@ -513,16 +520,21 @@ def plot_vector(
     )
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
-    if const_lw:
-        if lw_prefactor is None:
-            lw = 1.0
-        else:
-            lw = lw_prefactor
+    if lw_setting == "magnitude":
+        linewidth = vec_mag.isel(t=t).values.T
+        maxwidth = linewidth.max()
+        linewidth /= maxwidth
+        linewidth *= linewidth_mult
+        if logscale_linewidth:
+            linewidth = np.log(linewidth + 1)
+    elif lw_setting == "absolute":
+        linewidth = vec_mag.isel(t=t).values.T
+        linewidth *= linewidth_mult
+        if logscale_linewidth:
+            linewidth = np.log(linewidth + 1)
     else:
-        if lw_prefactor is None:
-            lw = vec_mag.isel(t=t).values.T / vec_mag.values.max()
-        else:
-            lw = lw_prefactor * vec_mag.isel(t=t).values.T
+        linewidth *= linewidth_mult
+
     if use_seed_points:
         cont = ax.streamplot(
             X,
@@ -530,7 +542,7 @@ def plot_vector(
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
             color="red",
-            linewidth=lw,
+            linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
             start_points=seed_points,
@@ -543,7 +555,7 @@ def plot_vector(
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
             color="red",
-            linewidth=lw,
+            linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
             **kwargs,
@@ -1049,6 +1061,15 @@ def plot_Q_target_proportions(
         qin, q1, q2, q3, q4 = get_q_legs(ds)
     elif heat_flux == "convective":
         qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
+    elif heat_flux == "total":
+        qin_cond, q1_cond, q2_cond, q3_cond, q4_cond = get_q_legs(ds)
+        qin_conv, q1_conv, q2_conv, q3_conv, q4_conv = get_q_legs_conv(ds)
+        qin = qin_cond + qin_conv
+        q1 = q1_cond + q1_conv
+        q2 = q2_cond + q2_conv
+        q3 = q3_cond + q3_conv
+        q4 = q4_cond + q4_conv
+
     if ds.metadata["grid_units"] == "cm":
         Q_prefactor = 1 / 100.0
     elif ds.metadata["grid_units"] == "m":
