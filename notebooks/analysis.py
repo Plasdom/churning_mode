@@ -24,7 +24,7 @@ boltzmann_k = 1.380649e-23
 
 
 def read_boutdata(
-    filepath: str, remove_xgc: bool = True, units: str = "a_mid"
+    filepath: str, remove_xgc: bool = True, units: str = "a_mid", ngc: int = 2
 ) -> xr.Dataset:
     """Read bout dataset with xy geometry
 
@@ -67,7 +67,6 @@ def read_boutdata(
 
     # ngc = int((len(ds["x"]) - len(ds["y"]))/2)
     if remove_xgc:
-        ngc = 2
         ds = ds.isel(x=range(ngc, len(ds["x"]) - ngc))
 
         # ds = ds.assign_coords(x=ds.x - ds.x[0])
@@ -371,6 +370,9 @@ def animate_vector(
     linewidth: str = "magnitude",
     logscale_linewidth: bool = False,
     linewidth_mult: float = 1.0,
+    vmin: float = 0,
+    vmax: float = 3,
+    levels=200,
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -410,10 +412,10 @@ def animate_vector(
             Y,
             scalar.isel(t=i).values.T,
             cmap="inferno",
-            levels=200,
+            levels=levels,
             extend="both",
-            vmax=3,
-            vmin=0,
+            vmin=vmin,
+            vmax=vmax,
         )
         # rgb = ls.shade(scalar.isel(t=i).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
         # cont = ax.imshow(rgb)
@@ -430,6 +432,7 @@ def animate_vector(
             if logscale_linewidth:
                 linewidth = np.log(linewidth + 1)
         else:
+            linewidth = 1.0
             linewidth *= linewidth_mult
 
         cont = ax.streamplot(
@@ -479,7 +482,11 @@ def plot_vector(
     linewidth: str = "magnitude",
     logscale_linewidth: bool = False,
     linewidth_mult: float = 1.0,
+    show_cbar: bool = False,
+    show_sepx: bool = False,
     ax: Axes | None = None,
+    vmax: float = 3,
+    snull: bool = True,
     **kwargs,
 ):
     """Plot vector field at a single timestep
@@ -499,7 +506,10 @@ def plot_vector(
     vec_x = ds[vec_var + "_x"]
     vec_y = ds[vec_var + "_y"]
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
-    scalar = ds["P"]
+    if show_cbar:
+        scalar = ds["P"].clip(max=vmax)
+    else:
+        scalar = ds["P"]
 
     # Generate seed points
     num_seed_points = 500
@@ -516,8 +526,34 @@ def plot_vector(
     # ls = LightSource(azdeg=110, altdeg=10)
 
     contf = ax.contourf(
-        X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500, vmax=3
+        X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500, vmax=vmax
     )
+    if show_cbar:
+        fig.colorbar(contf, label="$p/p_0$")
+    if show_sepx:
+        x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(ds, timestep=t)
+        ax.contour(
+            ds.x,
+            ds.y,
+            ds["psi"].isel(t=t).T,
+            levels=[psi1],
+            linestyles=["-"],
+            colors=["gray"],
+        )
+        ax.scatter([x1], [y1], marker="x", color="gray")
+        ax.plot([], [], linestyle="-", color="gray", label=r"$\psi_1$")
+        if snull is False:
+            ax.contour(
+                ds.x,
+                ds.y,
+                ds["psi"].isel(t=t).T,
+                levels=[psi2],
+                linestyles=["--"],
+                colors=["gray"],
+            )
+            ax.scatter([x2], [y2], marker="x", color="gray")
+            ax.plot([], [], linestyle="--", color="gray", label=r"$\psi_2$")
+        ax.legend(loc="upper right")
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
     # cont = ax.imshow(rgb)
     if lw_setting == "magnitude":
@@ -573,7 +609,7 @@ def plot_vector(
     ax.set_title(vec_var)
 
     if savepath is not None:
-        fig.savefig(savepath)
+        fig.savefig(savepath, dpi=2400)
 
     return contf
 
@@ -761,6 +797,7 @@ def animate_q_targets(
     plot_every: int = 1,
     normalise: bool = False,
     savepath: str | None = None,
+    snull: bool = True,
 ):
     """Animate q_tot to each diverotr leg (assuming snowflake config)
 
@@ -795,7 +832,10 @@ def animate_q_targets(
         q3 = q3.values
         q4 = q4.values
 
-    fig, ax = plt.subplots(nrows=4, ncols=1, sharex=False)
+    if snull:
+        fig, ax = plt.subplots(nrows=2, ncols=1, sharex=False)
+    else:
+        fig, ax = plt.subplots(nrows=4, ncols=1, sharex=False)
 
     max_timestep = None
     min_timestep = None
@@ -817,7 +857,6 @@ def animate_q_targets(
     min_q4 = q4.min()
 
     def animate(i):
-
         ax[0].clear()
         l = ax[0].plot(
             range(len(y1)),
@@ -901,7 +940,61 @@ def animate_q_targets(
 
         return l
 
-    anim = animation.FuncAnimation(fig, animate, frames=int(len(ds.t) / plot_every))
+    def animate_snull(i):
+
+        ax[0].clear()
+        l = ax[0].plot(
+            range(len(x2)),
+            q2[plot_every * i, :],
+            linestyle="-",
+            color="black",
+            label="Leg 1 (LFS)",
+        )
+        l = ax[0].plot(
+            range(len(x2)),
+            q2[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+
+        ax[1].clear()
+        l = ax[1].plot(
+            range(len(x3)),
+            q3[plot_every * i, :],
+            linestyle="-",
+            color="black",
+            label="Leg 2 (HFS)",
+        )
+        l = ax[1].plot(
+            range(len(x3)),
+            q3[0, :],
+            linestyle="--",
+            color="gray",
+            label="t=0",
+        )
+
+        timestep = ds.t.values[plot_every * i] - ds.t.values[0]
+        ax[0].set_title("t={:.2f}$t_0$".format(timestep))
+        ax[0].legend(loc="upper right")
+        ax[1].legend(loc="upper right")
+
+        if normalise:
+            ax[0].set_ylabel(r"$q_{\parallel} / \int q_{\parallel}ds$ [MWm$^{-2}$]")
+        else:
+            ax[0].set_ylabel(r"$q_{\parallel}$ [MWm$^{-2}$]")
+        ax[-1].set_xlabel("x")
+        ax[0].set_ylim(min_q2, max_q2)
+        ax[1].set_ylim(min_q3, max_q3)
+
+        return l
+
+    if snull:
+        anim = animation.FuncAnimation(
+            fig, animate_snull, frames=int(len(ds.t) / plot_every)
+        )
+    else:
+        anim = animation.FuncAnimation(fig, animate, frames=int(len(ds.t) / plot_every))
     if savepath is not None:
         anim.save(savepath, fps=24)
 
@@ -1050,6 +1143,7 @@ def plot_Q_target_proportions(
     savepath: str | None = None,
     plot_qin: bool = False,
     ylim: list | tuple | None = None,
+    snull: bool = False,
 ):
     """Plot total heat flow to each divertor leg as a stacked plot (assuming snowflake config)
 
@@ -1086,19 +1180,33 @@ def plot_Q_target_proportions(
 
     fig, ax = plt.subplots(1)
     if normalise:
-        ax.stackplot(
-            (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
-            [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
-            labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
-        )
+        if snull:
+            ax.stackplot(
+                (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
+                [q2 / q_tot, q3 / q_tot],
+                labels=["Leg 1 (LFS)", "Leg 2 (HFS)"],
+            )
+        else:
+            ax.stackplot(
+                (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
+                [q1 / q_tot, q2 / q_tot, q3 / q_tot, q4 / q_tot],
+                labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
+            )
         ax.set_ylabel(r"$P_{l} / P_{tot}$")
 
     else:
-        ax.stackplot(
-            (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
-            [q1, q2, q3, q4],
-            labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
-        )
+        if snull:
+            ax.stackplot(
+                (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
+                [q2, q3],
+                labels=["Leg 1 (LFS)", "Leg 2 (HFS)"],
+            )
+        else:
+            ax.stackplot(
+                (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
+                [q1, q2, q3, q4],
+                labels=["Leg 1 (E)", "Leg 2 (SE)", "Leg 3 (SW)", "Leg 4 (W)"],
+            )
         # ax.stackplot(
         #     (ds.t - ds.t[0]) * ds.metadata["t_0"] * 1000,
         #     [qin, q1, q2, q3, q4],
@@ -1116,22 +1224,38 @@ def plot_Q_target_proportions(
         ax.set_ylim(ylim)
     fig.tight_layout()
 
-    print(
-        "At first timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
-            100 * (q1[0] / q_tot[0]).values,
-            100 * (q2[0] / q_tot[0]).values,
-            100 * (q3[0] / q_tot[0]).values,
-            100 * (q4[0] / q_tot[0]).values,
+    if snull:
+        print(
+            "At first timestep, fractions are:\n Leg 1 (LFS) = {:.2f}% | Leg 2 (HFS) = {:.2f}% | Remainder = {:.2f}%".format(
+                100 * (q3[0] / q_tot[0]).values,
+                100 * (q3[0] / q_tot[0]).values,
+                100 * ((q1[0] + q4[0]) / q_tot[0]).values,
+            )
         )
-    )
-    print(
-        "At last timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
-            100 * (q1[-1] / q_tot[-1]).values,
-            100 * (q2[-1] / q_tot[-1]).values,
-            100 * (q3[-1] / q_tot[-1]).values,
-            100 * (q4[-1] / q_tot[-1]).values,
+        print(
+            "At last timestep, fractions are:\n Leg 1 (LFS) = {:.2f}% | Leg 2 (HFS) = {:.2f}% | Remainder = {:.2f}% ".format(
+                100 * (q2[-1] / q_tot[-1]).values,
+                100 * (q3[-1] / q_tot[-1]).values,
+                100 * ((q1[-1] + q4[-1]) / q_tot[-1]).values,
+            )
         )
-    )
+    else:
+        print(
+            "At first timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
+                100 * (q1[0] / q_tot[0]).values,
+                100 * (q2[0] / q_tot[0]).values,
+                100 * (q3[0] / q_tot[0]).values,
+                100 * (q4[0] / q_tot[0]).values,
+            )
+        )
+        print(
+            "At last timestep, fractions are:\n Leg 1 = {:.2f}% | Leg 2 = {:.2f}% | Leg 3 = {:.2f}% | Leg 4 = {:.2f}%".format(
+                100 * (q1[-1] / q_tot[-1]).values,
+                100 * (q2[-1] / q_tot[-1]).values,
+                100 * (q3[-1] / q_tot[-1]).values,
+                100 * (q4[-1] / q_tot[-1]).values,
+            )
+        )
 
     if savepath is not None:
         fig.savefig(savepath)
@@ -1399,7 +1523,7 @@ def find_null_coords_2(
     psi_guess2: float = 0.0,
     psi_range_frac: float = 0.1,
     n_psi: int = 1000,
-):
+) -> tuple[float, float, float, float, float, float]:
     """Use flux contours to find the null coordinates
 
     :param ds: xarray dataset output from BOUT++
@@ -1516,7 +1640,10 @@ def find_null_coords_2(
         y2 = Xpt[1]
         psi_sepx2 = psi_sepx
 
-    return x1, x2, y1, y2, psi_sepx1, psi_sepx2
+    if num == 1:
+        return x1, None, y1, None, psi_sepx1, None
+    elif num == 2:
+        return x1, x2, y1, y2, psi_sepx1, psi_sepx2
 
 
 def find_primary_sepx(
@@ -1749,6 +1876,7 @@ def animate_nulls(
     savepath: str | None = None,
     refind_nulls_each_timestep: bool = True,
     show_t0: bool = False,
+    snull: bool = False,
     **mpl_kwargs,
 ):
     """Animate hte position of both nulls over time
@@ -1793,18 +1921,19 @@ def animate_nulls(
         ax[j].set_xlim((0, xvals.values.max()))
         ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
-        # vmin_c = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
-        # vmax_c = var_arrays[v][0].max() + 0.05 * var_arrays[v][0].max()
-        # levels[v] = np.sort(list(np.linspace(vmin_c, vmax_c, 2 * num_levels)))
 
-    # x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
+    if snull:
+        num_xpt = 1
+    else:
+        num_xpt = 2
     x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(
-        ds, timestep=0, psi_range_frac=0.1, n_psi=10000
+        ds, timestep=0, psi_range_frac=0.1, n_psi=10000, num=num_xpt
     )
 
     if show_t0:
         psi1_t0 = psi1
-        psi2_t0 = psi2
+        if num_xpt == 2:
+            psi2_t0 = psi2
 
     def animate(i, refind_nulls_each_timestep, psi1=None, psi2=None):
         if refind_nulls_each_timestep:
@@ -1815,6 +1944,7 @@ def animate_nulls(
                 n_psi=2000,
                 psi_guess1=psi1,
                 psi_guess2=psi2,
+                num=num_xpt,
             )
 
         for j, v in enumerate(vars):
@@ -1839,27 +1969,52 @@ def animate_nulls(
             )
             ax[j].set_title(v + ", t={:.2f} ms".format(timestep))
 
-            ax[j].contour(
-                ds_plot.x,
-                ds_plot.y,
-                ds_plot["psi"].isel(t=i * plot_every).values.T,
-                levels=np.sort([psi1, psi2]),
-                colors="white",
-                linestyles=["-", "-"],
-                zorder=998,
-            )
-            if show_t0:
+            if num_xpt == 1:
                 ax[j].contour(
                     ds_plot.x,
                     ds_plot.y,
-                    ds_plot["psi"].isel(t=0).values.T,
-                    levels=np.sort([psi1_t0, psi2_t0]),
-                    colors="gray",
-                    linestyles=["--", "--"],
-                    zorder=99,
+                    ds_plot["psi"].isel(t=i * plot_every).values.T,
+                    levels=np.sort([psi1]),
+                    colors="white",
+                    linestyles=["-", "-"],
+                    zorder=998,
                 )
-            if refind_nulls_each_timestep:
-                ax[j].scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
+                if show_t0:
+                    ax[j].contour(
+                        ds_plot.x,
+                        ds_plot.y,
+                        ds_plot["psi"].isel(t=0).values.T,
+                        levels=np.sort([psi1_t0]),
+                        colors="gray",
+                        linestyles=["--", "--"],
+                        zorder=99,
+                    )
+                if refind_nulls_each_timestep:
+                    ax[j].scatter([x1], [y1], color="red", marker="x", zorder=999)
+            elif num_xpt == 2:
+                ax[j].contour(
+                    ds_plot.x,
+                    ds_plot.y,
+                    ds_plot["psi"].isel(t=i * plot_every).values.T,
+                    levels=np.sort([psi1, psi2]),
+                    colors="white",
+                    linestyles=["-", "-"],
+                    zorder=998,
+                )
+                if show_t0:
+                    ax[j].contour(
+                        ds_plot.x,
+                        ds_plot.y,
+                        ds_plot["psi"].isel(t=0).values.T,
+                        levels=np.sort([psi1_t0, psi2_t0]),
+                        colors="gray",
+                        linestyles=["--", "--"],
+                        zorder=99,
+                    )
+                if refind_nulls_each_timestep:
+                    ax[j].scatter(
+                        [x1, x2], [y1, y2], color="red", marker="x", zorder=999
+                    )
 
         return cont
 
@@ -2096,6 +2251,7 @@ def plot_lineslice(
     variable: str | xr.DataArray = "P",
     line_coords: np.ndarray | None = None,
     timesteps: int | list[int] = -1,
+    snull: bool = True,
     **contour_kwargs,
 ):
     """Plot values of a given variable along a line given by the input coordinates
@@ -2106,17 +2262,31 @@ def plot_lineslice(
     :param timesteps: Timestamp to plot, defaults to -1
     """
     if line_coords is None:
-        x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
-        Lx = ds.x.max() - ds.x.min()
-        x = max(x1 - 0.5 * Lx, np.min(ds.x))
-        p1 = [
-            x,
-            y1 + (x1 - x) * np.tan(30 * np.pi / 180),
-        ]
-        p0 = [x1, y1]
-        line_coords = np.array(
-            [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
-        ).transpose()
+        if snull:
+            x1 = 0
+            y1 = 0
+            Lx = ds.x.max() - ds.x.min()
+            x = max(x1 - 0.5 * Lx, np.min(ds.x))
+            p1 = [
+                x,
+                y1,
+            ]
+            p0 = [x1, y1]
+            line_coords = np.array(
+                [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
+            ).transpose()
+        else:
+            x1, x2, y1, y2, psi1, psi2 = find_null_coords(ds, timestep=0)
+            Lx = ds.x.max() - ds.x.min()
+            x = max(x1 - 0.5 * Lx, np.min(ds.x))
+            p1 = [
+                x,
+                y1 + (x1 - x) * np.tan(30 * np.pi / 180),
+            ]
+            p0 = [x1, y1]
+            line_coords = np.array(
+                [np.linspace(p0[0], p1[0], 100), np.linspace(p0[1], p1[1], 100)]
+            ).transpose()
 
     # Get parallel coordinate
     s = np.zeros(len(line_coords))
@@ -2224,6 +2394,7 @@ def explore_nulls(
     :return: sliders to enable interactivity in notebook
     """
     fig, ax = plt.subplots(1)
+    ax.set_aspect("equal")
     cont = ax.contourf(
         ds.x,
         ds.y,
