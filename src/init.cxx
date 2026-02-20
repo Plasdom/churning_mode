@@ -15,6 +15,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     chi_perp = options["chi_perp"].doc("Perpendicular thermal conductivity").withDefault(0.0);
     D_m = options["D_m"].doc("Magnetic diffusivity").withDefault(0.0);
     mu = options["mu"].doc("Kinematic viscosity").withDefault(0.0);
+    hypervisc = options["hypervisc"].doc("Hyper-viscosity").withDefault(0.0);
+    hyperres = options["hyperres"].doc("Hyper-resistivity").withDefault(0.0);
     R_0 = options["R_0"].doc("Major radius [m]").withDefault(1.5);
     a_mid = options["a_mid"].doc("Minor radius at outer midplane [m]").withDefault(0.6);
     n_sepx = options["n_sepx"].doc("Electron density at separatrix [m^-3]").withDefault(1.0e19);
@@ -144,6 +146,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         eta = D_m / D_0;
         SAVE_ONCE(eta);
     }
+
+    SAVE_REPEAT(J);
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];

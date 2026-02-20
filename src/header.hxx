@@ -90,6 +90,7 @@ private:
     Field3D J_par;
     Field3D q_out;
     Field3D q_out_conv;
+    Field3D J;
     // Field3D debugvar, debugvar2;
 
     // Input Parameters
@@ -145,6 +146,8 @@ private:
     BoutReal delta;          ///< Parameter related to strength of thermal force and grad p terms
     BoutReal nu;          ///< Constant in front of resisitive terms, nu = C_s0^2 / v_A^2
     BoutReal eta_0;          ///< Constant in front of resistivity, eta_0 = t_0 * c^2 / (4.0 * pi * a_mid^2)
+    BoutReal hypervisc;          ///< Hyper-viscosity
+    BoutReal hyperres;          ///< Hyper-resistivity
     // BoutReal thermal_force_b0_factor; ///< b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)
     double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
     int phi_BC_width;         ///< Width of the dirichlet BC on phi (must be the same as that used for omega)

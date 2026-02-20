@@ -62,6 +62,9 @@ int Churn::rhs(BoutReal t)
         T = P; // Assume normalised n = 1 if density is not evolved
     }
 
+    // Calculate current 
+    J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+
     // Calculate resistivity 
     if (use_spitzer_resistivity)
     {
@@ -254,12 +257,19 @@ int Churn::rhs(BoutReal t)
         {
             ddt(psi) = 0.0;
         }
-        ddt(psi) += eta * (D2DX2(psi) + D2DY2(psi));
+        // Magnetic diffusivity / resistivity
+        ddt(psi) += eta * J;
         if (include_thermal_force_term)
         {
             // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
             thermal_force_term = 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
             ddt(psi) -= b0 * thermal_force_term;
+        }
+
+        // Magnetic hyperdiffusion / hyper-resistivity
+        if (hyperres > 0.0)
+        {
+            ddt(psi) += (hyperres / (D_0/pow(a_mid,4))) * (D4DX4(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
     }
     else 
@@ -282,6 +292,11 @@ int Churn::rhs(BoutReal t)
 
     // Vorticity diffusion (kinematic viscosity)
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
+    
+    // Vorticity hyperdiffusion / hyper-viscosity 
+    if (hypervisc > 0.0){
+        ddt(omega) += (hypervisc / (D_0/pow(a_mid,4))) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+    }
     
     // Curvature drive
     if (include_churn_drive_term)
