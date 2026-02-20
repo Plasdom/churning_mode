@@ -292,7 +292,7 @@ int Churn::rhs(BoutReal t)
 
     // Vorticity diffusion (kinematic viscosity)
     ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
-    
+
     // Vorticity hyperdiffusion / hyper-viscosity 
     if (hypervisc > 0.0){
         ddt(omega) += (hypervisc / (D_0/pow(a_mid,4))) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
@@ -321,11 +321,13 @@ int Churn::rhs(BoutReal t)
             // Using 3rd derivative stencils
             if (evolve_density)
             {
-                ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi))));
+                // ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi))));
+                ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J)));
             }
             else 
             {
-                ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+                // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+                ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
             }
         }
         else 
