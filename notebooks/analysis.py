@@ -291,8 +291,8 @@ def animate_contour_list(
     var_arrays = {}
     for j, v in enumerate(vars):
         var_arrays[v] = ds_plot[v].values[:, xmin:xmax, xmin:xmax]
-        ax[j].set_xlim((0, xvals.values.max()))
-        ax[j].set_ylim((0, yvals.values.max()))
+        # ax[j].set_xlim((0, xvals.values.max()))
+        # ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
         if vmin is None:
             vmin = var_arrays[v][0].min() - 0.05 * var_arrays[v][0].max()
@@ -373,6 +373,7 @@ def animate_vector(
     vmin: float = 0,
     vmax: float = 3,
     levels=200,
+    linecolour: str = "red",
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -390,7 +391,7 @@ def animate_vector(
     vec_x = ds[vec_var + "_x"]
     vec_y = ds[vec_var + "_y"]
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
-    scalar = ds["P"]
+    scalar = ds[scalar]
     lw_setting = linewidth
 
     # fig = plt.figure(figsize=(3.5, 3.5))
@@ -413,7 +414,7 @@ def animate_vector(
             scalar.isel(t=i).values.T,
             cmap="inferno",
             levels=levels,
-            extend="both",
+            # extend="both",
             vmin=vmin,
             vmax=vmax,
         )
@@ -440,7 +441,7 @@ def animate_vector(
             Y,
             vec_x.isel(t=i).values.T,
             vec_y.isel(t=i).values.T,
-            color="red",
+            color=linecolour,
             linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
@@ -485,8 +486,11 @@ def plot_vector(
     show_cbar: bool = False,
     show_sepx: bool = False,
     ax: Axes | None = None,
+    vmin: float = 0,
     vmax: float = 3,
     snull: bool = True,
+    linecolour: str = "red",
+    cbar_label: str = "$p/p_0$",
     **kwargs,
 ):
     """Plot vector field at a single timestep
@@ -507,9 +511,9 @@ def plot_vector(
     vec_y = ds[vec_var + "_y"]
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     if show_cbar:
-        scalar = ds["P"].clip(max=vmax)
+        scalar = ds[scalar].clip(max=vmax)
     else:
-        scalar = ds["P"]
+        scalar = ds[scalar]
 
     # Generate seed points
     num_seed_points = 500
@@ -526,10 +530,16 @@ def plot_vector(
     # ls = LightSource(azdeg=110, altdeg=10)
 
     contf = ax.contourf(
-        X, Y, scalar.isel(t=t).values.T, cmap="inferno", levels=500, vmax=vmax
+        X,
+        Y,
+        scalar.isel(t=t).values.T,
+        cmap="inferno",
+        levels=500,
+        vmax=vmax,
+        vmin=vmin,
     )
     if show_cbar:
-        fig.colorbar(contf, label="$p/p_0$")
+        fig.colorbar(contf, label=cbar_label)
     if show_sepx:
         x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(ds, timestep=t)
         ax.contour(
@@ -577,7 +587,7 @@ def plot_vector(
             Y,
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
-            color="red",
+            color=linecolour,
             linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
@@ -590,10 +600,11 @@ def plot_vector(
             Y,
             vec_x.isel(t=t).values.T,
             vec_y.isel(t=t).values.T,
-            color="red",
+            color=linecolour,
             linewidth=linewidth,
             # linewidth=0.25,
             integration_direction="both",
+            # arrowsize=linewidth,
             **kwargs,
         )
 
@@ -767,6 +778,7 @@ def plot_conservation(ds: xr.Dataset, relative: bool = True, include: str = "all
         ax.set_title(r"$E=M+K+\Pi$")
         ax.set_xlabel(r"$t\ [ms]$")
         ax.grid()
+        ax.legend(loc="upper right")
         fig.tight_layout()
 
     return ax

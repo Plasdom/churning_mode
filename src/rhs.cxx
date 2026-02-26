@@ -269,7 +269,7 @@ int Churn::rhs(BoutReal t)
         // Magnetic hyperdiffusion / hyper-resistivity
         if (hyperres > 0.0)
         {
-            ddt(psi) += (hyperres / (D_0/pow(a_mid,4))) * (D4DX4(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+            ddt(psi) += (hyperres / (pow(a_mid,6)/t_0)) * (D4DX4(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
     }
     else 
@@ -295,7 +295,7 @@ int Churn::rhs(BoutReal t)
 
     // Vorticity hyperdiffusion / hyper-viscosity 
     if (hypervisc > 0.0){
-        ddt(omega) += (hypervisc / (D_0/pow(a_mid,4))) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+        ddt(omega) += (hypervisc / (pow(a_mid,6)/t_0)) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
     }
     
     // Curvature drive
