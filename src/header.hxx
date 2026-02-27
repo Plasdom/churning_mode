@@ -91,7 +91,7 @@ private:
     Field3D q_out;
     Field3D q_out_conv;
     Field3D J;
-    // Field3D debugvar, debugvar2;
+    // Field3D debugvar1, debugvar2;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -175,6 +175,7 @@ private:
     bool electrostatic;             ///< Use electrostatic model
     bool use_spitzer_resistivity;   ///< Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.
     bool include_resistive_heating; ///< Include the (parallel) resistive heating term in the pressure equation
+    bool use_rotated_laplace_cur;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -227,6 +228,7 @@ private:
     Field3D D3D2YDX(const Field3D &f);
     Field3D D3D2XDY(const Field3D &f);
     Field3D rotated_laplacexy(const Field3D &f);
+    Field3D rotated_laplacexy2(const Field3D &f);
     Field3D D2DX2_DIFF(const Field3D &f, const Field3D &A);
     Field3D D2DY2_DIFF(const Field3D &f, const Field3D &A);
     Field3D grad_par_custom(const Field3D &u, const Vector3D &b);

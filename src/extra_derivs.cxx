@@ -150,6 +150,24 @@ Field3D Churn::rotated_laplacexy(const Field3D &f)
     return result;
 }
 
+Field3D Churn::rotated_laplacexy2(const Field3D &f)
+{
+    TRACE("rotated_laplacexy2");
+
+    Field3D result;
+
+    Coordinates *coord = mesh->getCoordinates();
+
+    result.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    {
+        result[i] = (1.0/(pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0))) * (f[i.xp().yp()] - 2.0*f[i] + f[i.xm().ym()]);
+        result[i] += (1.0/(pow(coord->dx[i], 2.0) + pow(coord->dy[i], 2.0))) * (f[i.xm().yp()] - 2.0*f[i] + f[i.xp().ym()]);
+    }
+
+    return result;
+}
+
 Field3D Churn::grad_par_custom(const Field3D &u, const Vector3D &b)
 {
     TRACE("grad_par");
@@ -195,6 +213,7 @@ Field3D Churn::grad_par_custom(const Field3D &u, const Vector3D &b)
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
         result[i] = 0.5 * (u_plus - u_minus) / ds;
+        // result[i] = 0.5 * (u_plus - u_minus) / ds_p;
     }
 
     return result;

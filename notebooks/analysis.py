@@ -102,6 +102,7 @@ def read_boutdata(
     )
     ds["rho"] = np.sqrt((ds["psi"] - 1.0) / (0.0 - 1.0))
     ds["u_mag"] = np.sqrt(ds["u_x"] ** 2 + ds["u_y"] ** 2)
+    ds["B_p"] = np.sqrt(ds["B_x"] ** 2 + ds["B_y"] ** 2)
 
     return ds
 

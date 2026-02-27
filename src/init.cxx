@@ -106,6 +106,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_resistive_heating = options["include_resistive_heating"]
                                    .doc("Include the (parallel) resistive heating term in the pressure equation.")
                                    .withDefault(false);
+    use_rotated_laplace_cur = options["use_rotated_laplace_cur"]
+                                   .doc("Use rotated Laplacian stencil for current calculation (J = del^2 psi).")
+                                   .withDefault(true);
 
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);

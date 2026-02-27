@@ -62,8 +62,12 @@ int Churn::rhs(BoutReal t)
         T = P; // Assume normalised n = 1 if density is not evolved
     }
 
-    // Calculate current 
-    J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    if (use_rotated_laplace_cur){
+        J = rotated_laplacexy(psi);
+    }
+    else {
+        J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    }
 
     // Calculate resistivity 
     if (use_spitzer_resistivity)
