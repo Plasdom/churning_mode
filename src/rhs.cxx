@@ -79,8 +79,7 @@ int Churn::rhs(BoutReal t)
         J = b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
         if (include_thermal_force_term)
         {
-            J += 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
-            // J.applyBoundary("dirichlet");
+            J -= 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
         }
     }
     else 
