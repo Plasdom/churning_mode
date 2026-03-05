@@ -212,7 +212,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
             {
                 SAVE_REPEAT(kappa_par);
             }
-            SAVE_REPEAT(q_par);
+            // SAVE_REPEAT(q_par);
         }
         // if ((chi_perp + D_x) > 0.0)
         if (use_classic_div_q_perp || use_gunter_div_q_perp)
@@ -360,13 +360,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B.x = 0.0;
     B.y = 0.0;
     B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
-
-    // Store initial P profile
-    if (evolve_density)
-    {
-        T_init = P / n;
-        SAVE_ONCE(T_init);
-    }
 
     return 0;
 }

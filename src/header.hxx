@@ -79,7 +79,6 @@ private:
     Field3D kappa_par, kappa_perp;
     Field3D B_mag, T;
     // Field3D div_q, div_q2;
-    Field3D T_init;
     Field3D chi_perp_eff;
     Field3D x_c, y_c;
     // Field2D q_in_yup;
