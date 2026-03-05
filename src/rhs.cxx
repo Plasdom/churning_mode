@@ -25,18 +25,26 @@ int Churn::rhs(BoutReal t)
     {
         //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model
         mesh->communicate(omega);
-        phi = mySolver.invert(omega, phi);
-        try
+        if(electrostatic)
         {
-            for (int i = 0; i < nits_inv_extra; i++)
-            {
-                phi = mySolver.invert(omega, phi);
-                mesh->communicate(phi);
-            }
+            phi = 0.0;
         }
-        catch (BoutException &e)
+        phi = mySolver.invert(omega, phi);
+        if (electrostatic)
         {
-        };
+            try
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    phi = mySolver.invert(omega, phi);
+                    mesh->communicate(phi);
+                }
+            }
+            catch (BoutException &e)
+            {
+            };
+        }
+
     }
     else
     {
