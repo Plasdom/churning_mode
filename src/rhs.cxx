@@ -62,13 +62,6 @@ int Churn::rhs(BoutReal t)
         T = P; // Assume normalised n = 1 if density is not evolved
     }
 
-    if (use_rotated_laplace_cur){
-        J = rotated_laplacexy(psi);
-    }
-    else {
-        J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    }
-
     // Calculate resistivity 
     if (use_spitzer_resistivity)
     {
@@ -80,6 +73,24 @@ int Churn::rhs(BoutReal t)
             eta[i] = 0.5 * 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
         }
         eta = eta * eta_0;
+    }
+
+    if (electrostatic){
+        J = b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
+        if (include_thermal_force_term)
+        {
+            J += 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
+            // J.applyBoundary("dirichlet");
+        }
+    }
+    else 
+    {
+        if (use_rotated_laplace_cur){
+            J = rotated_laplacexy(psi);
+        }
+        else {
+            J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        }
     }
 
     
@@ -320,61 +331,48 @@ int Churn::rhs(BoutReal t)
     // Line bending
     if (include_mag_restoring_term)
     {
-        if (electrostatic == false)
+        // Using 3rd derivative stencils
+        if (evolve_density)
         {
-            // Using 3rd derivative stencils
-            if (evolve_density)
-            {
-                // ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi))));
-                ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J)));
-            }
-            else 
-            {
-                // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
-                ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
-            }
+            // ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi))));
+            ddt(omega) += (1.0/n) * (b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J)));
         }
         else 
         {
-            // If not evolving psi equation
-            J_par = b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
-            if (include_thermal_force_term)
-            {
-                J_par += 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
-            }
-            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J_par) - DDX(J_par) * DDY(psi));
+            // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
         }
     }
     
     // Terms arising from extended Ohm's law (thermal force and parallel pressure gradient)
-    if (include_thermal_force_term)
-    {
-        // Diamagnetic convection of vorticity
-        lap_P = D2DX2(P, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
-        if (evolve_density)
-        {
-            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
-            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-            ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-        }
-        else 
-        {
-            ddt(omega) -= 0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-            ddt(omega) -= 0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-            ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-        }
+    // if (include_thermal_force_term)
+    // {
+    //     // Diamagnetic convection of vorticity
+    //     lap_P = D2DX2(P, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(P, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    //     if (evolve_density)
+    //     {
+    //         ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+    //         ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+    //         ddt(omega) -= (1.0/n) * (0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+    //     }
+    //     else 
+    //     {
+    //         ddt(omega) -= 0.5 * delta * b0 * (Laplace(DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+    //         ddt(omega) -= 0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+    //         ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+    //     }
 
-        // // Resistive contribution to vorticity convection
-        // lap_phi = D2DX2(phi) + D2DY2(phi);
-        // if (evolve_density)
-        // {
-        //     ddt(omega) -= (1.0 / n) * 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
-        // }
-        // else 
-        // {
-        //     ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
-        // }
-    }
+    //     // // Resistive contribution to vorticity convection
+    //     // lap_phi = D2DX2(phi) + D2DY2(phi);
+    //     // if (evolve_density)
+    //     // {
+    //     //     ddt(omega) -= (1.0 / n) * 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+    //     // }
+    //     // else 
+    //     // {
+    //     //     ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
+    //     // }
+    // }
 
     // Particle source injected with zero momentum
     if (evolve_density)

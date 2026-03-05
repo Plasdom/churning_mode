@@ -91,7 +91,7 @@ private:
     Field3D q_out;
     Field3D q_out_conv;
     Field3D J;
-    // Field3D debugvar1, debugvar2;
+    // Field3D debugvar;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
