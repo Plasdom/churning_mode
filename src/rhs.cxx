@@ -66,10 +66,21 @@ int Churn::rhs(BoutReal t)
     if (use_spitzer_resistivity)
     {
         BoutReal lambda_ei = 10.0;
-        BoutReal T_capped;
+        BoutReal T_capped, T_max_ev, T_min_ev;
+        if (electrostatic)
+        {
+            T_min_ev = 1.0;
+            T_max_ev = 50.0; // Required to relax the equations
+        }
+        else 
+        {
+            T_min_ev = 1.0;
+            T_max_ev = 5 * T_sepx;
+        }
+
         for (auto i: eta)
         {
-            T_capped = std::max(T[i]*T_sepx,1.0);
+            T_capped = std::min(std::max(T[i]*T_sepx,T_min_ev),T_max_ev);
             eta[i] = 0.5 * 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
         }
         eta = eta * eta_0;
@@ -261,7 +272,11 @@ int Churn::rhs(BoutReal t)
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
 
-    if (electrostatic == false)
+    if (electrostatic)
+    {
+        ddt(psi) = 0.0;
+    }
+    else 
     {
         if (include_advection)
         {
@@ -285,10 +300,6 @@ int Churn::rhs(BoutReal t)
         {
             ddt(psi) += (hyperres / (pow(a_mid,6)/t_0)) * (D4DX4(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
-    }
-    else 
-    {
-        ddt(psi) = 0.0;
     }
     
     // Vorticity evolution
