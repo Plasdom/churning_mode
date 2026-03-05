@@ -6,8 +6,8 @@
 
 # settings used by the core code
 
-nout = 50   # number of time-steps
-timestep = 100.0 # time between outputs [1/t_0 = a_mid/C_s0]
+nout = 10   # number of time-steps
+timestep = 1.0e-9 # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
 MYG = 2   
@@ -16,14 +16,14 @@ MYG = 2
 
 [mesh]
 
-nx = 128+4
-ny = 64
+nx = 32+4
+ny = 16
 nz = 1
 
 staggergrids = true
 
 domain_size = 1.0
-dx = domain_size / (nx-4)
+dx = domain_size/(nx-4)
 dy = dx * 1.7320508
 dz = dx
 
@@ -60,39 +60,40 @@ upwind = W3
 type=cvode
 rtol = 1e-5
 atol = 1e-10  # absolute tolerance
-mxstep=1e6
+mxstep=1e7
 
 [model]
 
 # Parameters
-D_m = 1.0e-2          # Magnetic diffusivity [m^2 s^-1]
-mu = 1.0e-3            # Kinematic viscosity [m^2 s^-1]
+D_m = 1.0e0          # Magnetic diffusivity [m^2 s^-1]
+mu = 0.0e1            # Kinematic viscosity [m^2 s^-1]
+hypervisc = 0.0e-8       # Hyper-viscosity [m^6 s^-1]
+hyperres = 0.0e-7        # Hyper-resistivity [m^6 s^-1]
 R_0 = 0.85           # Major radius [m]
 a_mid = 0.65         # Minor radius at midplane [m]
-n_sepx = 1.0e19     # Electron density at separatrix [m^-3]
+n_sepx = 5.0e19     # Electron density at separatrix [m^-3]
 T_sepx = 200        # Plasma temperature at separatrix [eV]
 B_t0 = 0.8            # Toroidal field strength [T]
 B_pmid = 0.3          # Poloidal field strength [T]
-T_down = 0.0         # Fixed downstream temperature [eV]
+T_down = 20.0         # Fixed downstream temperature [eV]
 P_core = 1.0       # Pressure at core boundary [P_0]
+psi_bndry_P_core_BC = 0.01
 Q_in = 2.0
-psi_bndry_P_core_BC = 0.0
-lambda_SOL_rho = 0.000001       # SOL width parameter in x direction at upstream boundary
-density_source = 0.0e20 # Volumetric density source [m^3/s]
+phi_constraint_prefactor = 1e4
 
 # Switches
 invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
-evolve_density = true
-include_churn_drive_term = false    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
-include_mag_restoring_term = false  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
-include_thermal_force_term = false   # Include the thermal force term in the psi equation
-include_advection = true            # Include advection terms
-fixed_T_down = true            # Use a constant value for P on downstream boundaries
+include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
+include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
+include_thermal_force_term= true
+include_advection = false            # Include advection terms
 fixed_Q_in = false
 fixed_P_core = false                  # Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)
 disable_qin_outside_core = true
-#TODO: Add temperature dependence conduction models
+use_spitzer_resistivity = false
+electrostatic = true
+use_rotated_laplace_cur = false
 
 # Select parallel thermal conduction model (first method set to true will be used)
 chi_par = 2.0e4
@@ -100,7 +101,7 @@ chi_par = 2.0e4
 use_classic_div_q_par = false     
 use_gunter_div_q_par = false       
 use_modified_stegmeir_div_q_par = true       
-use_linetrace_div_q_par = false    
+use_linetrace_div_q_par = false     
 T_dependent_q_par = false     
 
 # Select perpendicular thermal conduction model (first method set to true will be used)
@@ -122,10 +123,10 @@ bndry_all = none
 
 [P]
 
-nx = 128+4
-ny = 64
+nx = 32+4
+ny = 16
 domain_size = 1.0
-dx = domain_size /(nx-4)
+dx = domain_size/(nx-4)
 dy = dx * 1.7320508
 Lx = dx * (nx-4) 
 Ly = dy * ny
@@ -136,7 +137,7 @@ x_c = (x - 0.5) * Lx * a_mid
 y_c = (y/(2*pi) - 0.5) * Ly * a_mid
 
 # Arbitrary snowflake with rotation of core about origin (centred on midpoint between nulls)
-distance_factor = 1.0
+distance_factor = 0.01
 D = 0.025 * distance_factor                     # Separation between nulls
 theta = 1.38                # Angle of line connecting nulls (measured anticlockwise from x-axis)
 alpha = 0.0
@@ -149,20 +150,25 @@ psi_magx = [x_coord = 0, y_coord = 1]((distance_factor^3)*6.092e-06*initial_psi)
 psi_n = (psi-psi_magx)/(0-psi_magx)
 
 T_sepx = 200  
-T_down = 0.0
+T_down = 20.0
 P_down = T_down/T_sepx
 
 P_psi_n = 30*sqrt(-(psi_n-1)) + P_down
 
 function = where(-(psi_n-1), P_psi_n, P_down)
 
+bndry_yup = none
+bndry_ydown = dirichlet(0.0)
+bndry_xin = dirichlet(0.0)
+bndry_xout = dirichlet(0.0)
+
 [psi]
 
 # Define parameters and functions for psi initialisation
-nx = 128+4
-ny = 64
+nx = 32+4
+ny = 16
 domain_size = 1.0
-dx = domain_size /(nx-4)
+dx = domain_size/(nx-4)
 dy = dx * 1.7320508
 Lx = dx * (nx-4) 
 Ly = dy * ny
@@ -173,7 +179,7 @@ x_c = (x - 0.5) * Lx * a_mid
 y_c = (y/(2*pi) - 0.5) * Ly * a_mid
 
 # Arbitrary snowflake with rotation of core about origin (centred on midpoint between nulls)
-distance_factor = 1.0
+distance_factor = 0.01
 D = 0.025 * distance_factor                     # Separation between nulls
 theta = 1.38                # Angle of line connecting nulls (measured anticlockwise from x-axis)
 alpha = 0.0
@@ -182,14 +188,18 @@ x_offset = (x_c + 0.5*D*cos(theta)) * cos(alpha) - (y_c - 0.5*D*sin(theta)) * si
 y_offset = (x_c + 0.5*D*cos(theta)) * sin(alpha) + (y_c - 0.5*D*sin(theta)) * cos(alpha)
 function = [x_coord = x_offset, y_coord = y_offset]((distance_factor^3)*6.092e-06*initial_psi)
 scale = 1 / (R_0 * a_mid * B_pmid_EFIT)
+bndry_all = none
 
 [omega]
 function = 0 # Normalised
+bndry_all = dirichlet(0)
 
 [phi]
 function = 0 # Normalised
 
-[n]
-bndry_all = neumann
-# bndry_all = dirichlet(0)
-function = 1 # Normalised
+bndry_all = dirichlet(0)
+
+[phi_es]
+function = 0 # Normalised
+
+bndry_all = dirichlet(0)
