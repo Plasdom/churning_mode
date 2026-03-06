@@ -90,6 +90,7 @@ private:
     Field3D q_out;
     Field3D q_out_conv;
     Field3D J;
+    // Field3D phi_es;
     // Field3D debugvar;
 
     // Input Parameters

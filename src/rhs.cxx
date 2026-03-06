@@ -51,6 +51,12 @@ int Churn::rhs(BoutReal t)
         //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
         mesh->communicate(omega, phi);
         ddt(phi) = phi_constraint_prefactor * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega);
+        
+        // // Avoid solving the vorticity equation
+        // Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
+        // ddt(phi) = 1e0*(b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag) - b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag)) - curv_drive);
+        // // Field3D lap_phi = D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        // // ddt(phi) -= 1e0*(DDX(phi)*DDY(lap_phi) - DDX(lap_phi)*DDY(phi));
     }
     mesh->communicate(phi);
 
@@ -68,16 +74,8 @@ int Churn::rhs(BoutReal t)
     {
         BoutReal lambda_ei = 10.0;
         BoutReal T_capped, T_max_ev, T_min_ev;
-        if (electrostatic)
-        {
-            T_min_ev = 1.0;
-            T_max_ev = 50.0; // Required to relax the equations
-        }
-        else 
-        {
-            T_min_ev = 1.0;
-            T_max_ev = 5 * T_sepx;
-        }
+        T_min_ev = 1.0;
+        T_max_ev = 100.0; // Required to relax the equations
 
         for (auto i: eta)
         {
@@ -88,7 +86,7 @@ int Churn::rhs(BoutReal t)
     }
 
     if (electrostatic){
-        J = b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
+        J = -b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
         if (include_thermal_force_term)
         {
             J += 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
@@ -264,11 +262,11 @@ int Churn::rhs(BoutReal t)
         // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
         if (electrostatic)
         {
-            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
+            ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag) - b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag));
         }
         else 
         {
-            ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag) - b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag));
+            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
         }
     }
 

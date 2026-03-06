@@ -151,6 +151,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     SAVE_REPEAT(J);
 
+    // SOLVE_FOR(phi_es);
+    // SAVE_REPEAT(phi_es);
+
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
     if (invert_laplace)
