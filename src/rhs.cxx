@@ -262,7 +262,11 @@ int Churn::rhs(BoutReal t)
         // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
         if (electrostatic)
         {
-            ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag) - b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag));
+            ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag));
+            if (include_thermal_force_term)
+            {
+                ddt(omega) += -b0 * (2.0 / (beta_p)) * (- b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag));
+            }
         }
         else 
         {
