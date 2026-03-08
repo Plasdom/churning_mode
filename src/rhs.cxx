@@ -50,7 +50,7 @@ int Churn::rhs(BoutReal t)
     {
         //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
         mesh->communicate(omega, phi);
-        ddt(phi) = phi_constraint_prefactor * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - omega);
+        ddt(phi) = (phi_constraint_lambda_1/D_0) * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))/phi_constraint_lambda_2 - omega);
         
         // // Avoid solving the vorticity equation
         // Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
@@ -61,7 +61,7 @@ int Churn::rhs(BoutReal t)
     mesh->communicate(phi);
 
     // Calculate velocity
-    u = b0 * cross(e_z, Grad(phi));
+    u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
     if (phi_BC_width == 0)
     {
         u.applyBoundary("dirichlet");
@@ -75,7 +75,7 @@ int Churn::rhs(BoutReal t)
         BoutReal lambda_ei = 10.0;
         BoutReal T_capped, T_max_ev, T_min_ev;
         T_min_ev = 1.0;
-        T_max_ev = 100.0; // Required to relax the equations
+        T_max_ev = 1.0e3; // Required to relax the equations
 
         for (auto i: eta)
         {
@@ -264,11 +264,13 @@ int Churn::rhs(BoutReal t)
         {
             if (include_thermal_force_term)
             {
-                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi - 1.71 * delta * P, 1/eta, B/B_mag));
+                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
+                // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
             }
             else 
             {
-                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag));
+                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
+                // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
             }
         }
         else 

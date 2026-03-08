@@ -7,7 +7,7 @@
 # settings used by the core code
 
 nout = 10   # number of time-steps
-timestep = 1.0e-9 # time between outputs [1/t_0 = a_mid/C_s0]
+timestep = 5.0e-1 # time between outputs [1/t_0 = a_mid/C_s0]
 
 MXG = 2                  
 MYG = 2   
@@ -79,15 +79,16 @@ T_down = 20.0         # Fixed downstream temperature [eV]
 P_core = 1.0       # Pressure at core boundary [P_0]
 psi_bndry_P_core_BC = 0.01
 Q_in = 2.0
-phi_constraint_prefactor = 1e4
+phi_constraint_lambda_1 = 1e7 # [m^2 s^-1] Pre-factor in front of RHS of ddt(phi) = del^2(phi) - omega
+phi_constraint_lambda_2 = 1e2 # Relaxation parameter (see Gui et al. NF 58 (2018))
 
 # Switches
-invert_laplace = true        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
+invert_laplace = false        # Use Laplace inversion routine to solve phi (if false, will instead solve via a constraint)
 evolve_pressure = true              # Evolve plasma pressure
 include_churn_drive_term = true    # Include the churn driving term in the vorticity equation (2 * epsilon * dP/dy)
 include_mag_restoring_term = true  # Include the poloidal magnetic field restoring term in the vorticity equation (2 / beta_p * {psi, Del^2 psi})
 include_thermal_force_term= true
-include_advection = false            # Include advection terms
+include_advection = true            # Include advection terms
 fixed_Q_in = false
 fixed_P_core = false                  # Fix upstream boundary condition in the core (i.e. within the separatrix defined by psi)
 disable_qin_outside_core = true
@@ -195,11 +196,13 @@ function = 0 # Normalised
 bndry_all = dirichlet(0)
 
 [phi]
-function = 0 # Normalised
+# function = 0 # Normalised
 
-bndry_all = dirichlet(0)
+bndry_all = none
+# bndry_all = free_o3
+# bndry_all = dirichlet
 
-[phi_es]
-function = 0 # Normalised
+# [phi_es]
+# function = 0 # Normalised
 
-bndry_all = dirichlet(0)
+# bndry_all = dirichlet(0)
