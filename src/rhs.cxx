@@ -75,7 +75,7 @@ int Churn::rhs(BoutReal t)
         BoutReal lambda_ei = 10.0;
         BoutReal T_capped, T_max_ev, T_min_ev;
         T_min_ev = 1.0;
-        T_max_ev = 1.0e3; // Required to relax the equations
+        T_max_ev = 400; // Required to relax the equations
 
         for (auto i: eta)
         {
