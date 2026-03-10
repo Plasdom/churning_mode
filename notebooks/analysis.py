@@ -810,7 +810,7 @@ def animate_q_targets(
     plot_every: int = 1,
     normalise: bool = False,
     savepath: str | None = None,
-    snull: bool = True,
+    snull: bool = False,
 ):
     """Animate q_tot to each diverotr leg (assuming snowflake config)
 
@@ -1375,6 +1375,9 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
         q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
         q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
         q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
+
+    q1[:,-1] = 0
+    q4[:,-1] = 0
 
     return qin, q1, q2, q3, q4
 

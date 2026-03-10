@@ -95,7 +95,7 @@ void Churn::dPdy0_BC()
     return;
 }
 
-void Churn::parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_core_only)
+void Churn::parallel_neumann_yup(Field3D u, const Vector3D &b, const bool &apply_outside_core_only)
 {
     // TODO: Use BOUT++ dirichlet BC here instead of setting it manually (may need to unset ddt(P)=0)
     TRACE("parallel_neumann_yup");
@@ -156,7 +156,7 @@ void Churn::parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_co
                         }
 
                         // Set the boundary value
-                        P(ix, iy, iz) = u_plus;
+                        u(ix, iy, iz) = u_plus;
                     }
                 }
             }

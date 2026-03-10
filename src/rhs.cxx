@@ -21,6 +21,10 @@ int Churn::rhs(BoutReal t)
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
+    if (phi_parallel_neumann_yup)
+    {
+        parallel_neumann_yup(phi, B/B_mag);
+    }
     if (invert_laplace)
     {
         //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model

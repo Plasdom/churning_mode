@@ -177,6 +177,7 @@ private:
     bool use_spitzer_resistivity;   ///< Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.
     bool include_resistive_heating; ///< Include the (parallel) resistive heating term in the pressure equation
     bool use_rotated_laplace_cur;
+    bool phi_parallel_neumann_yup; ///< Use a parallel neumann boundary condition on phi on the upper y boundary
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -218,7 +219,7 @@ private:
     void dPdy0_BC();
     void dPdy0_BC_outside_core();
     void apply_P_core_density_source();
-    void parallel_neumann_yup(const Vector3D &b, const bool &apply_outside_core_only = false);
+    void parallel_neumann_yup(Field3D u, const Vector3D &b, const bool &apply_outside_core_only = false);
     void zero_flow_BC();
     // Field3D test_par_extrap_P_up_BC();
     // void par_extrap_P_up_BC();
