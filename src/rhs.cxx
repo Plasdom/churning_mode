@@ -79,7 +79,7 @@ int Churn::rhs(BoutReal t)
         BoutReal lambda_ei = 10.0;
         BoutReal T_capped, T_max_ev, T_min_ev;
         T_min_ev = 1.0;
-        T_max_ev = 400; // Required to relax the equations
+        T_max_ev = 1.0e4; // Required to relax the equations
 
         for (auto i: eta)
         {
@@ -99,10 +99,10 @@ int Churn::rhs(BoutReal t)
     else 
     {
         if (use_rotated_laplace_cur){
-            J = rotated_laplacexy(psi);
+            J = -rotated_laplacexy(psi);
         }
         else {
-            J = D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+            J = -(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
         }
     }
 
@@ -214,12 +214,12 @@ int Churn::rhs(BoutReal t)
             ddt(psi) = 0.0;
         }
         // Magnetic diffusivity / resistivity
-        ddt(psi) += eta * J;
+        ddt(psi) -= eta * J;
         if (include_thermal_force_term)
         {
             // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
-            thermal_force_term = 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
-            ddt(psi) -= b0 * thermal_force_term;
+            thermal_force_term = -1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+            ddt(psi) += b0 * thermal_force_term;
         }
 
         // Magnetic hyperdiffusion / hyper-resistivity
@@ -276,7 +276,7 @@ int Churn::rhs(BoutReal t)
         }
         else 
         {
-            ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
+            ddt(omega) += -b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
         }
     }
 
