@@ -174,11 +174,8 @@ int Churn::rhs(BoutReal t)
         // Add resistive heating terms 
         if (include_resistive_heating)
         {
-            // Parallel contribution
-            ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(D2DX2(psi) + D2DY2(psi),2.0);
-            
-            // // Perpendicular contribution
-            // ddt(P) += (2.0/3.0) * (5.0 * eta * nu) * (pow(DDX(P),2.0) + pow(DDY(P),2.0));
+            ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
+            ddt(P) -= b0 * (2.0/3.0) * (4.0 * 0.71 * delta / beta_p) * J * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
         }
 
         // // Add resistive convection term 
