@@ -42,7 +42,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     // thermal_force_b0_factor = options["thermal_force_b0_factor"].doc("b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)").withDefault(1.0);
     phi_constraint_lambda_1 = options["phi_constraint_lambda_1"].doc("[m^2 s^-1] Pre-factor in front of RHS of ddt(phi) = del^2(phi) - omega").withDefault(1.0e6);
     phi_constraint_lambda_2 = options["phi_constraint_lambda_2"].doc("Relaxation parameter (see Gui et al. NF 58 (2018))").withDefault(1.0e0);
-    phi_parallel_neumann_yup = options["phi_parallel_neumann_yup"].doc("Use a parallel neumann boundary condition on phi on the upper y boundary").withDefault(false);
+    zero_Jpar_yup = options["zero_Jpar_yup"].doc("Apply a zero current BC on upper y boundary (electrostatic mode only)").withDefault(false);
     if (invert_laplace)
     {
         phi_constraint_lambda_2 = 1.0;

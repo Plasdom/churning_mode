@@ -177,7 +177,7 @@ private:
     bool use_spitzer_resistivity;   ///< Use Spitzer values for resistivity as opposed to spatially constant value. If false, D_m will be used.
     bool include_resistive_heating; ///< Include the (parallel) resistive heating term in the pressure equation
     bool use_rotated_laplace_cur;
-    bool phi_parallel_neumann_yup; ///< Use a parallel neumann boundary condition on phi on the upper y boundary
+    bool zero_Jpar_yup; ///< Use a zero current boundary condition on upper y boundary in vorticity equation (electrostatic mode only)
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
@@ -185,10 +185,10 @@ private:
     const int nits_inv_extra = 0;
 
     // Methods related to difference heat conduction models
-    Field3D div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary = true);
+    Field3D div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
     TwoIntersects get_intersects(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &P, const double &bx, const double &by);
     CellIntersect get_next_intersect(const double &xlo, const double &xhi, const double &ylo, const double &yhi, const CellIntersect &prev_intersect, const double &bx, const double &by);
     Ind3D increment_cell(const Ind3D &i, const Ind3D &i_prev, const CellIntersect &P_next, const double &dx, const double &dy);
@@ -196,16 +196,16 @@ private:
     InterpolationPoint trace_field_lines(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_x_inc, const int &max_y_inc, const int &max_steps, const bool &plus);
     InterpolationPoint trace_field_lines_2(const Ind3D &i, const Vector3D &b, const BoutReal &dx, const BoutReal &dy, const int &max_steps, const bool &plus);
     ClosestPoint get_closest_p(const CellIntersect &P, const Point &P0, const double &bx, const double &by);
-    Field3D div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_par_linetrace2(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_plus_T(const Field3D &u, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D Q_minus_T(const Field3D &u, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
-    Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true);
+    Field3D div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D div_q_par_linetrace2(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D Q_plus(const Field3D &u, const BoutReal &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D Q_plus_T(const Field3D &u, const Vector3D &b);
+    Field3D Q_minus(const Field3D &u, const BoutReal &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
+    Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+    Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
     Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low = 10.0, const BoutReal &Te_limit_ev_high = 500.0);
     Field3D calculate_q_out(const Field3D &T, const Field3D &kappa_par, const Field3D &kappa_perp, const Vector3D &b);
     Field3D calculate_q_out_conv(const Field3D &P, const Vector3D &u);

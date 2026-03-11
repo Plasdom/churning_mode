@@ -21,10 +21,6 @@ int Churn::rhs(BoutReal t)
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
-    if (phi_parallel_neumann_yup)
-    {
-        parallel_neumann_yup(phi, B/B_mag);
-    }
     if (invert_laplace)
     {
         //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model
@@ -90,10 +86,27 @@ int Churn::rhs(BoutReal t)
     }
 
     if (electrostatic){
-        J = -b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
         if (include_thermal_force_term)
         {
-            J += 1.71 * delta * b0 * (DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL")) / eta;
+            if (zero_Jpar_yup)
+            {
+                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12));
+            }
+            else 
+            {
+                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, false));
+            }
+        }
+        else 
+        {
+            if (zero_Jpar_yup)
+            {
+                J = -b0 * 0.5 * (Q_plus(phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(phi, 1/eta, B/B_mag, true, 1.0e12));
+            }
+            else 
+            {
+                J = -b0 * 0.5 * (Q_plus(phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(phi, 1/eta, B/B_mag, false));
+            }
         }
     }
     else 
@@ -130,22 +143,22 @@ int Churn::rhs(BoutReal t)
             // Calculate div_q_par term using specified method
             if (use_classic_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_classic(T, kappa_par, B / B_mag, disable_qin_outside_core, psi_bndry_P_core_BC);
                 q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2);
 
             }
             else if (use_gunter_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, kappa_par, B / B_mag);
+                ddt(P) += (2.0 / 3.0) * div_q_par_gunter(T, kappa_par, B / B_mag, disable_qin_outside_core, psi_bndry_P_core_BC);
                 q_par = -kappa_par * B * (B * Grad(T)) / pow(B_mag, 2); // TODO: This should be calculated using Gunter stencil really
             }
             else if (use_modified_stegmeir_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, kappa_par, B / B_mag); // q_par is calculated and set in in div_q_par_modified_stegmeir()
+                ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, kappa_par, B / B_mag, disable_qin_outside_core, psi_bndry_P_core_BC); // q_par is calculated and set in in div_q_par_modified_stegmeir()
             }
             else if (use_linetrace_div_q_par)
             {
-                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag); // q_par is calculated and set in in div_q_par_linetrace() 
+                ddt(P) += (2.0 / 3.0) * div_q_par_linetrace(T, kappa_par, B / B_mag, disable_qin_outside_core, psi_bndry_P_core_BC); // q_par is calculated and set in in div_q_par_linetrace() 
             }
 
             // Find the heat flux across the boundaries
@@ -265,12 +278,24 @@ int Churn::rhs(BoutReal t)
         {
             if (include_thermal_force_term)
             {
-                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
+                if (zero_Jpar_yup){
+                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, true, 1.0e12));
+                }
+                else {
+                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
+                }
                 // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
             }
             else 
             {
-                ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
+                if (parallel_neumann_yup)
+                {
+                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, true, 1.0e12));
+                }
+                else 
+                {
+                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
+                }
                 // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
             }
         }

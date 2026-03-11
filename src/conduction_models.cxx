@@ -1,6 +1,6 @@
 #include "header.hxx"
 
-Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Classic stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_classic");
@@ -44,7 +44,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
                 }
                 else if (disable_qin_outside_core)
                 {
-                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         A_plus_half = 0.0;
                     }
@@ -78,7 +78,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
                 }
                 else if (disable_qin_outside_core)
                 {
-                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
                         ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
@@ -111,7 +111,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
                 }
                 else if (disable_qin_outside_core)
                 {
-                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         ddx_plus = 0.0;
                     }
@@ -125,7 +125,7 @@ Field3D Churn::div_q_par_classic(const Field3D &T, const Field3D &K_par, const V
     return result;
 }
 
-Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Classic stencil for perpendicular heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_perp_classic");
@@ -172,7 +172,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
                 }
                 else if (disable_qin_outside_core || fixed_P_core)
                 {
-                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         A_plus_half = 0.0;
                     }
@@ -203,7 +203,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     //         }
     //         else if (disable_qin_outside_core || fixed_P_core)
     //         {
-    //             if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+    //             if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
     //             {
     //                 ddy_plus = (1.0 / (coord->dy[i])) * (T[i.xp()] - T[i.xp().ym()]);
     //                 ddy_minus = (1.0 / (coord->dy[i])) * (T[i.xm()] - T[i.xm().ym()]);
@@ -233,7 +233,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     //         }
     //         else if (disable_qin_outside_core || fixed_P_core)
     //         {
-    //             if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+    //             if ((mesh->getGlobalYIndex(i.y()) >= mesh->GlobalNy - ngcy_tot - 1) && psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
     //             {
     //                 ddx_plus = 0.0;
     //             }
@@ -246,7 +246,7 @@ Field3D Churn::div_q_perp_classic(const Field3D &T, const Field3D &K_perp, const
     return result;
 }
 
-Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Gunter stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_gunter");
@@ -297,7 +297,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
         {
             for (int i = 0; i < mesh->LocalNx; i++)
             {
-                if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
+                if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_core_bndry)
                 {
                     q_parx_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
                     q_pary_corners(i, mesh->LocalNy - ngcy_tot, 0) = 0.0;
@@ -317,7 +317,7 @@ Field3D Churn::div_q_par_gunter(const Field3D &T, const Field3D &K_par, const Ve
     return result;
 }
 
-Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Gunter stencil for perpendicular heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_perp_gunter");
@@ -373,7 +373,7 @@ Field3D Churn::div_q_perp_gunter(const Field3D &T, const Field3D &K_perp, const 
             int k = 0;
             for (int i = 0; i < mesh->LocalNx; i++)
             {
-                if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_bndry_P_core_BC)
+                if (mesh->lastY(i) && psi(i, mesh->LocalNy - ngcy_tot, 0) < psi_core_bndry)
                 {
                     for (int j = mesh->LocalNy - ngcy_tot; j < mesh->LocalNy; j++)
                     {
@@ -914,7 +914,7 @@ ClosestPoint Churn::get_closest_p(const CellIntersect &P, const Point &P0, const
     return result;
 }
 
-Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     TRACE("div_q_par_linetrace");
 
@@ -986,7 +986,7 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
                 }
                 else if (disable_qin_outside_core)
                 {
-                    if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                    if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry))
                     {
                         q_plus[i] = 0.0;
                     }
@@ -1037,7 +1037,7 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
                 }
                 else if (disable_qin_outside_core)
                 {
-                    if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC))
+                    if ((mesh->getGlobalYIndex(i_offset.y() + 1) > mesh->GlobalNy - ngcy_tot - 1) && (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry))
                     {
                         q_minus[i] = 0.0;
                     }
@@ -1108,7 +1108,7 @@ Field3D Churn::div_q_par_linetrace(const Field3D &u, const Field3D &K_par, const
     return result;
 }
 
-Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     TRACE("Q_plus");
 
@@ -1181,7 +1181,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b,
                 else if (disable_qin_outside_core || fixed_P_core)
                 {
                     // Prevent heat crossing the upstream boundary outside the 'core'
-                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                         {
@@ -1212,7 +1212,7 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b,
     return result;
 }
 
-Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b)
 {
     TRACE("Q_plus_T");
 
@@ -1268,7 +1268,7 @@ Field3D Churn::Q_plus_T(const Field3D &u, const Vector3D &b, const bool &apply_c
     return result;
 }
 
-Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     TRACE("Q_minus");
 
@@ -1341,7 +1341,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
                 else if (disable_qin_outside_core || fixed_P_core)
                 {
                     // Prevent heat crossing the upstream boundary outside the 'core'
-                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_bndry_P_core_BC)
+                    if (psi(i.x(), mesh->LocalNy - ngcy_tot, i.z()) < psi_core_bndry)
                     {
                         if (i.y() == mesh->LocalNy - ngcy_tot - 1)
                         {
@@ -1372,7 +1372,7 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
     return result;
 }
 
-Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b)
 {
     TRACE("Q_minus_T");
 
@@ -1428,7 +1428,7 @@ Field3D Churn::Q_minus_T(const Field3D &u, const Vector3D &b, const bool &apply_
     return result;
 }
 
-Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
@@ -1437,8 +1437,8 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
     Field3D ds;
     BoutReal dz;
 
-    q_par_plus = Q_plus(T, K_par, b);
-    q_par_minus = Q_minus(T, K_par, b);
+    q_par_plus = Q_plus(T, K_par, b, apply_core_boundary);
+    q_par_minus = Q_minus(T, K_par, b, apply_core_boundary);
     q_par = -0.5 * (q_par_plus + q_par_minus) * b;
     // q_par = -q_par_plus * b;
     result = -0.5 * (Q_plus_T(q_par_plus, b) + Q_minus_T(q_par_minus, b));
@@ -1448,7 +1448,7 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
     return result;
 }
 
-Field3D Churn::div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary)
+Field3D Churn::div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
 {
     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
