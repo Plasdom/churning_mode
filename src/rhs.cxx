@@ -288,7 +288,7 @@ int Churn::rhs(BoutReal t)
             }
             else 
             {
-                if (parallel_neumann_yup)
+                if (zero_Jpar_yup)
                 {
                     ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, true, 1.0e12));
                 }
