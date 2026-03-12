@@ -43,10 +43,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     phi_constraint_lambda_1 = options["phi_constraint_lambda_1"].doc("[m^2 s^-1] Pre-factor in front of RHS of ddt(phi) = del^2(phi) - omega").withDefault(1.0e6);
     phi_constraint_lambda_2 = options["phi_constraint_lambda_2"].doc("Relaxation parameter (see Gui et al. NF 58 (2018))").withDefault(1.0e0);
     zero_Jpar_yup = options["zero_Jpar_yup"].doc("Apply a zero current BC on upper y boundary (electrostatic mode only)").withDefault(false);
-    if (invert_laplace)
-    {
-        phi_constraint_lambda_2 = 1.0;
-    }
 
     // Model option switches
     evolve_pressure = options["evolve_pressure"]
@@ -116,6 +112,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
                                    .doc("Use rotated Laplacian stencil for current calculation (J = del^2 psi).")
                                    .withDefault(true);
 
+    if (invert_laplace)
+    {
+        phi_constraint_lambda_2 = 1.0;
+    }
     // Constants
     m_i = options["m_i"].withDefault(2 * 1.667e-27);
     e = 1.602e-19;
@@ -366,9 +366,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
 
     // Initialise B field
-    B.x = 0.0;
-    B.y = 0.0;
+    B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+    B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
+    B_mag = abs(B);
 
     return 0;
 }
