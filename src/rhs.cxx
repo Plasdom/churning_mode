@@ -8,9 +8,13 @@ int Churn::rhs(BoutReal t)
         mesh->communicate(n);
     }
     // // Calculate B
-    B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-    B_mag = abs(B);
+    if (!electrostatic)
+    {
+        B.x = -(1.0 / (1.0 + x_c * epsilon)) * DDY(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
+        B_mag = abs(B);
+    }
+    mesh->communicate(B,B_mag,eta);
 
     // Apply upstream P boundary condition
     //TODO: Check switch logic here, what happens if more than one of these enabled?
@@ -21,43 +25,62 @@ int Churn::rhs(BoutReal t)
 
     // Solve phi
     ////////////////////////////////////////////////////////////////////////////
-    if (invert_laplace)
+    if (evolve_vorticity)
     {
-        //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model
-        mesh->communicate(omega);
-        if(electrostatic)
+        // Solve potential by inverting vort = lap(phi)
+        if (invert_laplace)
         {
-            phi = 0.0;
-        }
-        phi = mySolver.invert(omega, phi);
-        if (electrostatic)
-        {
-            try
+            //TODO: Work out why we can't use mySolver.invert(omega - delta*lap_P) here if using extended model
+            mesh->communicate(omega);
+            if(electrostatic)
             {
-                for (int i = 0; i < 3; i++)
-                {
-                    phi = mySolver.invert(omega, phi);
-                    mesh->communicate(phi);
-                }
+                phi = 0.0;
             }
-            catch (BoutException &e)
+            phi = mySolver.invert(omega, phi);
+            if (electrostatic)
             {
-            };
-        }
+                try
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        phi = mySolver.invert(omega, phi);
+                        mesh->communicate(phi);
+                    }
+                }
+                catch (BoutException &e)
+                {
+                };
+            }
 
+        }
+        else
+        {
+            //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
+            mesh->communicate(omega, phi);
+            ddt(phi) = (phi_constraint_lambda_1/D_0) * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))/phi_constraint_lambda_2 - omega);
+            
+        }
     }
-    else
+    else 
     {
-        //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
-        mesh->communicate(omega, phi);
-        ddt(phi) = (phi_constraint_lambda_1/D_0) * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))/phi_constraint_lambda_2 - omega);
-        
-        // // Avoid solving the vorticity equation
-        // Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
-        // ddt(phi) = 1e0*(b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi, 1/eta, B/B_mag) - b0 * 1.71 * delta * div_q_par_modified_stegmeir(P, 1/eta, B/B_mag)) - curv_drive);
-        // // Field3D lap_phi = D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL");
-        // // ddt(phi) -= 1e0*(DDX(phi)*DDY(lap_phi) - DDX(lap_phi)*DDY(phi));
+        // Solve potential directly
+        Field3D phi_rhs = 1.71 * delta * div_q_par_modified_stegmeir_efficient2(P, 1.0, B/B_mag, mesh->getCoordinates()->dx, mesh->getCoordinates()->dy, false);
+        phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+        phi_rhs.applyBoundary("dirichlet(0)");
+        phi = mySolver2.invert(phi_rhs, phi);
+        try
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                phi = mySolver2.invert(phi_rhs, phi);
+                mesh->communicate(phi);
+            }
+        }
+        catch (BoutException &e)
+        {
+        };
     }
+    // phi.applyBoundary("dirichlet");
     mesh->communicate(phi);
 
     // Calculate velocity
@@ -208,6 +231,11 @@ int Churn::rhs(BoutReal t)
         }
 
     }
+    else 
+    {
+        ddt(P) = 0.0;
+    }
+    // ddt(P) = -V_dot_Grad(u, P); 
 
     // Psi evolution
     /////////////////////////////////////////////////////////////////////////////
@@ -271,38 +299,45 @@ int Churn::rhs(BoutReal t)
     }
     
     // Line bending
-    if (include_mag_restoring_term)
+    if (evolve_vorticity)
     {
-        // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
-        if (electrostatic)
+        if (include_mag_restoring_term)
         {
-            if (include_thermal_force_term)
+            // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
+            if (electrostatic)
             {
-                if (zero_Jpar_yup){
-                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, true, 1.0e12));
-                }
-                else {
-                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
-                }
-                // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
-            }
-            else 
-            {
-                if (zero_Jpar_yup)
+                if (include_thermal_force_term)
                 {
-                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, true, 1.0e12));
+                    if (zero_Jpar_yup){
+                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, true, 1.0e12));
+                    }
+                    else {
+                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
+                    }
+                    // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
                 }
                 else 
                 {
-                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
+                    if (zero_Jpar_yup)
+                    {
+                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, true, 1.0e12));
+                    }
+                    else 
+                    {
+                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
+                    }
+                    // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
                 }
-                // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
+            }
+            else 
+            {
+                ddt(omega) += -b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
             }
         }
-        else 
-        {
-            ddt(omega) += -b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
-        }
+    }
+    else 
+    {
+        ddt(omega) = 0.0;
     }
 
     // // Diamagnetic convection of vorticity
@@ -318,4 +353,13 @@ int Churn::rhs(BoutReal t)
         // ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
     // }
     return 0;
+}
+
+int Churn::precon_phi(BoutReal UNUSED(t), BoutReal UNUSED(cj), BoutReal UNUSED(delta)) 
+{
+  // Not preconditioning U or Apar equation
+
+  ddt(phi) = mySolver.invert(omega, phi);
+
+  return 0;
 }

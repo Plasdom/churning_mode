@@ -111,6 +111,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     use_rotated_laplace_cur = options["use_rotated_laplace_cur"]
                                    .doc("Use rotated Laplacian stencil for current calculation (J = del^2 psi).")
                                    .withDefault(true);
+    evolve_vorticity = options["evolve_vorticity"]
+                                   .doc("Evolve vorticity equation. If false, then invert potential equation directly.")
+                                   .withDefault(true);
 
     if (invert_laplace)
     {
@@ -182,13 +185,11 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         if (evolve_density)
         {
             SOLVE_FOR(P, psi, omega, n);
-            // SOLVE_FOR(P, omega, n);
             SAVE_REPEAT(n);
         }
         else 
         {
             SOLVE_FOR(P, psi, omega);
-            // SOLVE_FOR(P, omega);
             Options::root()["n"].setConditionallyUsed();
         }
         SAVE_REPEAT(u, phi, B);
@@ -200,13 +201,12 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         if (evolve_density)
         {
             SOLVE_FOR(P, psi, omega, phi, n);
-            // SOLVE_FOR(P, omega, phi, n);
             SAVE_REPEAT(n);
         }
         else 
         {
             SOLVE_FOR(P, psi, omega, phi);
-            // SOLVE_FOR(P, omega, phi);
+            // setPrecon(&Churn::precon_phi);
             Options::root()["n"].setConditionallyUsed();
         }
         SAVE_REPEAT(u, B);
@@ -233,6 +233,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     }
     SAVE_REPEAT(q_par);
 
+    // phi2 = 0.0;
+    // SAVE_REPEAT(phi2);
 
     // if (fixed_Q_in)
     // {
@@ -324,6 +326,10 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     coord->g12 = 0.0;
     coord->g13 = 0.0;
     coord->g23 = 0.0;
+    // coord->g23 = 1.0;
+    // coord->g_23 = 1.0;
+    // coord->g_22 = 1.0;
+    // coord->J = 1.0;
 
     // BoutReal x_0, y_0;
     // x_0 = (mesh->GlobalNx / 2) * coord->dx(0, 0, 0);
@@ -370,6 +376,16 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     B.y = (1.0 / (1.0 + x_c * epsilon)) * DDX(psi, CELL_CENTER, "DEFAULT", "RGN_ALL");
     B.z = (1.0 / (1.0 + x_c * epsilon)) * B_t0 / B_pmid;
     B_mag = abs(B);
+
+    // Initialise the parallel Laplacian inverter
+    if (!evolve_vorticity)
+    {
+        mm2.b = B / B_mag;
+        mm2.dx = coord->dx;
+        mm2.dy = coord->dy;
+        mySolver2.setOperatorFunction(mm2);
+        mySolver2.setup();
+    }
 
     return 0;
 }

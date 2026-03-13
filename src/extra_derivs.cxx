@@ -264,3 +264,12 @@ Field3D Churn::V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f){
     result = vdy+vdx;
     return result;
 }
+
+// Field3D Churn::bracket_bracket(const Field3D &f, const Field3D &g){
+//     Field3D result;
+
+//     result = DDX(f) * (D2DY2(g) * D2DXDY(f) - D2DY2(f) * D2DXDY(g));
+//     result -= DDY(f) * (D2DX2(f) * D2DXDY(g) - D2DX2(g) * D2DXDY(f));
+
+//     return result;
+// }

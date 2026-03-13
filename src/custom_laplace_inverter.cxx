@@ -34,3 +34,11 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
     return result;
 };
+
+
+Field3D customParLaplaceInverter::operator()(const Field3D &input)
+{
+    result = div_q_par_modified_stegmeir_efficient2(input, 1.0, b, dx, dy, false);
+    result.applyBoundary("dirichlet(0)");
+    return result;
+};

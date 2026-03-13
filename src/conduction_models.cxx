@@ -1785,3 +1785,117 @@ Field3D Churn::calculate_q_out_conv(const Field3D &P, const Vector3D &u)
 
     return result;
 }
+
+Field3D div_q_par_modified_stegmeir_efficient2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const Field3D &dx, const Field3D &dy, const bool &apply_core_boundary, const BoutReal &psi_core_bndry)
+{
+    // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
+    TRACE("div_q_par_modified_stegmeir");
+
+    //TODO: Implement core boundary condition like in other conduction models
+
+    Field3D result, n_x_minus, n_y_minus, n_x_plus, n_y_plus, ds_minus, ds_plus, f_x_plus, f_x_minus, f_y_plus, f_y_minus, Q_plus, Q_minus;
+    BoutReal f_x, f_y;
+    double y_minus, x_minus, y_plus, x_plus, ds_p, T_minus, T_plus, Q_plus_T, Q_minus_T;
+    int n_x, n_y;
+
+    // Get field line geometry variables in minus direction
+    ds_minus.allocate();
+    f_x_minus.allocate();
+    f_y_minus.allocate();
+    n_x_minus.allocate();
+    n_y_minus.allocate();
+    for (auto i : result)
+    {
+        x_minus = dy[i] * abs(b.x[i] / b.y[i]);
+        x_minus = std::min(static_cast<double>(dx[i]), x_minus);
+        y_minus = dx[i] * abs(b.y[i] / b.x[i]);
+        y_minus = std::min(static_cast<double>(dy[i]), y_minus);
+        if (b.x[i] >= 0)
+        {
+            n_x_minus[i] = 0;
+        }
+        else
+        {
+            n_x_minus[i] = -1;
+            x_minus = -x_minus;
+        }
+        if (b.y[i] >= 0)
+        {
+            n_y_minus[i] = 0;
+        }
+        else
+        {
+            n_y_minus[i] = -1;
+            y_minus = -y_minus;
+        }
+        ds_p = sqrt(pow(x_minus, 2) + pow(y_minus, 2));
+
+        ds_minus[i] = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+        f_x_minus[i] = (x_minus - n_x_minus[i] * dx[i]) / dx[i];
+        f_y_minus[i] = (y_minus - n_y_minus[i] * dy[i]) / dy[i];
+    }
+
+    // Get field line geometry variables in plus direction
+    ds_plus.allocate();
+    f_x_plus.allocate();
+    f_y_plus.allocate();
+    n_x_plus.allocate();
+    n_y_plus.allocate();
+    for (auto i : result)
+    {
+        x_plus = dy[i] * abs(b.x[i] / b.y[i]);
+        x_plus = std::min(static_cast<double>(dx[i]), x_plus);
+        y_plus = dx[i] * abs(b.y[i] / b.x[i]);
+        y_plus = std::min(static_cast<double>(dy[i]), y_plus);
+        if (b.x[i] >= 0)
+        {
+            n_x_plus[i] = 0;
+        }
+        else
+        {
+            n_x_plus[i] = -1;
+            x_plus = -x_plus;
+        }
+        if (b.y[i] >= 0)
+        {
+            n_y_plus[i] = 0;
+        }
+        else
+        {
+            n_y_plus[i] = -1;
+            y_plus = -y_plus;
+        }
+        ds_p = sqrt(pow(x_plus, 2) + pow(y_plus, 2));
+
+        ds_plus[i] = ds_p * sqrt(pow(b.z[i], 2) / (pow(b.x[i], 2) + pow(b.y[i], 2)) + 1.0);
+        f_x_plus[i] = (x_plus - n_x_plus[i] * dx[i]) / dx[i];
+        f_y_plus[i] = (y_plus - n_y_plus[i] * dy[i]) / dy[i];
+    }
+
+    // Find Q_plus/minus
+    Q_plus.allocate();
+    Q_minus.allocate();
+    for (auto i : result)
+    {
+        T_plus = (1.0 - f_y_plus[i]) * ((1 - f_x_plus[i]) * T(i.x() + n_x_plus[i], i.y() + n_y_plus[i], i.z()) + f_x_plus[i] * T(i.x() + n_x_plus[i] + 1, i.y() + n_y_plus[i], i.z())) + f_y_plus[i] * ((1 - f_x_plus[i]) * T(i.x() + n_x_plus[i], i.y() + n_y_plus[i] + 1, i.z()) + f_x_plus[i] * T(i.x() + n_x_plus[i] + 1, i.y() + n_y_plus[i] + 1, i.z()));
+        Q_plus[i] = K_par[i] * (T_plus - T[i]) / ds_plus[i];
+
+        T_minus = (1.0 - f_y_minus[i]) * ((1 - f_x_minus[i]) * T(i.x() - n_x_minus[i], i.y() - n_y_minus[i], i.z()) + f_x_minus[i] * T(i.x() - n_x_minus[i] - 1, i.y() - n_y_minus[i], i.z())) + f_y_minus[i] * ((1 - f_x_minus[i]) * T(i.x() - n_x_minus[i], i.y() - n_y_minus[i] - 1, i.z()) + f_x_minus[i] * T(i.x() - n_x_minus[i] - 1, i.y() - n_y_minus[i] - 1, i.z()));
+        Q_minus[i] = -K_par[i] * (T_minus - T[i]) / ds_minus[i];
+    }
+
+    // Find div q
+    result.allocate();
+    for (auto i : result)
+    {
+        Q_plus_T = (1.0 - f_y_minus[i]) * ((1 - f_x_minus[i]) * Q_plus(i.x() - n_x_minus[i], i.y() - n_y_minus[i], i.z()) + f_x_minus[i] * Q_plus(i.x() - n_x_minus[i] - 1, i.y() - n_y_minus[i], i.z())) + f_y_minus[i] * ((1 - f_x_minus[i]) * Q_plus(i.x() - n_x_minus[i], i.y() - n_y_minus[i] - 1, i.z()) + f_x_minus[i] * Q_plus(i.x() - n_x_minus[i] - 1, i.y() - n_y_minus[i] - 1, i.z()));
+        Q_minus_T = (1.0 - f_y_plus[i]) * ((1 - f_x_plus[i]) * Q_minus(i.x() + n_x_plus[i], i.y() + n_y_plus[i], i.z()) + f_x_plus[i] * Q_minus(i.x() + n_x_plus[i] + 1, i.y() + n_y_plus[i], i.z())) + f_y_plus[i] * ((1 - f_x_plus[i]) * Q_minus(i.x() + n_x_plus[i], i.y() + n_y_plus[i] + 1, i.z()) + f_x_plus[i] * Q_minus(i.x() + n_x_plus[i] + 1, i.y() + n_y_plus[i] + 1, i.z()));
+
+        result[i] = -0.5 * (Q_plus_T - Q_plus[i]) / ds_minus[i];
+        result[i] += 0.5 * (Q_minus_T - Q_minus[i]) / ds_plus[i];
+    }
+    // Field3D result = 0.0;
+    // Field3D result = D2DX2(T);
+    // result += D2DY2(T);
+    return result;
+}

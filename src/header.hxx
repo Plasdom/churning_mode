@@ -50,6 +50,14 @@ struct customLaplaceInverter
     Field3D operator()(const Field3D &input);
 };
 
+struct customParLaplaceInverter
+{
+    Vector3D b;
+    Field3D result, dx, dy;
+
+    Field3D operator()(const Field3D &input);
+};
+Field3D div_q_par_modified_stegmeir_efficient2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const Field3D &dx, const Field3D &dy, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
 /// Churning mode model
 ///
 ///
@@ -90,8 +98,8 @@ private:
     Field3D q_out;
     Field3D q_out_conv;
     Field3D J;
-    // Field3D phi_es;
     // Field3D debugvar;
+    // Field3D phi2; 
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]
@@ -178,11 +186,15 @@ private:
     bool include_resistive_heating; ///< Include the (parallel) resistive heating term in the pressure equation
     bool use_rotated_laplace_cur;
     bool zero_Jpar_yup; ///< Use a zero current boundary condition on upper y boundary in vorticity equation (electrostatic mode only)
+    bool evolve_vorticity; 
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
     bout::inversion::InvertableOperator<Field3D> mySolver;
     const int nits_inv_extra = 0;
+    int precon_phi(BoutReal UNUSED(t), BoutReal UNUSED(cj), BoutReal UNUSED(delta));
+    customParLaplaceInverter mm2;
+    bout::inversion::InvertableOperator<Field3D> mySolver2;
 
     // Methods related to difference heat conduction models
     Field3D div_q_par_classic(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
@@ -235,6 +247,7 @@ private:
     Field3D D2DY2_DIFF(const Field3D &f, const Field3D &A);
     Field3D grad_par_custom(const Field3D &u, const Vector3D &b);
     Field3D V_dot_grad_no_bndry_flow(const Vector3D &v, const Field3D &f);
+    // Field3D bracket_bracket(const Field3D &f, const Field3D &g);
 
 protected:
     int init(bool restarting) override;
