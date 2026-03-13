@@ -57,7 +57,12 @@ struct customParLaplaceInverter
 
     Field3D operator()(const Field3D &input);
 };
-Field3D div_q_par_modified_stegmeir_efficient2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const Field3D &dx, const Field3D &dy, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+// Field3D div_q_par_modified_stegmeir_efficient2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const Field3D &dx, const Field3D &dy, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
+Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Vector3D &b);
+Field3D Q_plus_2(const Field3D &u, const Vector3D &b);
+Field3D Q_plus_T_2(const Field3D &u, const Vector3D &b);
+Field3D Q_minus_2(const Field3D &u, const Vector3D &b);
+Field3D Q_minus_T_2(const Field3D &u, const Vector3D &b);
 /// Churning mode model
 ///
 ///

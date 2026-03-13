@@ -64,8 +64,10 @@ int Churn::rhs(BoutReal t)
     else 
     {
         // Solve potential directly
-        Field3D phi_rhs = 1.71 * delta * div_q_par_modified_stegmeir_efficient2(P, 1.0, B/B_mag, mesh->getCoordinates()->dx, mesh->getCoordinates()->dy, false);
+        Field3D phi_rhs = 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
         phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+        // phi_rhs += ((D_m/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi));
+
         phi_rhs.applyBoundary("dirichlet(0)");
         phi = mySolver2.invert(phi_rhs, phi);
         try
@@ -79,6 +81,7 @@ int Churn::rhs(BoutReal t)
         catch (BoutException &e)
         {
         };
+        phi.applyBoundary("dirichlet");
     }
     // phi.applyBoundary("dirichlet");
     mesh->communicate(phi);
