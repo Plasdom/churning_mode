@@ -385,6 +385,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm2.dy = coord->dy;
         mySolver2.setOperatorFunction(mm2);
         mySolver2.setup();
+
+        // TODO: Need a good initial guess on phi
     }
 
     return 0;

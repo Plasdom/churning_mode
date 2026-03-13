@@ -7,6 +7,25 @@ int Churn::rhs(BoutReal t)
     {
         mesh->communicate(n);
     }
+
+    T = P; // Assume normalised n = 1 if density is not evolved
+
+    // Calculate resistivity 
+    if (use_spitzer_resistivity)
+    {
+        BoutReal lambda_ei = 10.0;
+        BoutReal T_capped, T_max_ev, T_min_ev;
+        T_min_ev = 1.0;
+        T_max_ev = 1.0e4; // Required to relax the equations
+
+        for (auto i: eta)
+        {
+            T_capped = std::min(std::max(T[i]*T_sepx,T_min_ev),T_max_ev);
+            eta[i] = 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
+        }
+        eta = eta * eta_0;
+    }
+
     // // Calculate B
     if (!electrostatic)
     {
@@ -66,6 +85,7 @@ int Churn::rhs(BoutReal t)
         // Solve potential directly
         Field3D phi_rhs = 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
         phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+        // phi_rhs -= DDX(phi) * DDY(Laplace(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(phi) * DDX(Laplace(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
         // phi_rhs += ((D_m/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi));
 
         phi_rhs.applyBoundary("dirichlet(0)");
@@ -75,6 +95,7 @@ int Churn::rhs(BoutReal t)
             for (int i = 0; i < 2; i++)
             {
                 phi = mySolver2.invert(phi_rhs, phi);
+                phi.applyBoundary("dirichlet");
                 mesh->communicate(phi);
             }
         }
@@ -91,24 +112,6 @@ int Churn::rhs(BoutReal t)
     if (phi_BC_width == 0)
     {
         u.applyBoundary("dirichlet");
-    }
-
-    T = P; // Assume normalised n = 1 if density is not evolved
-
-    // Calculate resistivity 
-    if (use_spitzer_resistivity)
-    {
-        BoutReal lambda_ei = 10.0;
-        BoutReal T_capped, T_max_ev, T_min_ev;
-        T_min_ev = 1.0;
-        T_max_ev = 1.0e4; // Required to relax the equations
-
-        for (auto i: eta)
-        {
-            T_capped = std::min(std::max(T[i]*T_sepx,T_min_ev),T_max_ev);
-            eta[i] = 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
-        }
-        eta = eta * eta_0;
     }
 
     if (electrostatic){
