@@ -5,6 +5,10 @@
 #include <bout/physicsmodel.hxx>
 #include <bout/invertable_operator.hxx>
 #include <bout/interpolation.hxx>
+// #include "bout/bout.hxx"
+// #include "bout/options_netcdf.hxx"
+// #include "bout/optionsreader.hxx"
+// using bout::OptionsNetCDF;
 
 struct Point
 {
@@ -63,6 +67,7 @@ Field3D Q_plus_2(const Field3D &u, const Vector3D &b);
 Field3D Q_plus_T_2(const Field3D &u, const Vector3D &b);
 Field3D Q_minus_2(const Field3D &u, const Vector3D &b);
 Field3D Q_minus_T_2(const Field3D &u, const Vector3D &b);
+Field3D div_q_par_classic_2(const Field3D &T, const Vector3D &b);
 /// Churning mode model
 ///
 ///
@@ -104,6 +109,7 @@ private:
     Field3D q_out_conv;
     Field3D J;
     // Field3D debugvar;
+    // Field3D phi_store;
     // Field3D phi2; 
 
     // Input Parameters

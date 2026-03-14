@@ -76,17 +76,30 @@ int Churn::rhs(BoutReal t)
         {
             //TODO: If we can get it working in Laplace inversion, should add Laplace(P) correction to phi here
             mesh->communicate(omega, phi);
-            ddt(phi) = (phi_constraint_lambda_1/D_0) * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))/phi_constraint_lambda_2 - omega);
+            ddt(phi) += (phi_constraint_lambda_1/D_0) * ((D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))/phi_constraint_lambda_2 - omega);
             
         }
     }
     else 
     {
         // Solve potential directly
-        Field3D phi_rhs = 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
-        phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
-        // phi_rhs -= DDX(phi) * DDY(Laplace(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(phi) * DDX(Laplace(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-        // phi_rhs += ((D_m/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi));
+        Field3D phi_rhs = 0.0;
+        if (include_mag_restoring_term)
+        {
+            if (include_thermal_force_term)
+            {
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
+                // phi_rhs += 1.71 * delta * div_q_par_classic_2(P, B/B_mag);
+            }
+            if (include_churn_drive_term)
+            {
+                phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+            }
+            // phi_rhs -= (eta * beta_p / 2.0) * ( DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(phi) * DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) );
+            // phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+            // phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+        }
+        // debugvar = phi_rhs;
 
         phi_rhs.applyBoundary("dirichlet(0)");
         phi = mySolver2.invert(phi_rhs, phi);
@@ -95,14 +108,14 @@ int Churn::rhs(BoutReal t)
             for (int i = 0; i < 2; i++)
             {
                 phi = mySolver2.invert(phi_rhs, phi);
-                phi.applyBoundary("dirichlet");
+                // phi.applyBoundary("dirichlet");
                 mesh->communicate(phi);
             }
         }
         catch (BoutException &e)
         {
         };
-        phi.applyBoundary("dirichlet");
+        // phi.applyBoundary("dirichlet");
     }
     // phi.applyBoundary("dirichlet");
     mesh->communicate(phi);
@@ -123,7 +136,7 @@ int Churn::rhs(BoutReal t)
             }
             else 
             {
-                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, false));
+                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, false) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, false));
             }
         }
         else 
@@ -278,35 +291,35 @@ int Churn::rhs(BoutReal t)
     
     // Vorticity evolution
     /////////////////////////////////////////////////////////////////////////////
-
-    // Advection
-    if (include_advection)
-    {
-        ddt(omega) = -V_dot_Grad(u, omega);
-    }
-    else
-    {
-        ddt(omega) = 0;
-    }
-
-    // Vorticity diffusion (kinematic viscosity)
-    ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
-
-    // Vorticity hyperdiffusion / hyper-viscosity 
-    if (hypervisc > 0.0){
-        ddt(omega) += (hypervisc / (pow(a_mid,6)/t_0)) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-    }
     
-    // Curvature drive
-    if (include_churn_drive_term)
-    {
-        Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
-        ddt(omega) += curv_drive;
-    }
-    
-    // Line bending
     if (evolve_vorticity)
     {
+        // Advection
+        if (include_advection)
+        {
+            ddt(omega) = -V_dot_Grad(u, omega);
+        }
+        else
+        {
+            ddt(omega) = 0;
+        }
+
+        // Vorticity diffusion (kinematic viscosity)
+        ddt(omega) += (mu / D_0) * (D2DX2(omega) + D2DY2(omega));
+
+        // Vorticity hyperdiffusion / hyper-viscosity 
+        if (hypervisc > 0.0){
+            ddt(omega) += (hypervisc / (pow(a_mid,6)/t_0)) * (D4DX4(D2DX2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D4DY4(D2DY2(omega, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+        }
+        
+        // Curvature drive
+        if (include_churn_drive_term)
+        {
+            Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
+            ddt(omega) += curv_drive;
+        }
+        
+        // Line bending
         if (include_mag_restoring_term)
         {
             // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
@@ -319,6 +332,7 @@ int Churn::rhs(BoutReal t)
                     }
                     else {
                         ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
+                        // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * D2DY2(phi/phi_constraint_lambda_2 - 1.71 * delta * P)/eta);
                     }
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
                 }
@@ -344,6 +358,9 @@ int Churn::rhs(BoutReal t)
     else 
     {
         ddt(omega) = 0.0;
+        // omega = D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"); // Store potential in vorticity for restarting
+        // ddt(phi_store) = 0.0;
+        // phi_store = phi;
     }
 
     // // Diamagnetic convection of vorticity

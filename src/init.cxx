@@ -160,8 +160,6 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
 
     SAVE_REPEAT(J);
 
-    // SOLVE_FOR(phi_es);
-    // SAVE_REPEAT(phi_es);
 
     // phiSolver = bout::utils::make_unique<LaplaceXY>(mesh);
     Options &phi_init_options = Options::root()["phi"];
@@ -181,34 +179,18 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm.nz_tot = nz_tot;
         mySolver.setOperatorFunction(mm);
         mySolver.setup();
-        
-        if (evolve_density)
-        {
-            SOLVE_FOR(P, psi, omega, n);
-            SAVE_REPEAT(n);
-        }
-        else 
-        {
-            SOLVE_FOR(P, psi, omega);
-            Options::root()["n"].setConditionallyUsed();
-        }
+        // phi_store = 0.0;
+        SOLVE_FOR(P, psi, omega);
+        Options::root()["n"].setConditionallyUsed();
         SAVE_REPEAT(u, phi, B);
     }
     else
     {
         phi.setBoundary("phi");
         
-        if (evolve_density)
-        {
-            SOLVE_FOR(P, psi, omega, phi, n);
-            SAVE_REPEAT(n);
-        }
-        else 
-        {
-            SOLVE_FOR(P, psi, omega, phi);
-            // setPrecon(&Churn::precon_phi);
-            Options::root()["n"].setConditionallyUsed();
-        }
+        SOLVE_FOR(P, psi, omega, phi);
+        // setPrecon(&Churn::precon_phi);
+        Options::root()["n"].setConditionallyUsed();
         SAVE_REPEAT(u, B);
     }
 
@@ -247,7 +229,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     // {
     //     Options::root()["model:q_in_yup"].setConditionallyUsed();
     // }
-
+    // debugvar = 0.0;
     // SAVE_REPEAT(debugvar);
     // SAVE_REPEAT(div_q, div_q2);
     // SAVE_REPEAT(thermal_force_term);
@@ -386,7 +368,33 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mySolver2.setOperatorFunction(mm2);
         mySolver2.setup();
 
-        // TODO: Need a good initial guess on phi
+        // // TODO: Need a good initial guess on phi
+        // // mesh->communicate(phi_store);
+        // // phi = phi_store;
+        // // mesh->communicate(phi);
+        // TRACE("INITIALISING PHI");
+        // mesh->communicate(P);
+        // Field3D phi_rhs = 0.0;
+        // // Field3D P_init = P;
+        // phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
+        // phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+        // // phi_rhs.applyBoundary("dirichlet(0)");
+        // // phi_rhs.applyBoundary("width(dirichlet(-16),4)");
+        // // phi = mySolver2.invert(phi_rhs, phi);
+        // // try
+        // // {
+        //     for (int i = 0; i < 10; i++)
+        //     {
+        //         phi = mySolver2.invert(phi_rhs, phi);
+        //         // phi.applyBoundary("dirichlet");
+        //         mesh->communicate(phi);
+        //     }
+        // // }
+        // // catch (BoutException &e)
+        // // {
+        // //     TRACE("CAUGHT!");
+        // // };
+
     }
 
     return 0;

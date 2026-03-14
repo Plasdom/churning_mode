@@ -38,8 +38,11 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
+    // result.getMesh()->communicate(b);
     result = div_q_par_modified_stegmeir_2(input, b);
+    // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
+    // result.setBoundaryTo(input);
     return result;
 };
 
@@ -256,6 +259,60 @@ Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Vector3D &b)
     q_par_minus = Q_minus_2(T, b);
 
     result = -0.5 * (Q_plus_T_2(q_par_plus, b) + Q_minus_T_2(q_par_minus, b));
+
+    return result;
+}
+
+Field3D div_q_par_classic_2(const Field3D &T, const Vector3D &b)
+{
+    // Classic stencil for parallel heat flux divergence term (spatially varying conductivity)
+    TRACE("div_q_par_classic");
+
+
+    Field3D result;
+    BoutReal A_plus_half, A_minus_half, ddy_plus, ddy_minus, ddx_plus, ddx_minus;
+    Mesh* mesh = result.getMesh();
+    Coordinates *coord = mesh->getCoordinates();
+
+    result = 0.0;
+    // D2DX2 term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        A_plus_half = (0.5 * ((pow(b.x[i], 2.0)) + (pow(b.x[i.xp()], 2.0))));
+        A_minus_half = (0.5 * ((pow(b.x[i], 2.0)) +(pow(b.x[i.xm()], 2.0))));
+        result[i] += (1.0 / (pow(coord->dx[i], 2.0))) * (A_plus_half * (T[i.xp()] - T[i]) - A_minus_half * (T[i] - T[i.xm()]));
+    }
+
+    // D2DY2 term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        A_plus_half = (0.5 * ((pow(b.y[i], 2.0)) + (pow(b.y[i.yp()], 2.0))));
+        A_minus_half = (0.5 * ((pow(b.y[i], 2.0)) + (pow(b.y[i.ym()], 2.0))));
+
+        result[i] += (1.0 / (pow(coord->dy[i], 2.0))) * (A_plus_half * (T[i.yp()] - T[i]) - A_minus_half * (T[i] - T[i.ym()]));
+    }
+
+    // DXDY term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        ddy_plus = (0.5 / (coord->dy[i])) * (T[i.xp().yp()] - T[i.xp().ym()]);
+        ddy_minus = (0.5 / (coord->dy[i])) * (T[i.xm().yp()] - T[i.xm().ym()]);
+
+        result[i] += (0.5 / (coord->dx[i])) * ( b.x[i.xp()] * b.y[i.xp()] * ddy_plus - b.x[i.xm()] * b.y[i.xm()] * ddy_minus);
+    }
+
+    // DYDX term
+    BOUT_FOR(i, mesh->getRegion3D("RGN_NOBNDRY"))
+    {
+        // 2nd order
+        ddx_plus = (0.5 / (coord->dx[i])) * (T[i.yp().xp()] - T[i.yp().xm()]);
+        ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
+
+        result[i] += (0.5 / (coord->dy[i])) * (b.x[i.yp()] * b.y[i.yp()] * ddx_plus - b.x[i.ym()] * b.y[i.ym()] * ddx_minus);
+    }
 
     return result;
 }
