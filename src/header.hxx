@@ -171,6 +171,7 @@ private:
     // BoutReal thermal_force_b0_factor; ///< b0 factor to apply to thermal force terms (analogous to UEDGE parameter bbb.b)
     double b0;               ///< 1 if toroidal field is in +z direction, -1 if in -z direction
     int phi_BC_width;         ///< Width of the dirichlet BC on phi (must be the same as that used for omega)
+    int num_inversion_its;    ///< Number of iterations of the inversion routine when invert_laplace=true
 
     // Switches
     bool evolve_pressure;            ///< Evolve plasma pressure

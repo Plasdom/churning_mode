@@ -68,7 +68,7 @@ int Churn::rhs(BoutReal t)
             {
                 try
                 {
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < num_inversion_its; i++)
                     {
                         phi = mySolver.invert(omega, phi);
                         mesh->communicate(phi);
@@ -118,7 +118,7 @@ int Churn::rhs(BoutReal t)
             mesh->communicate(phi);
             try
             {
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < num_inversion_its; i++)
                 {
                     phi = mySolver2.invert(phi_rhs, phi);
                     // phi.applyBoundary("dirichlet");
