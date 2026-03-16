@@ -26,6 +26,14 @@ int Churn::rhs(BoutReal t)
         eta = eta * eta_0;
     }
 
+    // Calculate velocity
+    mesh->communicate(phi);
+    u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
+    if (phi_BC_width == 0)
+    {
+        u.applyBoundary("dirichlet");
+    }
+
     // // Calculate B
     if (!electrostatic)
     {
@@ -82,28 +90,29 @@ int Churn::rhs(BoutReal t)
     }
     else 
     {
-        // Solve potential directly
+        Field3D phi_rhs = 0.0;
+        if (include_mag_restoring_term)
+        {
+            if (include_thermal_force_term)
+            {
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
+                // phi_rhs += 1.71 * delta * div_q_par_classic_2(P, B/B_mag);
+            }
+            if (include_churn_drive_term)
+            {
+                phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+            }
+            phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+            phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+        }
+        phi_rhs.applyBoundary("dirichlet(0)");
+
+
         if (invert_laplace)
         {
-            
-            Field3D phi_rhs = 0.0;
-            if (include_mag_restoring_term)
-            {
-                if (include_thermal_force_term)
-                {
-                    phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
-                    // phi_rhs += 1.71 * delta * div_q_par_classic_2(P, B/B_mag);
-                }
-                if (include_churn_drive_term)
-                {
-                    phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
-                }
-                // phi_rhs -= (eta * beta_p / 2.0) * ( DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(phi) * DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) );
-                // phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-                // phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-            }
-            phi_rhs.applyBoundary("dirichlet(0)");
+            // Solve potential directly
             phi = mySolver2.invert(phi_rhs, phi);
+            mesh->communicate(phi);
             try
             {
                 for (int i = 0; i < 2; i++)
@@ -121,34 +130,12 @@ int Churn::rhs(BoutReal t)
         else
         {
             // Solve via a diffusion equation
-            Field3D phi_rhs = 0.0;
-            if (include_mag_restoring_term)
-            {
-                if (include_thermal_force_term)
-                {
-                    phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
-                    // phi_rhs += 1.71 * delta * div_q_par_classic_2(P, B/B_mag);
-                }
-                if (include_churn_drive_term)
-                {
-                    phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
-                }
-                // phi_rhs -= (eta * beta_p / 2.0) * ( DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDY(phi) * DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) );
-                // phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
-                // phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
-            }
             ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag)/phi_constraint_lambda_2 - phi_rhs);
         }
     }
     // phi.applyBoundary("dirichlet");
-    mesh->communicate(phi);
+    // mesh->communicate(phi);
 
-    // Calculate velocity
-    u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
-    if (phi_BC_width == 0)
-    {
-        u.applyBoundary("dirichlet");
-    }
 
     if (electrostatic){
         if (include_thermal_force_term)
@@ -398,6 +385,8 @@ int Churn::rhs(BoutReal t)
     //     // lap_phi = D2DX2(phi) + D2DY2(phi);
         // ddt(omega) -= 2.0 * eta * nu * (lap_phi * lap_P + (DDX(lap_P * DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + DDY(lap_P * DDY(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"))));
     // }
+
+    // omega = phi;
     return 0;
 }
 

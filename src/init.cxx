@@ -396,6 +396,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         // // };
 
     }
+    // phi = omega;
+    // mesh->communicate(phi);
 
     return 0;
 }
