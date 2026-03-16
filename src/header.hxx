@@ -198,6 +198,7 @@ private:
     bool use_rotated_laplace_cur;
     bool zero_Jpar_yup; ///< Use a zero current boundary condition on upper y boundary in vorticity equation (electrostatic mode only)
     bool evolve_vorticity; 
+    bool include_ES_novort_lapinv_inertial_term;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;

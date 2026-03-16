@@ -102,7 +102,10 @@ int Churn::rhs(BoutReal t)
             {
                 phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
             }
-            phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+            if (include_ES_novort_lapinv_inertial_term)
+            {
+                phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+            }
             phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
         phi_rhs.applyBoundary("dirichlet(0)");

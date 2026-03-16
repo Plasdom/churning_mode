@@ -114,6 +114,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     evolve_vorticity = options["evolve_vorticity"]
                                    .doc("Evolve vorticity equation. If false, then invert potential equation directly.")
                                    .withDefault(true);
+    include_ES_novort_lapinv_inertial_term = options["include_ES_novort_lapinv_inertial_term"]
+                                   .doc("In electrostatic mode, when evolve_vorticity=false and invert_laplace=true, include the inertial term for phi on the right hand side.")
+                                   .withDefault(false);
 
     if (invert_laplace)
     {
