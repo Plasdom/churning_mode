@@ -100,7 +100,7 @@ int Churn::rhs(BoutReal t)
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, true);
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, false);
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
@@ -326,13 +326,13 @@ int Churn::rhs(BoutReal t)
             {
                 if (include_thermal_force_term)
                 {
-                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 1.71 * delta * P, B/B_mag, zero_div_Jpar_BC));
+                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 1.71 * delta * P, B/B_mag, false));
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * D2DY2(phi/phi_constraint_lambda_2 - 1.71 * delta * P)/eta);
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
                 }
                 else 
                 {
-                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2, B/B_mag, zero_div_Jpar_BC));
+                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2, B/B_mag, false));
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
                 }
             }
