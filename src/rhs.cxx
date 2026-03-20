@@ -93,14 +93,14 @@ int Churn::rhs(BoutReal t)
         Field3D phi_rhs = 0.0;
         if (include_mag_restoring_term)
         {
-            if (include_thermal_force_term)
-            {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag);
-                // phi_rhs += 1.71 * delta * div_q_par_classic_2(P, B/B_mag);
-            }
             if (include_churn_drive_term)
             {
                 phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+                phi_rhs.applyBoundary("dirichlet(0)");
+            }
+            if (include_thermal_force_term)
+            {
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, zero_div_Jpar_BC);
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
@@ -108,12 +108,11 @@ int Churn::rhs(BoutReal t)
             }
             phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
-        phi_rhs.applyBoundary("dirichlet(0)");
-
 
         if (invert_laplace)
         {
             // Solve potential directly
+            phi_rhs.applyBoundary("dirichlet(0)");
             phi = mySolver2.invert(phi_rhs, phi);
             mesh->communicate(phi);
             try
@@ -133,7 +132,7 @@ int Churn::rhs(BoutReal t)
         else
         {
             // Solve via a diffusion equation
-            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag)/phi_constraint_lambda_2 - phi_rhs);
+            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag, zero_div_Jpar_BC)/phi_constraint_lambda_2 - phi_rhs);
         }
     }
     // phi.applyBoundary("dirichlet");
@@ -143,25 +142,11 @@ int Churn::rhs(BoutReal t)
     if (electrostatic){
         if (include_thermal_force_term)
         {
-            if (zero_Jpar_yup)
-            {
-                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, true, 1.0e12));
-            }
-            else 
-            {
-                J = b0 * 0.5 * (Q_plus(1.71 * delta * P - phi, 1/eta, B/B_mag, false) + Q_minus(1.71 * delta * P - phi, 1/eta, B/B_mag, false));
-            }
+            J = b0 * 0.5 * (Q_plus_2(1.71 * delta * P - phi, B/B_mag, zero_div_Jpar_BC) + Q_minus_2(1.71 * delta * P - phi, B/B_mag, zero_div_Jpar_BC))/eta;
         }
         else 
         {
-            if (zero_Jpar_yup)
-            {
-                J = -b0 * 0.5 * (Q_plus(phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(phi, 1/eta, B/B_mag, true, 1.0e12));
-            }
-            else 
-            {
-                J = -b0 * 0.5 * (Q_plus(phi, 1/eta, B/B_mag, true, 1.0e12) + Q_minus(phi, 1/eta, B/B_mag, false));
-            }
+            J = -b0 * 0.5 * (Q_plus_2(phi, B/B_mag, zero_div_Jpar_BC) + Q_minus_2(phi, B/B_mag, zero_div_Jpar_BC))/eta;
         }
     }
     else 
@@ -210,6 +195,7 @@ int Churn::rhs(BoutReal t)
             else if (use_modified_stegmeir_div_q_par)
             {
                 ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir(T, kappa_par, B / B_mag, disable_qin_outside_core, psi_bndry_P_core_BC); // q_par is calculated and set in in div_q_par_modified_stegmeir()
+                // ddt(P) += (2.0 / 3.0) * div_q_par_modified_stegmeir_2(T, B / B_mag, true); // q_par is calculated and set in in div_q_par_modified_stegmeir()
             }
             else if (use_linetrace_div_q_par)
             {
@@ -340,25 +326,13 @@ int Churn::rhs(BoutReal t)
             {
                 if (include_thermal_force_term)
                 {
-                    if (zero_Jpar_yup){
-                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, true, 1.0e12));
-                    }
-                    else {
-                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1/eta, B/B_mag, false));
-                        // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * D2DY2(phi/phi_constraint_lambda_2 - 1.71 * delta * P)/eta);
-                    }
+                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 1.71 * delta * P, B/B_mag, zero_div_Jpar_BC));
+                    // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * D2DY2(phi/phi_constraint_lambda_2 - 1.71 * delta * P)/eta);
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
                 }
                 else 
                 {
-                    if (zero_Jpar_yup)
-                    {
-                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, true, 1.0e12));
-                    }
-                    else 
-                    {
-                        ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir(phi/phi_constraint_lambda_2, 1/eta, B/B_mag, false));
-                    }
+                    ddt(omega) += -b0 * (2.0 / (beta_p*eta)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2, B/B_mag, zero_div_Jpar_BC));
                     // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi, 1/eta, B/B_mag));
                 }
             }

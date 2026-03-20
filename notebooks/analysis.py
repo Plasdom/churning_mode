@@ -108,7 +108,7 @@ def read_boutdata(
 
 
 def contour_list(
-    ds: xr.Dataset, vars: list[str] = ["P", "psi", "omega", "phi"], t: int = -1
+    ds: xr.Dataset, vars: list[str] = ["P", "psi", "omega", "phi"], levels=10, t: int = -1
 ):
     """Plot contour maps of several variables at a given timestep
 
@@ -116,7 +116,11 @@ def contour_list(
     :param vars: List of variables, defaults to ["P", "psi", "omega", "phi"]
     :param t: Integer timestep, defaults to -1
     """
+    if isinstance(vars, str):
+        vars = [vars]
     fig, ax = plt.subplots(ncols=len(vars))
+    if len(vars) == 1:
+        ax = [ax]
     for i, v in enumerate(vars):
         if v == "P" or v == "psi":
             vmin = ds[v][0].values.min()
@@ -125,7 +129,7 @@ def contour_list(
             vmin = None
             vmax = None
         ax[i].contourf(
-            ds["x"], ds["y"], ds[v][t].values.T, vmin=vmin, vmax=vmax, levels=20
+            ds["x"], ds["y"], ds[v][t].values.T, vmin=vmin, vmax=vmax, levels=levels, cmap="inferno", extend="both"
         )
         ax[i].set_xlabel("x")
         ax[i].set_ylabel("y")
@@ -811,6 +815,7 @@ def animate_q_targets(
     normalise: bool = False,
     savepath: str | None = None,
     snull: bool = False,
+    use_q_out: bool = True
 ):
     """Animate q_tot to each diverotr leg (assuming snowflake config)
 
@@ -831,8 +836,8 @@ def animate_q_targets(
     # x2 = range(int(nx / 2), nx)
     # x3 = range(int(nx / 2))
     # y4 = range(int(ny / 4), int(3 * ny / 4))
-    qin, q1, q2, q3, q4 = get_q_legs(ds)
-    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
+    qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out)
+    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds,use_q_out)
 
     if normalise:
         q1 = (q1 / Q1).values
@@ -1020,6 +1025,7 @@ def plot_q_targets(
     normalise: bool = False,
     timestep: int = -1,
     xaxis: str = "spatial",
+    use_q_out: bool= True
 ):
     """Plot q_tot to each diverotr leg (assuming snowflake config)
 
@@ -1035,8 +1041,8 @@ def plot_q_targets(
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
     y4 = range(ny)
-    qin, q1, q2, q3, q4 = get_q_legs(ds)
-    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds)
+    qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out)
+    Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds,use_q_out)
 
     if normalise:
         q1 = (q1 / Q1).values
@@ -1157,6 +1163,7 @@ def plot_Q_target_proportions(
     plot_qin: bool = False,
     ylim: list | tuple | None = None,
     snull: bool = False,
+    use_q_out: bool = True
 ):
     """Plot total heat flow to each divertor leg as a stacked plot (assuming snowflake config)
 
@@ -1165,11 +1172,11 @@ def plot_Q_target_proportions(
     :param savepath: where to save figure
     """
     if heat_flux == "conductive":
-        qin, q1, q2, q3, q4 = get_q_legs(ds)
+        qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out)
     elif heat_flux == "convective":
         qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
     elif heat_flux == "total":
-        qin_cond, q1_cond, q2_cond, q3_cond, q4_cond = get_q_legs(ds)
+        qin_cond, q1_cond, q2_cond, q3_cond, q4_cond = get_q_legs(ds,use_q_out)
         qin_conv, q1_conv, q2_conv, q3_conv, q4_conv = get_q_legs_conv(ds)
         qin = qin_cond + qin_conv
         q1 = q1_cond + q1_conv
@@ -1282,6 +1289,7 @@ def plot_Q_targets(
     plot_qin: bool = False,
     ylim: list | tuple | None = None,
     ylog: bool = False,
+    use_q_out: bool = True
 ):
     """Plot total heat flow to each divertor leg
 
@@ -1290,7 +1298,7 @@ def plot_Q_targets(
     :param savepath: where to save figure
     """
     if heat_flux == "conductive":
-        qin, q1, q2, q3, q4 = get_q_legs(ds)
+        qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out)
     elif heat_flux == "convective":
         qin, q1, q2, q3, q4 = get_q_legs_conv(ds)
     if ds.metadata["grid_units"] == "cm":
@@ -1341,7 +1349,7 @@ def plot_Q_targets(
         fig.savefig(savepath)
 
 
-def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
+def get_q_legs(ds: xr.Dataset, use_q_out: bool = True) -> tuple[xr.DataArray]:
     """Get the heat flux into each divertor leg, assuming snowflake configuration. Note that numbering here is leg 1 = east-most leg, counting up anticlockwise
 
     :param ds: Dataset output from BOUT++ simulation
@@ -1363,7 +1371,7 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
     x3 = range(int(nx / 2))
     y4 = range(ny)
 
-    if "q_out" in list(ds.variables):
+    if use_q_out:
         qin = q_prefactor * (ds["q_out"]).isel(y=-1, x=x0)
         q1 = q_prefactor * (ds["q_out"]).isel(x=-1, y=y1)
         q2 = q_prefactor * (ds["q_out"]).isel(y=0, x=x2)
@@ -1376,8 +1384,8 @@ def get_q_legs(ds: xr.Dataset) -> tuple[xr.DataArray]:
         q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
         q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
 
-    q1[:,-1] = 0
-    q4[:,-1] = 0
+    # q1[:,-1] = 0
+    # q4[:,-1] = 0
 
     return qin, q1, q2, q3, q4
 
@@ -1414,13 +1422,13 @@ def get_q_legs_conv(ds: xr.Dataset) -> tuple[xr.DataArray]:
     return qin, q1, q2, q3, q4
 
 
-def get_Q_legs(ds: xr.Dataset):
+def get_Q_legs(ds: xr.Dataset, use_q_out: bool = True):
     """Get line-integrated heat flux going into each divertor leg, assuming snowflake configuration
 
     :param ds: xarray dataset
     :return: Qin, Q1 Q2, Q3, Q4
     """
-    qin, q1, q2, q3, q4 = get_q_legs(ds)
+    qin, q1, q2, q3, q4 = get_q_legs(ds, use_q_out)
     if ds.metadata["grid_units"] == "cm":
         Q_prefactor = 1 / 100.0
     elif ds.metadata["grid_units"] == "m":
@@ -1812,6 +1820,7 @@ def plot_nulls(
     num: int = 2,
     timestep: int = 0,
     cmap: str = "inferno",
+    levels=100,
 ) -> list:
     """Use magnetic pressure minimums to identify location of null points and plot
 
@@ -1836,7 +1845,7 @@ def plot_nulls(
 
     fig, ax = plt.subplots(1)
 
-    ax.pcolormesh(ds.x, ds.y, ds["P"].isel(t=timestep).values.T, cmap=cmap)
+    cf = ax.contourf(ds.x, ds.y, ds["P"].isel(t=timestep).values.T, cmap=cmap, levels=levels, extend="both")
     ax.contour(
         ds.x,
         ds.y,
@@ -1846,6 +1855,7 @@ def plot_nulls(
         linestyles=["--", "-"],
     )
     ax.scatter([x1, x2], [y1, y2], color="red", marker="x", zorder=999)
+    fig.colorbar(cf, ax=ax)
 
     print("")
     print(r"psi_1 = {:.5f} ".format(psi1))
@@ -2888,13 +2898,13 @@ def get_p_null(ds, t: int = 0):
     return p_null
 
 
-def plot_power_balance(ds, P_in):
+def plot_power_balance(ds, P_in, use_q_out: bool = True):
     """Plot conductive and convective power balance. Assumes simulation uses fixed P_in
 
     :param ds: xarray Dataset
     :param P_in: P_in setting used in simulation [MW] (this will be divided by 2*pi*R_0 as in the code)
     """
-    q_cond = get_q_legs(ds)
+    q_cond = get_q_legs(ds, use_q_out)
     q_conv = get_q_legs_conv(ds)
 
     if ds.metadata["grid_units"] == "cm":

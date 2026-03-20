@@ -38,15 +38,14 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
-    // result.getMesh()->communicate(b);
-    result = div_q_par_modified_stegmeir_2(input, b);
+    result = div_q_par_modified_stegmeir_2(input, b, false);
     // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
     // result.setBoundaryTo(input);
     return result;
 };
 
-Field3D Q_plus_2(const Field3D &u, const Vector3D &b)
+Field3D Q_plus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     TRACE("Q_plus");
 
@@ -57,6 +56,9 @@ Field3D Q_plus_2(const Field3D &u, const Vector3D &b)
 
     Mesh* mesh = result.getMesh();
     Coordinates *coord = mesh->getCoordinates();
+
+    int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+    int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
 
     result = 0.0;
     for (auto i : result)
@@ -92,6 +94,79 @@ Field3D Q_plus_2(const Field3D &u, const Vector3D &b)
 
         result[i] = (u_plus - u[i]) / ds;
 
+        // Check if extrapolating across boundary
+        if (parallel_neumann_BC)
+        {
+            if (mesh->lastY(i.x()))
+            {
+                if (i.y() == mesh->LocalNy - ngcy - 1)
+                {
+                    if (y_plus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == mesh->LocalNy - ngcy)
+                {
+                    if (y_plus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            if (mesh->firstY(i.x()))
+            {
+                if (i.y() == ngcy)
+                {
+                    if (y_plus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == ngcy - 1)
+                {
+                    if (y_plus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            if (mesh->lastX())
+            {
+                if (i.x() == mesh->LocalNx - ngcx - 1)
+                {
+                    if (x_plus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.x() == mesh->LocalNx - ngcx)
+                {
+                    if (x_plus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            if (mesh->firstX())
+            {
+                if (i.x() == ngcx)
+                {
+                    if (x_plus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.x() == ngcx - 1)
+                {
+                    if (x_plus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+        }
+        
     }
 
     return result;
@@ -147,7 +222,7 @@ Field3D Q_plus_T_2(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D Q_minus_2(const Field3D &u, const Vector3D &b)
+Field3D Q_minus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     TRACE("Q_minus");
 
@@ -158,6 +233,9 @@ Field3D Q_minus_2(const Field3D &u, const Vector3D &b)
 
     Mesh* mesh = result.getMesh();
     Coordinates *coord = mesh->getCoordinates();
+
+    int ngcx = (mesh->GlobalNx - mesh->GlobalNxNoBoundaries) / 2;
+    int ngcy = (mesh->GlobalNy - mesh->GlobalNyNoBoundaries) / 2;
 
     result = 0.0;
     for (auto i : result)
@@ -193,6 +271,80 @@ Field3D Q_minus_2(const Field3D &u, const Vector3D &b)
         K_par_minus = (1.0 - f_y) * ((1 - f_x) + f_x) + f_y * ((1 - f_x) + f_x);
 
         result[i] = -(u_minus - u[i]) / ds;
+
+        if (parallel_neumann_BC)
+        {
+            if (mesh->lastY(i.x()))
+            {
+                // Prevent heat crossing the upstream boundary
+                if (i.y() == mesh->LocalNy - ngcy - 1)
+                {
+                    if (y_minus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == mesh->LocalNy - ngcy)
+                {
+                    if (y_minus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    } 
+                }
+            }
+            if (mesh->firstY(i.x()))
+            {
+                if (i.y() == ngcy)
+                {
+                    if (y_minus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.y() == ngcy - 1)
+                {
+                    if (y_minus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            if (mesh->lastX())
+            {
+                if (i.x() == mesh->LocalNx - ngcx - 1)
+                {
+                    if (x_minus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.x() == mesh->LocalNx - ngcx)
+                {
+                    if (x_minus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            if (mesh->firstX())
+            {
+                if (i.x() == ngcx)
+                {
+                    if (x_minus > 0.0)
+                    {
+                        result[i] = 0.0;
+                    }                    
+                }
+                else if (i.x() == ngcx - 1)
+                {
+                    if (x_minus < 0.0)
+                    {
+                        result[i] = 0.0;
+                    }
+                }
+            }
+            
+        }
 
     }
 
@@ -249,14 +401,14 @@ Field3D Q_minus_T_2(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Vector3D &b)
+Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
 
     Field3D q_par_plus, q_par_minus, result;
-    q_par_plus = Q_plus_2(T, b);
-    q_par_minus = Q_minus_2(T, b);
+    q_par_plus = Q_plus_2(T, b, parallel_neumann_BC);
+    q_par_minus = Q_minus_2(T, b, parallel_neumann_BC);
 
     result = -0.5 * (Q_plus_T_2(q_par_plus, b) + Q_minus_T_2(q_par_minus, b));
 
