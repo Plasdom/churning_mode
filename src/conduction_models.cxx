@@ -1443,8 +1443,8 @@ Field3D Churn::div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_pa
     Field3D ds;
     BoutReal dz;
 
-    q_par_plus = Q_plus(T, K_par, b, apply_core_boundary);
-    q_par_minus = Q_minus(T, K_par, b, apply_core_boundary);
+    q_par_plus = Q_plus(T, K_par, b, apply_core_boundary, psi_core_bndry);
+    q_par_minus = Q_minus(T, K_par, b, apply_core_boundary, psi_core_bndry);
     q_par = -0.5 * (q_par_plus + q_par_minus) * b;
     // q_par = -q_par_plus * b;
     result = -0.5 * (Q_plus_T(q_par_plus, b) + Q_minus_T(q_par_minus, b));
