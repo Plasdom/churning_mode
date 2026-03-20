@@ -1150,10 +1150,13 @@ Field3D Churn::Q_plus(const Field3D &u, const Field3D &K_par, const Vector3D &b,
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
-        K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        // K_par_plus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        // K_par_plus = (1.0 - 0.5*f_y) * ((1 - 0.5*f_x) * K_par(i.x() + n_x, i.y() + n_y, i.z()) + 0.5*f_x * K_par(i.x() + n_x + 1, i.y() + n_y, i.z())) + 0.5*f_y * ((1 - 0.5*f_x) * K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + 0.5*f_x * K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        K_par_plus = 0.25 * (K_par(i.x() + n_x, i.y() + n_y, i.z()) + K_par(i.x() + n_x + 1, i.y() + n_y, i.z()) + K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
         // result[i] = K_par[i] * (u_plus - u[i]) / ds;
-        result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
+        // result[i] = 0.5 * (K_par[i] + K_par_plus) * (u_plus - u[i]) / ds;
+        result[i] = K_par_plus * (u_plus - u[i]) / ds;
 
         // Check if extrapolating across boundary
         if (apply_core_boundary)
@@ -1310,10 +1313,13 @@ Field3D Churn::Q_minus(const Field3D &u, const Field3D &K_par, const Vector3D &b
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        // K_par_minus = (1.0 - f_y) * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        // K_par_minus = (1.0 - 0.5*f_y) * ((1 - 0.5*f_x) * K_par(i.x() - n_x, i.y() - n_y, i.z()) + 0.5*f_x * K_par(i.x() - n_x - 1, i.y() - n_y, i.z())) + 0.5*f_y * ((1 - 0.5*f_x) * K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + 0.5*f_x * K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
+        K_par_minus = 0.25 * (K_par(i.x() - n_x, i.y() - n_y, i.z()) + K_par(i.x() - n_x - 1, i.y() - n_y, i.z()) + K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
         // result[i] = -K_par[i] * (u_minus - u[i]) / ds;
-        result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
+        // result[i] = -0.5 * (K_par[i] + K_par_minus) * (u_minus - u[i]) / ds;
+        result[i] = -K_par_minus * (u_minus - u[i]) / ds;
 
         // Check if extrapolating across boundary
         if (apply_core_boundary)
