@@ -100,11 +100,11 @@ int Churn::rhs(BoutReal t)
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, zero_div_Jpar_BC);
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, true);
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
-                phi_rhs -= (eta * beta_p / 2.0) * V_dot_Grad(u, D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
+                phi_rhs += (eta * beta_p / 2.0) * (DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * DDY(phi));
             }
             phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
@@ -142,11 +142,11 @@ int Churn::rhs(BoutReal t)
     if (electrostatic){
         if (include_thermal_force_term)
         {
-            J = b0 * 0.5 * (Q_plus_2(1.71 * delta * P - phi, B/B_mag, zero_div_Jpar_BC) + Q_minus_2(1.71 * delta * P - phi, B/B_mag, zero_div_Jpar_BC))/eta;
+            J = b0 * 0.5 * (Q_plus_2(1.71 * delta * P - phi, B/B_mag, true) + Q_minus_2(1.71 * delta * P - phi, B/B_mag, true))/eta;
         }
         else 
         {
-            J = -b0 * 0.5 * (Q_plus_2(phi, B/B_mag, zero_div_Jpar_BC) + Q_minus_2(phi, B/B_mag, zero_div_Jpar_BC))/eta;
+            J = -b0 * 0.5 * (Q_plus_2(phi, B/B_mag, true) + Q_minus_2(phi, B/B_mag, true))/eta;
         }
     }
     else 
