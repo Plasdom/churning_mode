@@ -108,11 +108,11 @@ int Churn::rhs(BoutReal t)
             }
             phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
+        // phi_rhs.applyBoundary("dirichlet(0)");
 
         if (invert_laplace)
         {
             // Solve potential directly
-            phi_rhs.applyBoundary("dirichlet(0)");
             phi = mySolver2.invert(phi_rhs, phi);
             mesh->communicate(phi);
             try
@@ -132,7 +132,7 @@ int Churn::rhs(BoutReal t)
         else
         {
             // Solve via a diffusion equation
-            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag, zero_div_Jpar_BC)/phi_constraint_lambda_2 - phi_rhs);
+            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag, false)/phi_constraint_lambda_2 - phi_rhs);
         }
     }
     // phi.applyBoundary("dirichlet");
