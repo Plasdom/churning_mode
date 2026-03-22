@@ -10,6 +10,7 @@ int Churn::rhs(BoutReal t)
 
     T = P; // Assume normalised n = 1 if density is not evolved
 
+
     // Calculate resistivity 
     if (use_spitzer_resistivity)
     {
@@ -42,6 +43,12 @@ int Churn::rhs(BoutReal t)
         B_mag = abs(B);
     }
     mesh->communicate(B,B_mag,eta);
+
+    if (fixed_Q_in)
+    {
+        parallel_neumann_yup(P, B/B_mag);
+        parallel_neumann_yup(T, B/B_mag);
+    }
 
     // Apply upstream P boundary condition
     //TODO: Check switch logic here, what happens if more than one of these enabled?
