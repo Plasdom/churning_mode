@@ -135,7 +135,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     // Get normalisation and derived parameters
     c = 1.0;
     rho = (m_i + m_e) * n_sepx;
-    P_0 = e * n_sepx * T_sepx;
+    P_0 = 2.0 * e * n_sepx * T_sepx;
     C_s0 = sqrt(P_0 / rho);
     t_0 = a_mid / C_s0;
     D_0 = a_mid * C_s0;

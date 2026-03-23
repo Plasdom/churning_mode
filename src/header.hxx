@@ -231,7 +231,7 @@ private:
     Field3D Q_minus_T(const Field3D &u, const Vector3D &b);
     Field3D div_q_par_modified_stegmeir(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
     Field3D div_q_par_modified_stegmeir_efficient(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &apply_core_boundary = true, const BoutReal &psi_core_bndry=0.0);
-    Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low = 10.0, const BoutReal &Te_limit_ev_high = 500.0);
+    Field3D spitzer_harm_conductivity(const Field3D &T, const BoutReal &Te_limit_ev_low = 10.0, const BoutReal &Te_limit_ev_high = 1000.0);
     Field3D calculate_q_out(const Field3D &T, const Field3D &kappa_par, const Field3D &kappa_perp, const Vector3D &b);
     Field3D calculate_q_out_conv(const Field3D &P, const Vector3D &u);
 

@@ -1025,7 +1025,8 @@ def plot_q_targets(
     normalise: bool = False,
     timestep: int = -1,
     xaxis: str = "spatial",
-    use_q_out: bool= True
+    use_q_out: bool= True,
+    direction: str = "out"
 ):
     """Plot q_tot to each diverotr leg (assuming snowflake config)
 
@@ -1041,7 +1042,7 @@ def plot_q_targets(
     x2 = range(int(nx / 2), nx)
     x3 = range(int(nx / 2))
     y4 = range(ny)
-    qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out)
+    qin, q1, q2, q3, q4 = get_q_legs(ds,use_q_out, direction=direction)
     Qin, Q1, Q2, Q3, Q4 = get_Q_legs(ds,use_q_out)
 
     if normalise:
@@ -1349,10 +1350,11 @@ def plot_Q_targets(
         fig.savefig(savepath)
 
 
-def get_q_legs(ds: xr.Dataset, use_q_out: bool = True) -> tuple[xr.DataArray]:
+def get_q_legs(ds: xr.Dataset, use_q_out: bool = False, direction: str="out") -> tuple[xr.DataArray]:
     """Get the heat flux into each divertor leg, assuming snowflake configuration. Note that numbering here is leg 1 = east-most leg, counting up anticlockwise
 
     :param ds: Dataset output from BOUT++ simulation
+    :param direction: Direction: "out", "pol", "par"
     :return: qin, q1, q2, q3, q4
     """
     q_prefactor = 1e-6 * (ds.metadata["P_0"] * ds.metadata["C_s0"])
@@ -1378,11 +1380,28 @@ def get_q_legs(ds: xr.Dataset, use_q_out: bool = True) -> tuple[xr.DataArray]:
         q3 = q_prefactor * (ds["q_out"]).isel(y=0, x=x3)
         q4 = q_prefactor * (ds["q_out"]).isel(x=0, y=y4)
     else:
-        qin = -q_prefactor * (ds["q_cond_y"]).isel(y=-1, x=x0)
-        q1 = q_prefactor * (ds["q_cond_x"]).isel(x=-1, y=y1)
-        q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
-        q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
-        q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
+        if direction == "out":
+            qin = -q_prefactor * (ds["q_cond_y"]).isel(y=-1, x=x0)
+            q1 = q_prefactor * (ds["q_cond_x"]).isel(x=-1, y=y1)
+            q2 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x2)
+            q3 = -q_prefactor * (ds["q_cond_y"]).isel(y=0, x=x3)
+            q4 = -q_prefactor * (ds["q_cond_x"]).isel(x=0, y=y4)
+        elif direction == "pol":
+            q_pol = np.sqrt(ds["q_cond_x"]**2 + ds["q_cond_y"]**2)
+            qin = q_prefactor * q_pol.isel(y=-1, x=x0)
+            q1 = q_prefactor * q_pol.isel(x=-1, y=y1)
+            q2 = q_prefactor * q_pol.isel(y=0, x=x2)
+            q3 = q_prefactor * q_pol.isel(y=0, x=x3)
+            q4 = q_prefactor * q_pol.isel(x=0, y=y4)
+        elif direction == "par":
+            q_pol = np.sqrt(ds["q_cond_x"]**2 + ds["q_cond_y"]**2)
+            Bp = np.sqrt(ds["B_x"]**2 + ds["B_y"]**2) * ds.metadata["B_t0"]
+            B = np.sqrt(ds["B_x"]**2 + ds["B_y"]**2 * ds["B_z"]**2) * ds.metadata["B_t0"]
+            qin = q_prefactor * (q_pol * B / Bp).isel(y=-1, x=x0)
+            q1 = q_prefactor * (q_pol * B / Bp).isel(x=-1, y=y1)
+            q2 = q_prefactor * (q_pol * B / Bp).isel(y=0, x=x2)
+            q3 = q_prefactor * (q_pol * B / Bp).isel(y=0, x=x3)
+            q4 = q_prefactor * (q_pol * B / Bp).isel(x=0, y=y4)
 
     # q1[:,-1] = 0
     # q4[:,-1] = 0
