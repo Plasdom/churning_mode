@@ -102,23 +102,25 @@ int Churn::rhs(BoutReal t)
         {
             if (include_churn_drive_term)
             {
-                phi_rhs += epsilon * eta * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
+                phi_rhs += epsilon * beta_p * (-cos(alpha_rot) * b0 * DDY(P)) + (sin(alpha_rot) * b0 * DDX(P));
                 phi_rhs.applyBoundary("dirichlet(0)");
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, false);
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, B/B_mag, false) / eta;
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
-                phi_rhs += b0 * (eta * beta_p / 2.0) * (DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * DDY(phi));
+                phi_rhs += b0 * (beta_p / 2.0) * (DDX(phi) * DDY(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDX(D2DX2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")) * DDY(phi));
             }
-            phi_rhs += ((mu/D_0) * beta_p * eta / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+            phi_rhs += ((mu/D_0) * beta_p / 2.0) * (D4DX4(phi) + D4DY4(phi) + 2.0*D2DX2(D2DY2(phi, CELL_CENTER, "DEFAULT", "RGN_ALL")));
         }
-        // phi_rhs.applyBoundary("dirichlet(0)");
 
         if (invert_laplace)
         {
+            // Can we find a way to avoid doing this? I do not think this is the correct BC
+            phi_rhs.applyBoundary("dirichlet(0)");
+            
             // Solve potential directly
             phi = mySolver2.invert(phi_rhs, phi);
             mesh->communicate(phi);
@@ -126,7 +128,7 @@ int Churn::rhs(BoutReal t)
             {
                 for (int i = 0; i < num_inversion_its; i++)
                 {
-                    phi = mySolver2.invert(phi_rhs, phi);
+                    phi = mySolver2.invert(phi_rhs*eta, phi);
                     // phi.applyBoundary("dirichlet");
                     mesh->communicate(phi);
                 }
@@ -139,7 +141,7 @@ int Churn::rhs(BoutReal t)
         else
         {
             // Solve via a diffusion equation
-            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag, false)/phi_constraint_lambda_2 - phi_rhs);
+            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, B/B_mag, false)/(phi_constraint_lambda_2*eta) - phi_rhs);
         }
     }
     // phi.applyBoundary("dirichlet");
