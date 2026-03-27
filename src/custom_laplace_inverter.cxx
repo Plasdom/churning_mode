@@ -38,14 +38,14 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
-    result = div_q_par_modified_stegmeir_2(input, b, false);
+    result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false);
     // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
     // result.setBoundaryTo(input);
     return result;
 };
 
-Field3D Q_plus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neumann_BC)
+Field3D Q_plus_2(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     TRACE("Q_plus");
 
@@ -91,8 +91,9 @@ Field3D Q_plus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neuma
         f_x = (x_plus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_plus - n_y * coord->dy[i]) / coord->dy[i];
         u_plus = (1.0 - f_y) * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() + n_x, i.y() + n_y + 1, i.z()) + f_x * u(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
+        K_par_plus = 0.25 * (K_par(i.x() + n_x, i.y() + n_y, i.z()) + K_par(i.x() + n_x + 1, i.y() + n_y, i.z()) + K_par(i.x() + n_x, i.y() + n_y + 1, i.z()) + K_par(i.x() + n_x + 1, i.y() + n_y + 1, i.z()));
 
-        result[i] = (u_plus - u[i]) / ds;
+        result[i] = K_par_plus * (u_plus - u[i]) / ds;
 
         // Check if extrapolating across boundary
         if (parallel_neumann_BC)
@@ -222,7 +223,7 @@ Field3D Q_plus_T_2(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D Q_minus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neumann_BC)
+Field3D Q_minus_2(const Field3D &u, const Field3D &K_par, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     TRACE("Q_minus");
 
@@ -268,9 +269,9 @@ Field3D Q_minus_2(const Field3D &u, const Vector3D &b, const bool &parallel_neum
         f_x = (x_minus - n_x * coord->dx[i]) / coord->dx[i];
         f_y = (y_minus - n_y * coord->dy[i]) / coord->dy[i];
         u_minus = (1.0 - f_y) * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y, i.z())) + f_y * ((1 - f_x) * u(i.x() - n_x, i.y() - n_y - 1, i.z()) + f_x * u(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
-        K_par_minus = (1.0 - f_y) * ((1 - f_x) + f_x) + f_y * ((1 - f_x) + f_x);
+        K_par_minus = 0.25 * (K_par(i.x() - n_x, i.y() - n_y, i.z()) + K_par(i.x() - n_x - 1, i.y() - n_y, i.z()) + K_par(i.x() - n_x, i.y() - n_y - 1, i.z()) + K_par(i.x() - n_x - 1, i.y() - n_y - 1, i.z()));
 
-        result[i] = -(u_minus - u[i]) / ds;
+        result[i] = -K_par_minus * (u_minus - u[i]) / ds;
 
         if (parallel_neumann_BC)
         {
@@ -401,14 +402,14 @@ Field3D Q_minus_T_2(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Vector3D &b, const bool &parallel_neumann_BC)
+Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &parallel_neumann_BC)
 {
     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
 
     Field3D q_par_plus, q_par_minus, result;
-    q_par_plus = Q_plus_2(T, b, parallel_neumann_BC);
-    q_par_minus = Q_minus_2(T, b, parallel_neumann_BC);
+    q_par_plus = Q_plus_2(T, K_par, b, parallel_neumann_BC);
+    q_par_minus = Q_minus_2(T, K_par, b, parallel_neumann_BC);
 
     result = -0.5 * (Q_plus_T_2(q_par_plus, b) + Q_minus_T_2(q_par_minus, b));
 

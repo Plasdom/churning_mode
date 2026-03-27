@@ -369,6 +369,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm2.b = B / B_mag;
         mm2.dx = coord->dx;
         mm2.dy = coord->dy;
+        mm2.resistivity = eta;
         mySolver2.setOperatorFunction(mm2);
         mySolver2.setup();
 
