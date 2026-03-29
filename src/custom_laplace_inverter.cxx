@@ -38,7 +38,7 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
-    result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false);
+    result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false, true);
     // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
     // result.setBoundaryTo(input);
@@ -402,14 +402,24 @@ Field3D Q_minus_T_2(const Field3D &u, const Vector3D &b)
     return result;
 }
 
-Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &parallel_neumann_BC)
+Field3D div_q_par_modified_stegmeir_2(const Field3D &T, const Field3D &K_par, const Vector3D &b, const bool &parallel_neumann_BC, const bool &dirichlet_BC)
 {
     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
     TRACE("div_q_par_modified_stegmeir");
 
+    // Set boundary values to 0
+    Field3D T_modified;
+    if (dirichlet_BC)
+    {
+        T_modified = custom_dirichlet_BC(T);
+    }
+    else{
+        T_modified = T;
+    }    
+
     Field3D q_par_plus, q_par_minus, result;
-    q_par_plus = Q_plus_2(T, K_par, b, parallel_neumann_BC);
-    q_par_minus = Q_minus_2(T, K_par, b, parallel_neumann_BC);
+    q_par_plus = Q_plus_2(T_modified, K_par, b, parallel_neumann_BC);
+    q_par_minus = Q_minus_2(T_modified, K_par, b, parallel_neumann_BC);
 
     result = -0.5 * (Q_plus_T_2(q_par_plus, b) + Q_minus_T_2(q_par_minus, b));
 
@@ -465,6 +475,51 @@ Field3D div_q_par_classic_2(const Field3D &T, const Vector3D &b)
         ddx_minus = (0.5 / (coord->dx[i])) * (T[i.ym().xp()] - T[i.ym().xm()]);
 
         result[i] += (0.5 / (coord->dy[i])) * (b.x[i.yp()] * b.y[i.yp()] * ddx_plus - b.x[i.ym()] * b.y[i.ym()] * ddx_minus);
+    }
+
+    return result;
+}
+
+Field3D custom_dirichlet_BC(const Field3D &f)
+{
+    // Set all boundary values to zero
+    TRACE("custom_dirichlet_BC");
+
+    Field3D result = f;
+    Mesh* mesh = f.getMesh();
+    int ngcy = 2;
+    int ngcx = 2;
+    for(auto i: result)
+    {
+        if (mesh->lastY(i.x()))
+        {
+            // Prevent heat crossing the upstream boundary
+            if (i.y() > mesh->LocalNy - ngcy - 1)
+            {  
+                result[i] = 0.0;               
+            }
+        }
+        if (mesh->firstY(i.x()))
+        {
+            if (i.y() < ngcy)
+            {      
+                result[i] = 0.0;             
+            }
+        }
+        if (mesh->lastX())
+        {
+            if (i.x() > mesh->LocalNx - ngcx - 1)
+            {  
+                result[i] = 0.0;             
+            }
+        }
+        if (mesh->firstX())
+        {
+            if (i.x() < ngcx)
+            {
+                result[i] = 0.0; 
+            }
+        }
     }
 
     return result;

@@ -31,6 +31,9 @@ int Churn::rhs(BoutReal t)
 
     // Calculate velocity
     mesh->communicate(phi);
+    if (invert_laplace && electrostatic && (!evolve_vorticity)){
+        phi = custom_dirichlet_BC(phi);
+    }
     u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
     if (phi_BC_width == 0)
     {
