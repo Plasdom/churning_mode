@@ -112,7 +112,7 @@ int Churn::rhs(BoutReal t)
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false);
+                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false) / nu;
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
@@ -146,7 +146,7 @@ int Churn::rhs(BoutReal t)
         else
         {
             // Solve via a diffusion equation
-            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, 1.0/eta, B/B_mag, false)/(phi_constraint_lambda_2) - phi_rhs);
+            ddt(phi) = (phi_constraint_lambda_1/D_0) * (div_q_par_modified_stegmeir_2(phi, 1.0/eta, B/B_mag, false)/(phi_constraint_lambda_2 * nu) - phi_rhs);
         }
     }
     // phi.applyBoundary("dirichlet");

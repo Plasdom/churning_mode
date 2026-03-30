@@ -38,7 +38,7 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
-    result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false, true);
+    result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false, true) / nu;
     // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
     // result.setBoundaryTo(input);
