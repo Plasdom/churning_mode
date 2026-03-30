@@ -22,9 +22,9 @@ int Churn::rhs(BoutReal t)
         for (auto i: eta)
         {
             T_capped = std::min(std::max(T[i]*T_sepx,T_min_ev),T_max_ev);
-            eta[i] = 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
+            eta[i] = 0.51 * 1.0e-4*lambda_ei*pow(T_capped,-3.0/2.0);
         }
-        eta = eta * eta_0;
+        eta = eta / eta_0;
         mm2.resistivity = eta;
         mySolver2.setOperatorFunction(mm2);
     }
