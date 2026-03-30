@@ -112,7 +112,7 @@ int Churn::rhs(BoutReal t)
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false) / nu;
+                phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false) / nu;
             }
             if (include_ES_novort_lapinv_inertial_term)
             {
@@ -156,7 +156,7 @@ int Churn::rhs(BoutReal t)
     if (electrostatic){
         if (include_thermal_force_term)
         {
-            J = b0 * 0.5 * (Q_plus_2(1.71 * delta * P - phi, 1.0/eta, B/B_mag, true) + Q_minus_2(1.71 * delta * P - phi, 1.0/eta, B/B_mag, true));
+            J = b0 * 0.5 * (Q_plus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, true) + Q_minus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, true));
         }
         else 
         {
@@ -291,7 +291,7 @@ int Churn::rhs(BoutReal t)
         if (include_thermal_force_term)
         {
             // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
-            thermal_force_term = -1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+            thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
             ddt(psi) += b0 * thermal_force_term;
         }
 
@@ -343,9 +343,7 @@ int Churn::rhs(BoutReal t)
             {
                 if (include_thermal_force_term)
                 {
-                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 1.71 * delta * P, 1.0/eta, B/B_mag, false));
-                    // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * D2DY2(phi/phi_constraint_lambda_2 - 1.71 * delta * P)/eta);
-                    // ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_gunter(phi - 1.71 * delta * P, 1/eta, B/B_mag));
+                    ddt(omega) += -b0 * (2.0 / (beta_p)) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 2.0 * 1.71 * delta * P, 1.0/eta, B/B_mag, false));
                 }
                 else 
                 {
