@@ -39,14 +39,12 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 Field3D customParLaplaceInverter::operator()(const Field3D &input)
 {
     result = div_q_par_modified_stegmeir_2(input, 1.0/resistivity, b, false, true) / nu;
-    result += visc * (D4DX4(input) + D4DY4(input) + 2.0*D2DX2(D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")));
+    result -= visc * (D4DX4(input) + D4DY4(input) + 2.0*D2DX2(D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")));
     if (add_inertial_term)
     {
-        result += b0 * (DDX(input) * DDY(D2DX2(input, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDX(D2DX2(input, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")) * DDY(input));
+        result -= b0 * (DDX(input) * DDY(D2DX2(input, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")) - DDX(D2DX2(input, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(input, CELL_CENTER, "DEFAULT", "RGN_ALL")) * DDY(input));
     }
-    // result = div_q_par_classic_2(input, b);
     result.applyBoundary("dirichlet(0)");
-    // result.setBoundaryTo(input);
     return result;
 };
 
