@@ -2021,6 +2021,7 @@ def animate_nulls(
                     ds_plot["psi"].isel(t=i * plot_every).values.T,
                     levels=np.sort([psi1]),
                     colors="white",
+                    alpha=0.5,
                     linestyles=["-", "-"],
                     zorder=998,
                 )
@@ -2043,6 +2044,7 @@ def animate_nulls(
                     ds_plot["psi"].isel(t=i * plot_every).values.T,
                     levels=np.sort([psi1, psi2]),
                     colors="white",
+                    alpha=0.5,
                     linestyles=["-", "-"],
                     zorder=998,
                 )

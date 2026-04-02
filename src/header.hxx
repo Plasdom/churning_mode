@@ -59,7 +59,8 @@ struct customParLaplaceInverter
     Vector3D b;
     Field3D result, dx, dy;
     Field3D resistivity;
-    BoutReal nu;
+    BoutReal nu, visc, b0;
+    bool add_inertial_term;
 
     Field3D operator()(const Field3D &input);
 };

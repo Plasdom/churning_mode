@@ -372,6 +372,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm2.dy = coord->dy;
         mm2.resistivity = eta;
         mm2.nu = nu;
+        mm2.visc = mu/D_0;
+        mm2.add_inertial_term = include_ES_novort_lapinv_inertial_term;
+        mm2.b0 = b0;
         mySolver2.setOperatorFunction(mm2);
         mySolver2.setup();
 
