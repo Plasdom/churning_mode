@@ -331,8 +331,18 @@ int Churn::rhs(BoutReal t)
         // Curvature drive
         if (include_churn_drive_term)
         {
-            Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
-            ddt(omega) += curv_drive;
+            if (curv_drive_neumann_BC)
+            {
+                Field3D P_neumann = P;
+                P_neumann.applyBoundary("neumann");
+                Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P_neumann)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P_neumann));
+                ddt(omega) += curv_drive;
+            }
+            else 
+            {
+                Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
+                ddt(omega) += curv_drive;
+            }
         }
         
         // Line bending

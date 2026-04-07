@@ -118,6 +118,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_ES_novort_lapinv_inertial_term = options["include_ES_novort_lapinv_inertial_term"]
                                    .doc("In electrostatic mode, when evolve_vorticity=false and invert_laplace=true, include the inertial term for phi on the right hand side.")
                                    .withDefault(false);
+    curv_drive_neumann_BC = options["curv_drive_neumann_BC"]
+                                   .doc("In electromagnetic curvature drive term, use Neumann BC on P")
+                                   .withDefault(false);
 
     if (invert_laplace)
     {
@@ -154,7 +157,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     {
         eta = 0.0;
         eta_0 = (mu_0 * pow(a_mid,2.0)) / t_0;
-        // SAVE_ONCE(eta_0);
+        SAVE_ONCE(eta_0);
     }
     else 
     {
