@@ -111,7 +111,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
                                    .withDefault(false);
     use_rotated_laplace_cur = options["use_rotated_laplace_cur"]
                                    .doc("Use rotated Laplacian stencil for current calculation (J = del^2 psi).")
-                                   .withDefault(true);
+                                   .withDefault(false);
     evolve_vorticity = options["evolve_vorticity"]
                                    .doc("Evolve vorticity equation. If false, then invert potential equation directly.")
                                    .withDefault(true);

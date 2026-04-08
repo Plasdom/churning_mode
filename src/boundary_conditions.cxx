@@ -289,6 +289,52 @@ void Churn::ddt0_BCs()
     return;
 }
 
+Field3D Churn::set_downstream_bndry_vals(Field3D f, const BoutReal &val)
+{
+    TRACE("custom_dirichlet");
+
+    // X boundaries
+    if (mesh->firstX())
+    {
+        for (int ix = 0; ix < ngcx_tot; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    f(ix, iy, iz) = val;
+                }
+            }
+        }
+    }
+    if (mesh->lastX())
+    {
+        for (int ix = mesh->LocalNx - ngcx_tot; ix < mesh->LocalNx; ix++)
+        {
+            for (int iy = 0; iy < mesh->LocalNy; iy++)
+            {
+                for (int iz = 0; iz < mesh->LocalNz; iz++)
+                {
+                    f(ix, iy, iz) = val;
+                }
+            }
+        }
+    }
+    // Y boundaries
+    for (itl.first(); !itl.isDone(); itl++)
+    {
+        // it.ind contains the x index
+        for (int iy = 0; iy < ngcy_tot; iy++)
+        {
+            for (int iz = 0; iz < mesh->LocalNz; iz++)
+            {
+                f(itl.ind, iy, iz) = val;
+            }
+        }
+    }
+    return f;
+}
+
 void Churn::zero_flow_BC()
 {
     TRACE("zero_flow_BC");

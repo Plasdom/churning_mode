@@ -24,7 +24,7 @@ boltzmann_k = 1.380649e-23
 
 
 def read_boutdata(
-    filepath: str, remove_xgc: bool = True, units: str = "a_mid", ngc: int = 2
+    filepath: str, remove_xgc: bool = True, units: str = "a_mid", keep_xboundaries: bool = False, keep_yboundaries: bool = False, ngc: int = 0
 ) -> xr.Dataset:
     """Read bout dataset with xy geometry
 
@@ -35,8 +35,10 @@ def read_boutdata(
     """
 
     ds = open_boutdataset(
-        chunks={"t": 4},
+        # chunks=None,
         datapath=Path(filepath) / "BOUT.dmp.*.nc",
+        keep_xboundaries=keep_xboundaries,
+        keep_yboundaries=keep_yboundaries
     )
     # Use squeeze() to get rid of the y-dimension, which has length 1 as blob2d does not
     # simulate the parallel dimension.
@@ -1840,6 +1842,8 @@ def plot_nulls(
     timestep: int = 0,
     cmap: str = "inferno",
     levels=100,
+    vmin: float = None,
+    vmax: float = None
 ) -> list:
     """Use magnetic pressure minimums to identify location of null points and plot
 
@@ -1864,7 +1868,7 @@ def plot_nulls(
 
     fig, ax = plt.subplots(1)
 
-    cf = ax.contourf(ds.x, ds.y, ds["P"].isel(t=timestep).values.T, cmap=cmap, levels=levels, extend="both")
+    cf = ax.contourf(ds.x, ds.y, ds["P"].isel(t=timestep).values.T, cmap=cmap, levels=levels, extend="both", vmax=vmax, vmin=vmin)
     ax.contour(
         ds.x,
         ds.y,
@@ -1947,8 +1951,8 @@ def animate_nulls(
     # Generate grid for plotting
     xmin = 0
     xmax = -1
-    xvals = ds_plot["x"][xmin:xmax]
-    yvals = ds_plot["y"][xmin:xmax]
+    xvals = ds_plot["x"]
+    yvals = ds_plot["y"]
     vars = ["T"]
     fig, ax = plt.subplots(nrows=1, ncols=len(vars))
     if len(vars) == 1:
@@ -1962,9 +1966,9 @@ def animate_nulls(
     var_arrays = {}
     # num_levels = 200
     for j, v in enumerate(vars):
-        var_arrays[v] = ds_plot[v].values[:, xmin:xmax, xmin:xmax]
-        ax[j].set_xlim((0, xvals.values.max()))
-        ax[j].set_ylim((0, yvals.values.max()))
+        var_arrays[v] = ds_plot[v].values
+        # ax[j].set_xlim((0, xvals.values.max()))
+        # ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")
 
     if snull:

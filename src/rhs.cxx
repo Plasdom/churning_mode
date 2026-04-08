@@ -7,6 +7,8 @@ int Churn::rhs(BoutReal t)
     {
         mesh->communicate(n);
     }
+    // omega = custom_dirichlet_BC(omega);
+    // P = set_downstream_bndry_vals(P,0.1);
 
     T = P; // Assume normalised n = 1 if density is not evolved
 
