@@ -121,6 +121,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     curv_drive_neumann_BC = options["curv_drive_neumann_BC"]
                                    .doc("In electromagnetic curvature drive term, use Neumann BC on P")
                                    .withDefault(false);
+    fixed_T_down = options["fixed_T_down"]
+                                   .doc("Fixed downstream temperature manually (avoid using BOUT dirichlet BC)")
+                                   .withDefault(false);
 
     if (invert_laplace)
     {
