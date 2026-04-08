@@ -23,7 +23,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     T_sepx = options["T_sepx"].doc("Plasma temperature at separatrix [eV]").withDefault(100.0);
     B_t0 = options["B_t0"].doc("Toroidal field strength [T]").withDefault(2.0);
     B_pmid = options["B_pmid"].doc("Poloidal field strength at outer midplane [T]").withDefault(0.25);
-    T_down = options["T_down"].doc("Downstream fixed temperature [eV]").withDefault(10.0);
+    T_down = options["T_down"].doc("Downstream fixed temperature [T_sepx]").withDefault(0.0);
     D_x = options["D_x"].doc("Peak of additional perpendicular diffusion coefficient [m^2/s]").withDefault(0.0);
     x_1 = options["x_1"].doc("x-coordinate of first X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
     x_2 = options["x_2"].doc("x-coordinate of second X-point (centred on the middle of the simulation domain) [a_mid]").withDefault(0.0);
