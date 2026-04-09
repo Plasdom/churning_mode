@@ -124,6 +124,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     fixed_T_down = options["fixed_T_down"]
                                    .doc("Fixed downstream temperature manually (avoid using BOUT dirichlet BC)")
                                    .withDefault(false);
+    use_custom_dirichlet_phi_inv = options["use_custom_dirichlet_phi_inv"]
+                                   .doc("In phi inversion (EM mode), set boundary cells to zero rather than use BOUT++ dirichlet BC.")
+                                   .withDefault(true);
 
     if (invert_laplace)
     {
@@ -188,6 +191,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         mm.nx_tot = nx_tot;
         mm.ny_tot = ny_tot;
         mm.nz_tot = nz_tot;
+        mm.use_custom_dirichlet = use_custom_dirichlet_phi_inv;
         mySolver.setOperatorFunction(mm);
         mySolver.setup();
         // phi_store = 0.0;

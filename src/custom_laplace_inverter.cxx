@@ -5,7 +5,13 @@ Field3D customLaplaceInverter::operator()(const Field3D &input)
 {
 
     Field3D result = A * input + D * (D2DX2(input) + D2DY2(input));
-    custom_dirichlet_BC(result);
+    if (use_custom_dirichlet)
+    {
+        custom_dirichlet_BC(result);
+    }
+    else{
+        result.applyBoundary("dirichlet");
+    }
 
     return result;
 };

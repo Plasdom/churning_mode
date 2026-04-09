@@ -49,6 +49,7 @@ struct customLaplaceInverter
     BoutReal D = 1.0, A = 0.0;
     int ngcx_tot, ngcy_tot, nx_tot, ny_tot, nz_tot;
     int BC_width;
+    bool use_custom_dirichlet;
     Field3D result;
 
     Field3D operator()(const Field3D &input);
@@ -205,6 +206,7 @@ private:
     bool evolve_vorticity; 
     bool include_ES_novort_lapinv_inertial_term;
     bool curv_drive_neumann_BC;
+    bool use_custom_dirichlet_phi_inv;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
