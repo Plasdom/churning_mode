@@ -13,7 +13,15 @@ int Churn::rhs(BoutReal t)
         P = set_downstream_bndry_vals(P,T_down);
     }
     T = P; // Assume normalised n = 1 if density is not evolved
-
+    
+    // Copy a version of P with neumann BCs 
+    Field3D P_neumann;
+    P_neumann.allocate();
+    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    {
+        P_neumann[i] = P[i];
+    }
+    P_neumann.applyBoundary("neumann"); 
 
     // Calculate resistivity 
     if (use_spitzer_resistivity)
@@ -184,7 +192,14 @@ int Churn::rhs(BoutReal t)
         // TODO: we still have convection across the boundaries even though u should be zero - need to revisit the convection term or calculation of u. Then we can redo some energy analysis stuff
         if (include_advection)
         {
-            ddt(P) = -V_dot_Grad(u, P); 
+            if (P_conv_neumann_BC)
+            {
+                ddt(P) = -V_dot_Grad(u, P_neumann);
+            }
+            else 
+            {
+                ddt(P) = -V_dot_Grad(u, P_neumann);
+            }
         }
         else
         {
@@ -335,10 +350,8 @@ int Churn::rhs(BoutReal t)
         // Curvature drive
         if (include_churn_drive_term)
         {
-            if (curv_drive_neumann_BC)
+            if (P_conv_neumann_BC)
             {
-                Field3D P_neumann = P;
-                P_neumann.applyBoundary("neumann");
                 Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P_neumann)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P_neumann));
                 ddt(omega) += curv_drive;
             }

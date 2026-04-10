@@ -118,8 +118,8 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     include_ES_novort_lapinv_inertial_term = options["include_ES_novort_lapinv_inertial_term"]
                                    .doc("In electrostatic mode, when evolve_vorticity=false and invert_laplace=true, include the inertial term for phi on the right hand side.")
                                    .withDefault(false);
-    curv_drive_neumann_BC = options["curv_drive_neumann_BC"]
-                                   .doc("In electromagnetic curvature drive term, use Neumann BC on P")
+    P_conv_neumann_BC = options["P_conv_neumann_BC"]
+                                   .doc("Use a Neumann BC for pressure in convective terms")
                                    .withDefault(false);
     fixed_T_down = options["fixed_T_down"]
                                    .doc("Fixed downstream temperature manually (avoid using BOUT dirichlet BC)")

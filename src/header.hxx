@@ -205,7 +205,7 @@ private:
     bool zero_div_Jpar_BC; ///< Use a zero current boundary condition on upper y boundary in vorticity equation (electrostatic mode only)
     bool evolve_vorticity; 
     bool include_ES_novort_lapinv_inertial_term;
-    bool curv_drive_neumann_BC;
+    bool P_conv_neumann_BC;
     bool use_custom_dirichlet_phi_inv;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
