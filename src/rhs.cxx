@@ -198,7 +198,7 @@ int Churn::rhs(BoutReal t)
             }
             else 
             {
-                ddt(P) = -V_dot_Grad(u, P_neumann);
+                ddt(P) = -V_dot_Grad(u, P);
             }
         }
         else
