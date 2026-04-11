@@ -119,12 +119,26 @@ int Churn::rhs(BoutReal t)
         {
             if (include_churn_drive_term)
             {
-                phi_rhs += (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
-                phi_rhs.applyBoundary("dirichlet(0)");
+                if (P_conv_neumann_BC)
+                {
+                    phi_rhs += (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P_neumann)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P_neumann));
+                }
+                else 
+                {
+                    phi_rhs += (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
+                }
+                // phi_rhs.applyBoundary("dirichlet(0)");
             }
             if (include_thermal_force_term)
             {
-                phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false) / nu;
+                if (P_conv_neumann_BC)
+                {
+                    phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, true, false) / nu;
+                }
+                else 
+                {
+                    phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false, false) / nu;
+                }
             }
         }
 
