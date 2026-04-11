@@ -324,7 +324,14 @@ int Churn::rhs(BoutReal t)
         if (include_thermal_force_term)
         {
             // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
-            thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+            if (P_conv_neumann_BC)
+            {
+                thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P_neumann) - DDY(psi) * DDX(P_neumann));
+            }
+            else 
+            {
+                thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+            }
             ddt(psi) += b0 * thermal_force_term;
         }
 
