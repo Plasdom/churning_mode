@@ -127,6 +127,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     use_custom_dirichlet_phi_inv = options["use_custom_dirichlet_phi_inv"]
                                    .doc("In phi inversion (EM mode), set boundary cells to zero rather than use BOUT++ dirichlet BC.")
                                    .withDefault(true);
+    parallel_neumann_yup_Pcore = options["parallel_neumann_yup_Pcore"]
+                                   .doc("Use a parallel neumann BC on P outside core on yup boundary.")
+                                   .withDefault(false);
 
     if (invert_laplace)
     {

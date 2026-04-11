@@ -16,12 +16,15 @@ int Churn::rhs(BoutReal t)
     
     // Copy a version of P with neumann BCs 
     Field3D P_neumann;
-    P_neumann.allocate();
-    BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+    if (P_conv_neumann_BC)
     {
-        P_neumann[i] = P[i];
+        P_neumann.allocate();
+        BOUT_FOR(i, mesh->getRegion3D("RGN_ALL"))
+        {
+            P_neumann[i] = P[i];
+        }
+        P_neumann.applyBoundary("neumann"); 
     }
-    P_neumann.applyBoundary("neumann"); 
 
     // Calculate resistivity 
     if (use_spitzer_resistivity)
@@ -60,6 +63,12 @@ int Churn::rhs(BoutReal t)
         B_mag = abs(B);
     }
     mesh->communicate(B,B_mag,eta);
+
+    if (parallel_neumann_yup_Pcore)
+    {
+        parallel_neumann_yup(P, B/B_mag, true);
+        parallel_neumann_yup(T, B/B_mag, true);
+    }
 
     if (fixed_Q_in)
     {

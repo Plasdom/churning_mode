@@ -207,6 +207,7 @@ private:
     bool include_ES_novort_lapinv_inertial_term;
     bool P_conv_neumann_BC;
     bool use_custom_dirichlet_phi_inv;
+    bool parallel_neumann_yup_Pcore;
 
     // std::unique_ptr<LaplaceXY> phiSolver{nullptr};
     customLaplaceInverter mm;
