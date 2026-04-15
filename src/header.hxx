@@ -116,6 +116,7 @@ private:
     // Field3D debugvar;
     // Field3D phi_store;
     // Field3D phi2; 
+    // Field3D resistive_heating_weight;
 
     // Input Parameters
     BoutReal chi_diff;       ///< Isotropic thermal diffusivity [m^2 s^-1]

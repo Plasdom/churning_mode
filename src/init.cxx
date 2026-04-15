@@ -341,6 +341,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
         x_c[i] = mesh->getGlobalXIndex(i.x()) * coord->dx[i] - (mesh->GlobalNx / 2) * coord->dx[i];
         y_c[i] = mesh->getGlobalYIndex(i.y()) * coord->dy[i] - (mesh->GlobalNy / 2) * coord->dy[i];
     }
+    
+    // resistive_heating_weight.allocate();
+    // resistive_heating_weight = exp(-pow((x_c / (a_mid)), 2.0) - pow((y_c / (a_mid)), 2.0));
 
     // chi_perp_eff
     if (evolve_pressure){

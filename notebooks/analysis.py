@@ -381,6 +381,7 @@ def animate_vector(
     vmax: float = 3,
     levels=200,
     linecolour: str = "red",
+    show: bool = False,
     **mpl_kwargs,
 ):
     """Animate vector field
@@ -477,6 +478,9 @@ def animate_vector(
     if savepath is not None:
         anim.save(savepath, fps=fps)
 
+    if show:
+        plt.show()
+
     return anim
 
 
@@ -495,9 +499,10 @@ def plot_vector(
     ax: Axes | None = None,
     vmin: float = 0,
     vmax: float = 3,
-    snull: bool = True,
+    snull: bool = False,
     linecolour: str = "red",
     cbar_label: str = "$p/p_0$",
+    show: bool = False,
     **kwargs,
 ):
     """Plot vector field at a single timestep
@@ -518,7 +523,7 @@ def plot_vector(
     vec_y = ds[vec_var + "_y"]
     vec_mag = np.sqrt(vec_x**2 + vec_y**2)
     if show_cbar:
-        scalar = ds[scalar].clip(max=vmax)
+        scalar = ds[scalar].clip(max=vmax, min=vmin)
     else:
         scalar = ds[scalar]
 
@@ -548,7 +553,7 @@ def plot_vector(
     if show_cbar:
         fig.colorbar(contf, label=cbar_label)
     if show_sepx:
-        x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(ds, timestep=t)
+        x1, x2, y1, y2, psi1, psi2 = find_null_coords_2(ds, timestep=t, n_psi = 5000)
         ax.contour(
             ds.x,
             ds.y,
@@ -557,7 +562,7 @@ def plot_vector(
             linestyles=["-"],
             colors=["gray"],
         )
-        ax.scatter([x1], [y1], marker="x", color="gray")
+        # ax.scatter([x1], [y1], marker="x", color="gray")
         ax.plot([], [], linestyle="-", color="gray", label=r"$\psi_1$")
         if snull is False:
             ax.contour(
@@ -568,7 +573,7 @@ def plot_vector(
                 linestyles=["--"],
                 colors=["gray"],
             )
-            ax.scatter([x2], [y2], marker="x", color="gray")
+            # ax.scatter([x2], [y2], marker="x", color="gray")
             ax.plot([], [], linestyle="--", color="gray", label=r"$\psi_2$")
         ax.legend(loc="upper right")
     # rgb = ls.shade(scalar.isel(t=t).values.T, vert_exag=50, cmap=plt.cm.magma, blend_mode="overlay")
@@ -628,6 +633,9 @@ def plot_vector(
 
     if savepath is not None:
         fig.savefig(savepath, dpi=2400)
+
+    if show:
+        plt.show()
 
     return contf
 
@@ -817,7 +825,8 @@ def animate_q_targets(
     normalise: bool = False,
     savepath: str | None = None,
     snull: bool = False,
-    use_q_out: bool = True
+    use_q_out: bool = True,
+    show: bool = False,
 ):
     """Animate q_tot to each diverotr leg (assuming snowflake config)
 
@@ -1018,6 +1027,9 @@ def animate_q_targets(
     if savepath is not None:
         anim.save(savepath, fps=24)
 
+    if show:
+        plt.show()
+
     return anim
 
 
@@ -1027,8 +1039,9 @@ def plot_q_targets(
     normalise: bool = False,
     timestep: int = -1,
     xaxis: str = "spatial",
-    use_q_out: bool= True,
-    direction: str = "out"
+    use_q_out: bool = True,
+    direction: str = "out",
+    show: bool = False,
 ):
     """Plot q_tot to each diverotr leg (assuming snowflake config)
 
@@ -1157,6 +1170,9 @@ def plot_q_targets(
         ax[1].set_ylabel(r"$\vec{q}\cdot \hat{n}$ [MWm$^{-2}$]")
     ax[-1].set_xlabel(xlabel)
 
+    if show:
+        plt.show()
+
 
 def plot_Q_target_proportions(
     ds: xr.Dataset,
@@ -1166,7 +1182,8 @@ def plot_Q_target_proportions(
     plot_qin: bool = False,
     ylim: list | tuple | None = None,
     snull: bool = False,
-    use_q_out: bool = True
+    use_q_out: bool = True,
+    show: bool = False,
 ):
     """Plot total heat flow to each divertor leg as a stacked plot (assuming snowflake config)
 
@@ -1282,6 +1299,9 @@ def plot_Q_target_proportions(
 
     if savepath is not None:
         fig.savefig(savepath)
+
+    if show:
+        plt.show()
 
 
 def plot_Q_targets(
@@ -1843,7 +1863,8 @@ def plot_nulls(
     cmap: str = "inferno",
     levels=100,
     vmin: float = None,
-    vmax: float = None
+    vmax: float = None,
+    show: bool = False,
 ) -> list:
     """Use magnetic pressure minimums to identify location of null points and plot
 
@@ -1887,6 +1908,9 @@ def plot_nulls(
     ax.set_xlabel("x [cm]")
     ax.set_ylabel("y [cm]")
 
+    if show:
+        plt.show()
+
     return
 
 
@@ -1926,6 +1950,7 @@ def animate_nulls(
     refind_nulls_each_timestep: bool = True,
     show_t0: bool = False,
     snull: bool = False,
+    show: bool = False,
     **mpl_kwargs,
 ):
     """Animate hte position of both nulls over time
@@ -2077,6 +2102,9 @@ def animate_nulls(
     )
     if savepath is not None:
         anim.save(savepath, fps=fps)
+
+    if show:
+        plt.show()
 
     return anim
 

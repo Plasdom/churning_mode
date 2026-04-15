@@ -191,11 +191,11 @@ int Churn::rhs(BoutReal t)
     if (electrostatic){
         if (include_thermal_force_term)
         {
-            J = b0 * 0.5 * (Q_plus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, true) + Q_minus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, true));
+            J = b0 * 0.5 * (Q_plus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, false) + Q_minus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, false));
         }
         else 
         {
-            J = -b0 * 0.5 * (Q_plus_2(phi, 1.0/eta, B/B_mag, true) + Q_minus_2(phi, 1.0/eta, B/B_mag, true));
+            J = -b0 * 0.5 * (Q_plus_2(phi, 1.0/eta, B/B_mag, false) + Q_minus_2(phi, 1.0/eta, B/B_mag, false));
         }
     }
     else 
@@ -288,9 +288,19 @@ int Churn::rhs(BoutReal t)
         // Add resistive heating terms 
         if (include_resistive_heating)
         {
-            ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
-            ddt(P) -= b0 * (2.0/3.0) * (4.0 * 0.71 * delta / beta_p) * J * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+            if (electrostatic)
+            {
+                ddt(P) += (2.0/3.0) * eta * pow(J,2.0);
+                ddt(P) += b0 * (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
+            }
+            else 
+            {
+                ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
+                ddt(P) += b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (0.5 * (Q_plus_2(J, 1.0, B/B_mag, false) + Q_minus_2(J, 1.0, B/B_mag, false)));
+            }
         }
+        // debugvar = (2.0/3.0) * eta * pow(J,2.0);
+        // debugvar += b0 * (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
 
         // // Add resistive convection term 
         // if (include_thermal_force_term)
