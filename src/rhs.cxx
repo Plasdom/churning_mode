@@ -296,7 +296,8 @@ int Churn::rhs(BoutReal t)
             else 
             {
                 ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
-                ddt(P) += b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (0.5 * (Q_plus_2(J, 1.0, B/B_mag, false) + Q_minus_2(J, 1.0, B/B_mag, false)));
+                // ddt(P) += b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (0.5 * (Q_plus_2(J, 1.0, B/B_mag, false) + Q_minus_2(J, 1.0, B/B_mag, false)));
+                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
             }
         }
         // debugvar = (2.0/3.0) * eta * pow(J,2.0);
