@@ -290,15 +290,18 @@ int Churn::rhs(BoutReal t)
         // Add resistive heating terms 
         if (include_resistive_heating)
         {
+            Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
             if (electrostatic)
             {
                 ddt(P) += (2.0/3.0) * eta * pow(J,2.0);
                 // ddt(P) += (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
+                ddt(P) += -(2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * nu * 0.5 * curv_drive;
             }
             else 
             {
                 ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
                 // ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
+                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta) * T * 0.5 * curv_drive;
             }
         }
 
