@@ -143,10 +143,12 @@ int Churn::rhs(BoutReal t)
                 if (P_conv_neumann_BC)
                 {
                     phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, true, false) / nu;
+                    // phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
                 }
                 else 
                 {
                     phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false, false) / nu;
+                    // phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
                 }
             }
         }
@@ -291,17 +293,15 @@ int Churn::rhs(BoutReal t)
             if (electrostatic)
             {
                 ddt(P) += (2.0/3.0) * eta * pow(J,2.0);
-                ddt(P) += b0 * (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
+                ddt(P) += (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
             }
             else 
             {
                 ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
-                // ddt(P) += b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (0.5 * (Q_plus_2(J, 1.0, B/B_mag, false) + Q_minus_2(J, 1.0, B/B_mag, false)));
                 ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
             }
         }
         // debugvar = (2.0/3.0) * eta * pow(J,2.0);
-        // debugvar += b0 * (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
 
         // // Add resistive convection term 
         // if (include_thermal_force_term)

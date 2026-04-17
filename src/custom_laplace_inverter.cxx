@@ -464,6 +464,30 @@ Field3D div_q_par_classic_2(const Field3D &T, const Vector3D &b)
     return result;
 }
 
+// Field3D div_q_par_modified_stegmeir_3(const Field3D &T, const Field3D &K_par, const Vector3D &b, const Field3D &psi, const bool &parallel_neumann_BC, const bool &dirichlet_BC, const BoutReal &dirichlet_val, const bool &apply_outside_core_only, const BoutReal &psi_core)
+// {
+//     // Modified Stegmeir stencil for parallel heat flux divergence term (spatially varying conductivity)
+//     TRACE("div_q_par_modified_stegmeir");
+
+//     // Set boundary values to 0
+//     Field3D T_modified;
+//     if (dirichlet_BC)
+//     {
+//         T_modified = custom_dirichlet_BC_2(T, psi, dirichlet_val, apply_outside_core_only, psi_core);
+//     }
+//     else{
+//         T_modified = T;
+//     }    
+
+//     Field3D q_par_plus, q_par_minus, result;
+//     q_par_plus = Q_plus_2(T_modified, K_par, b, parallel_neumann_BC);
+//     q_par_minus = Q_minus_2(T_modified, K_par, b, parallel_neumann_BC);
+
+//     result = -0.5 * (Q_plus_T_2(q_par_plus, b) + Q_minus_T_2(q_par_minus, b));
+
+//     return result;
+// }
+
 Field3D custom_dirichlet_BC(const Field3D &f)
 {
     // Set all boundary values to zero
@@ -508,3 +532,54 @@ Field3D custom_dirichlet_BC(const Field3D &f)
 
     return result;
 }
+
+// Field3D custom_dirichlet_BC_2(const Field3D &f, const Field3D &psi, const BoutReal &val, const bool &apply_outside_core_only, const BoutReal &psi_core)
+// {
+//     // Set all boundary values to zero
+//     TRACE("custom_dirichlet_BC");
+
+//     Field3D result = f;
+//     Mesh* mesh = f.getMesh();
+//     int ngcy = 2;
+//     int ngcx = 2;
+//     for(auto i: result)
+//     {
+//         if (mesh->lastY(i.x()))
+//         {
+//             if (apply_outside_core_only && (psi(i.x(),i.y(),i.z()) >= psi_core))
+//             {
+//                 // Do nothing
+//             }
+//             else 
+//             {
+//             if (i.y() > mesh->LocalNy - ngcy - 1)
+//             {  
+//                 result[i] = val;        
+//             }
+//         }
+//         }
+//         if (mesh->firstY(i.x()))
+//         {
+//             if (i.y() < ngcy)
+//             {      
+//                 result[i] = val;             
+//             }
+//         }
+//         if (mesh->lastX())
+//         {
+//             if (i.x() > mesh->LocalNx - ngcx - 1)
+//             {  
+//                 result[i] = val;             
+//             }
+//         }
+//         if (mesh->firstX())
+//         {
+//             if (i.x() < ngcx)
+//             {
+//                 result[i] = val; 
+//             }
+//         }
+//     }
+
+//     return result;
+// }
