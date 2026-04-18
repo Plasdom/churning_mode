@@ -343,7 +343,7 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     }
     
     // resistive_heating_weight.allocate();
-    // resistive_heating_weight = exp(-pow((x_c / (a_mid)), 2.0) - pow((y_c / (a_mid)), 2.0));
+    // resistive_heating_weight = exp(-pow((x_c / (0.35*a_mid)), 2.0) - pow((y_c / (0.35*a_mid)), 2.0));
 
     // chi_perp_eff
     if (evolve_pressure){

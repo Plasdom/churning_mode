@@ -136,7 +136,6 @@ int Churn::rhs(BoutReal t)
                 {
                     phi_rhs += (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
                 }
-                // phi_rhs.applyBoundary("dirichlet(0)");
             }
             if (include_thermal_force_term)
             {
@@ -188,7 +187,6 @@ int Churn::rhs(BoutReal t)
     }
     // phi.applyBoundary("dirichlet");
     // mesh->communicate(phi);
-
 
     if (electrostatic){
         if (include_thermal_force_term)
@@ -290,18 +288,15 @@ int Churn::rhs(BoutReal t)
         // Add resistive heating terms 
         if (include_resistive_heating)
         {
-            Field3D curv_drive = (-cos(alpha_rot) * b0 * 2.0 * epsilon * DDY(P)) + (sin(alpha_rot) * b0 * 2.0 * epsilon * DDX(P));
             if (electrostatic)
             {
-                ddt(P) += (2.0/3.0) * eta * pow(J,2.0);
-                // ddt(P) += (2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * ( div_q_par_modified_stegmeir_2(2.0* 1.71 * delta * T - phi, 1/eta, B/B_mag, false, false));
-                ddt(P) += -(2.0/3.0) * (2.0 * 0.71 * delta / nu) * T * nu * 0.5 * curv_drive;
+                ddt(P) += (2.0/3.0) * (2.0 * eta / nu) * J * (J - (b0 * (0.5/eta) * (Q_plus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false))));
             }
             else 
             {
                 ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
-                // ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * T * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
-                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta) * T * 0.5 * curv_drive;
+                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * J * (0.5 * (Q_plus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false)));
+                // ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * 2.0 * 0.71 * delta * T * J;
             }
         }
 
