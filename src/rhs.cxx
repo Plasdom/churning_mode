@@ -343,13 +343,15 @@ int Churn::rhs(BoutReal t)
             // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
             if (P_conv_neumann_BC)
             {
-                thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P_neumann) - DDY(psi) * DDX(P_neumann));
+                // thermal_force_term = -2.0 * 1.71 * delta * b0 * (DDX(psi) * DDY(P_neumann) - DDY(psi) * DDX(P_neumann));
+                thermal_force_term = -2.0 * 1.71 * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P_neumann, 1.0, B/B_mag, false) + Q_minus_2(P_neumann, 1.0, B/B_mag, false));
             }
             else 
             {
-                thermal_force_term = -2.0 * 1.71 * delta * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+                // thermal_force_term = -2.0 * 1.71 * delta * b0 * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+                thermal_force_term = -2.0 * 1.71 * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P, 1.0, B/B_mag, false) + Q_minus_2(P, 1.0, B/B_mag, false));
             }
-            ddt(psi) += b0 * thermal_force_term;
+            ddt(psi) += thermal_force_term;
         }
 
         // Magnetic hyperdiffusion / hyper-resistivity
