@@ -44,17 +44,6 @@ int Churn::rhs(BoutReal t)
         mySolver2.setOperatorFunction(mm2);
     }
 
-    // Calculate velocity
-    mesh->communicate(phi);
-    if (invert_laplace && electrostatic && (!evolve_vorticity)){
-        phi = custom_dirichlet_BC(phi);
-    }
-    u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
-    if (phi_BC_width == 0)
-    {
-        u.applyBoundary("dirichlet");
-    }
-
     // // Calculate B
     if (!electrostatic)
     {
@@ -206,6 +195,17 @@ int Churn::rhs(BoutReal t)
         else {
             J = -(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL") + D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL"));
         }
+    }
+
+    // Calculate velocity
+    mesh->communicate(phi);
+    if (invert_laplace && electrostatic && (!evolve_vorticity)){
+        phi = custom_dirichlet_BC(phi);
+    }
+    u = b0 * cross(e_z, Grad(phi/phi_constraint_lambda_2));
+    if (phi_BC_width == 0)
+    {
+        u.applyBoundary("dirichlet");
     }
 
     // Pressure Evolution
@@ -421,6 +421,7 @@ int Churn::rhs(BoutReal t)
             else 
             {
                 ddt(omega) += -b0 * (2.0 / (beta_p)) * (DDX(psi) * DDY(J) - DDY(psi) * DDX(J));
+                // ddt(omega) += b0 * (2.0 / (beta_p)) * (DDX(psi) * (DDY(D2DX2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DY3(psi)) - DDY(psi) * (DDX(D2DY2(psi, CELL_CENTER, "DEFAULT", "RGN_ALL")) + D3DX3(psi)));
             }
         }
     }
