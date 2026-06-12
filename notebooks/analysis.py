@@ -1951,6 +1951,7 @@ def animate_nulls(
     show_t0: bool = False,
     snull: bool = False,
     show: bool = False,
+    logscale: bool = False,
     **mpl_kwargs,
 ):
     """Animate hte position of both nulls over time
@@ -1991,7 +1992,10 @@ def animate_nulls(
     var_arrays = {}
     # num_levels = 200
     for j, v in enumerate(vars):
-        var_arrays[v] = ds_plot[v].values
+        if logscale:
+            var_arrays[v] = np.log(ds_plot[v].values)
+        else:
+            var_arrays[v] = ds_plot[v].values
         # ax[j].set_xlim((0, xvals.values.max()))
         # ax[j].set_ylim((0, yvals.values.max()))
         ax[j].set_aspect("equal")

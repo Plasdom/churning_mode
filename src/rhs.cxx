@@ -130,13 +130,13 @@ int Churn::rhs(BoutReal t)
             {
                 if (P_conv_neumann_BC)
                 {
-                    phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, true, false) / nu;
-                    // phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
+                    phi_rhs += 2.0 * grad_par_terms_coeff * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, true, false) / nu;
+                    // phi_rhs += 2.0 * grad_par_terms_coeff * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
                 }
                 else 
                 {
-                    phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false, false) / nu;
-                    // phi_rhs += 2.0 * 1.71 * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
+                    phi_rhs += 2.0 * grad_par_terms_coeff * delta * div_q_par_modified_stegmeir_2(P, 1.0/eta, B/B_mag, false, false) / nu;
+                    // phi_rhs += 2.0 * grad_par_terms_coeff * delta * div_q_par_modified_stegmeir_3(P, 1.0/eta, B/B_mag, psi, false, true, 0.2, true, psi_bndry_P_core_BC) / nu;
                 }
             }
         }
@@ -180,7 +180,7 @@ int Churn::rhs(BoutReal t)
     if (electrostatic){
         if (include_thermal_force_term)
         {
-            J = b0 * 0.5 * (Q_plus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, false) + Q_minus_2(2.0 * 1.71 * delta * P - phi, 1.0/eta, B/B_mag, false));
+            J = b0 * 0.5 * (Q_plus_2(2.0 * grad_par_terms_coeff * delta * P - phi, 1.0/eta, B/B_mag, false) + Q_minus_2(2.0 * grad_par_terms_coeff * delta * P - phi, 1.0/eta, B/B_mag, false));
         }
         else 
         {
@@ -290,13 +290,13 @@ int Churn::rhs(BoutReal t)
         {
             if (electrostatic)
             {
-                ddt(P) += (2.0/3.0) * (2.0 * eta / nu) * J * (J - (b0 * (0.5/eta) * (Q_plus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false))));
+                ddt(P) += (2.0/3.0) * (2.0 * eta / nu) * J * (J - (b0 * (0.5/eta) * (Q_plus_2(2.0 * (grad_par_terms_coeff - 1.0) * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * (grad_par_terms_coeff - 1.0) * delta * P, 1.0, B/B_mag, false))));
             }
             else 
             {
                 ddt(P) += (2.0/3.0) * (2.0 * eta / beta_p) * pow(J,2.0);
-                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * 0.71 * delta / beta_p) * J * (0.5 * (Q_plus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * 0.71 * delta * P, 1.0, B/B_mag, false)));
-                // ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * 2.0 * 0.71 * delta * T * J;
+                ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * (4.0 * (grad_par_terms_coeff - 1.0) * delta / beta_p) * J * (0.5 * (Q_plus_2(2.0 * (grad_par_terms_coeff - 1.0) * delta * P, 1.0, B/B_mag, false) + Q_minus_2(2.0 * (grad_par_terms_coeff - 1.0) * delta * P, 1.0, B/B_mag, false)));
+                // ddt(P) += -b0 * (2.0/3.0) * (B_t0/B_pmid) * 2.0 * (grad_par_terms_coeff - 1.0) * delta * T * J;
             }
         }
 
@@ -340,16 +340,16 @@ int Churn::rhs(BoutReal t)
         ddt(psi) -= eta * J;
         if (include_thermal_force_term)
         {
-            // thermal_force_term = (0.71 / B_t0) * grad_par_custom(T, B / B_mag);
+            // thermal_force_term = ((grad_par_terms_coeff - 1.0) / B_t0) * grad_par_custom(T, B / B_mag);
             if (P_conv_neumann_BC)
             {
-                // thermal_force_term = -2.0 * 1.71 * delta * b0 * (DDX(psi) * DDY(P_neumann) - DDY(psi) * DDX(P_neumann));
-                thermal_force_term = -2.0 * 1.71 * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P_neumann, 1.0, B/B_mag, false) + Q_minus_2(P_neumann, 1.0, B/B_mag, false));
+                // thermal_force_term = -2.0 * grad_par_terms_coeff * delta * b0 * (DDX(psi) * DDY(P_neumann) - DDY(psi) * DDX(P_neumann));
+                thermal_force_term = -2.0 * grad_par_terms_coeff * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P_neumann, 1.0, B/B_mag, false) + Q_minus_2(P_neumann, 1.0, B/B_mag, false));
             }
             else 
             {
-                // thermal_force_term = -2.0 * 1.71 * delta * b0 * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
-                thermal_force_term = -2.0 * 1.71 * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P, 1.0, B/B_mag, false) + Q_minus_2(P, 1.0, B/B_mag, false));
+                // thermal_force_term = -2.0 * grad_par_terms_coeff * delta * b0 * (DDX(psi) * DDY(P) - DDY(psi) * DDX(P));
+                thermal_force_term = -2.0 * grad_par_terms_coeff * delta * 0.5 * (B_t0 / B_pmid) * (Q_plus_2(P, 1.0, B/B_mag, false) + Q_minus_2(P, 1.0, B/B_mag, false));
             }
             ddt(psi) += thermal_force_term;
         }
@@ -410,7 +410,7 @@ int Churn::rhs(BoutReal t)
             {
                 if (include_thermal_force_term)
                 {
-                    ddt(omega) += -b0 * (1.0/nu) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 2.0 * 1.71 * delta * P, 1.0/eta, B/B_mag, false));
+                    ddt(omega) += -b0 * (1.0/nu) * (b0 * div_q_par_modified_stegmeir_2(phi/phi_constraint_lambda_2 - 2.0 * grad_par_terms_coeff * delta * P, 1.0/eta, B/B_mag, false));
                 }
                 else 
                 {
@@ -439,7 +439,7 @@ int Churn::rhs(BoutReal t)
     // ddt(omega) -= 0.5 * delta * b0 * (DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(phi, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(lap_P, CELL_CENTER, "DEFAULT", "RGN_ALL"));
     // ddt(omega) -= 0.5 * delta * b0 * (DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDY(omega, CELL_CENTER, "DEFAULT", "RGN_ALL") - DDX(P, CELL_CENTER, "DEFAULT", "RGN_ALL") * DDX(omega, CELL_CENTER, "DEFAULT", "RGN_ALL"));
 
-    // phi = 1.71*delta*P;
+    // phi = grad_par_terms_coeff*delta*P;
 
     //     // // Resistive contribution to vorticity convection
     //     // lap_phi = D2DX2(phi) + D2DY2(phi);

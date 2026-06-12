@@ -130,6 +130,9 @@ int Churn::init(bool restarting) // TODO: Use the restart flag
     parallel_neumann_yup_Pcore = options["parallel_neumann_yup_Pcore"]
                                    .doc("Use a parallel neumann BC on P outside core on yup boundary.")
                                    .withDefault(false);
+    grad_par_terms_coeff = options["grad_par_terms_coeff"]
+                                   .doc("Coefficient for parallel gradient terms in Ohm's law (and as they appear elsewhere). Expected to be either 1.71 (if thermal force included) or 1.0 (if not).")
+                                   .withDefault(1.71);
 
     if (invert_laplace)
     {
